@@ -1,0 +1,187 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with game balances and betting history",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "description": "User email address" },
+        "fullName": { "type": "string", "description": "Display name or Telegram full name" },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "User role" },
+        "balance": { "type": "number", "description": "Main wallet balance in Ks" },
+        "referralBalance": { "type": "number", "description": "Referral commission balance in Ks" },
+        "referralsCount": { "type": "number", "description": "Number of invited users" },
+        "referrerId": { "type": "string", "description": "UID of referrer if invited" },
+        "phoneNumber": { "type": "string", "description": "User mobile phone number for phone authentication" },
+        "passwordHash": { "type": "string", "description": "Hashed password for phone login" },
+        "referralCode": { "type": "string", "description": "Referral code of inviter" },
+        "totalBetCumulative": { "type": "number", "description": "All time total wagered amount in Ks" },
+        "totalSuccessfulDeposit": { "type": "number", "description": "Total approved deposits in Ks" },
+        "withdrawalCount": { "type": "number", "description": "Total successful withdrawals" },
+        "wagerSinceLastWithdrawal": { "type": "number", "description": "Wagered amount since last withdrawal in Ks" },
+        "hasSuccessfulDeposit": { "type": "boolean", "description": "Whether first deposit requirement is satisfied" },
+        "promoClaimedReferrals": { "type": "array", "description": "Array of user IDs for which promo bonus was claimed" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "balance"]
+    },
+    "Round": {
+      "title": "Round",
+      "description": "Game round state and dice results",
+      "type": "object",
+      "properties": {
+        "roundId": { "type": "number", "description": "Incremental round number" },
+        "status": { "type": "string", "enum": ["open", "settling", "settled", "refunded"] },
+        "openedAt": { "type": "number", "description": "Timestamp in milliseconds" },
+        "deadline": { "type": "number", "description": "Timestamp in milliseconds when betting closes" },
+        "durationSeconds": { "type": "number", "description": "Round betting duration" },
+        "dice1": { "type": "number", "description": "Value of first die (1-6)" },
+        "dice2": { "type": "number", "description": "Value of second die (1-6)" },
+        "totalResult": { "type": "number", "description": "Sum of dice (2-12)" },
+        "resultClass": { "type": "string", "enum": ["small", "common", "big"] },
+        "settledAt": { "type": "number", "description": "Settlement timestamp" }
+      },
+      "required": ["roundId", "status", "openedAt", "deadline"]
+    },
+    "Bet": {
+      "title": "Bet",
+      "description": "User bet placed on a specific round",
+      "type": "object",
+      "properties": {
+        "betId": { "type": "string", "description": "Unique bet ID" },
+        "roundId": { "type": "number", "description": "Associated round ID" },
+        "userId": { "type": "string", "description": "User UID" },
+        "userName": { "type": "string", "description": "User display name" },
+        "betKind": { "type": "string", "enum": ["size", "number"] },
+        "selection": { "type": "string", "description": "အကြီး, အသေး, 7, 2..12" },
+        "amount": { "type": "number", "description": "Stake in Ks" },
+        "multiplier": { "type": "number", "description": "Payout multiplier" },
+        "status": { "type": "string", "enum": ["pending", "win", "loss", "refunded"] },
+        "payout": { "type": "number", "description": "Payout amount in Ks" },
+        "profit": { "type": "number", "description": "Net profit in Ks" },
+        "result": { "type": "number", "description": "Dice total result" },
+        "createdAt": { "type": "number", "description": "Creation timestamp" }
+      },
+      "required": ["betId", "roundId", "userId", "betKind", "selection", "amount", "status"]
+    },
+    "Deposit": {
+      "title": "Deposit",
+      "description": "User deposit transaction request",
+      "type": "object",
+      "properties": {
+        "depositId": { "type": "string", "description": "Unique deposit ID" },
+        "userId": { "type": "string", "description": "User UID" },
+        "userName": { "type": "string", "description": "User display name" },
+        "amount": { "type": "number", "description": "Deposit amount in Ks" },
+        "method": { "type": "string", "enum": ["kpay", "wave"] },
+        "phone": { "type": "string", "description": "Sender phone number" },
+        "accountName": { "type": "string", "description": "Sender account name" },
+        "receiptImage": { "type": "string", "description": "Base64 or image URL of transaction receipt" },
+        "status": { "type": "string", "enum": ["pending", "approved", "declined"] },
+        "isFirstDeposit": { "type": "boolean", "description": "Whether this is the first deposit" },
+        "createdAt": { "type": "number" },
+        "reviewedAt": { "type": "number" }
+      },
+      "required": ["depositId", "userId", "amount", "method", "status"]
+    },
+    "Withdrawal": {
+      "title": "Withdrawal",
+      "description": "User withdrawal transaction request",
+      "type": "object",
+      "properties": {
+        "withdrawalId": { "type": "string", "description": "Unique withdrawal ID" },
+        "userId": { "type": "string", "description": "User UID" },
+        "userName": { "type": "string", "description": "User display name" },
+        "amount": { "type": "number", "description": "Withdrawal amount in Ks" },
+        "method": { "type": "string", "enum": ["kpay", "wave"] },
+        "phone": { "type": "string", "description": "Receiver phone number" },
+        "accountName": { "type": "string", "description": "Receiver account name" },
+        "status": { "type": "string", "enum": ["pending", "approved", "declined"] },
+        "receiptImage": { "type": "string", "description": "Payout receipt screenshot" },
+        "createdAt": { "type": "number" },
+        "reviewedAt": { "type": "number" }
+      },
+      "required": ["withdrawalId", "userId", "amount", "method", "phone", "accountName", "status"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Live casino and game configuration parameters",
+      "type": "object",
+      "properties": {
+        "OVER_UNDER_MULTIPLIER": { "type": "number" },
+        "SIX_MULTIPLIER": { "type": "number" },
+        "DEFAULT_NUM_MULTIPLIER": { "type": "number" },
+        "MINIMUM_BET": { "type": "number" },
+        "MINIMUM_DEPOSIT": { "type": "number" },
+        "MINIMUM_FIRST_DEPOSIT": { "type": "number" },
+        "MINIMUM_WITHDRAW": { "type": "number" },
+        "FIRST_WITHDRAW_DEPOSIT_REQUIRED": { "type": "number" },
+        "WITHDRAW_WAGER_PERCENT": { "type": "number" },
+        "WELCOME_BONUS": { "type": "number" },
+        "KPAY_PHONE": { "type": "string" },
+        "KPAY_NAME": { "type": "string" },
+        "WAVE_PHONE": { "type": "string" },
+        "WAVE_NAME": { "type": "string" },
+        "PROMO_BET_THRESHOLD": { "type": "number" },
+        "PROMO_BONUS_AMOUNT": { "type": "number" },
+        "COMMISSION_RATE": { "type": "number" },
+        "MINIMUM_TRANSFER_AMOUNT": { "type": "number" },
+        "ROUND_DURATION_SECONDS": { "type": "number" },
+        "GAME_GROUP_LINK": { "type": "string" }
+      }
+    },
+    "SecurityToken": {
+      "title": "SecurityToken",
+      "description": "Ephemeral one-time action security token for bot prevention and anti-replay",
+      "type": "object",
+      "properties": {
+        "tokenId": { "type": "string" },
+        "userId": { "type": "string" },
+        "action": { "type": "string", "enum": ["bet", "deposit", "withdraw", "claim"] },
+        "consumedAt": { "type": "number" },
+        "expiresAt": { "type": "number" }
+      },
+      "required": ["tokenId", "userId", "action", "consumedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User document containing wallet balance and profile data"
+    },
+    "/admins/{userId}": {
+      "schema": "User",
+      "description": "Admin UID indicator document"
+    },
+    "/rounds/{roundId}": {
+      "schema": "Round",
+      "description": "Dice game round state and outcomes"
+    },
+    "/round_history/{historyId}": {
+      "schema": "Round",
+      "description": "Historical settled rounds log"
+    },
+    "/bets/{betId}": {
+      "schema": "Bet",
+      "description": "Player bet records"
+    },
+    "/deposits/{depositId}": {
+      "schema": "Deposit",
+      "description": "Deposit money requests and receipts"
+    },
+    "/withdrawals/{withdrawalId}": {
+      "schema": "Withdrawal",
+      "description": "Cash withdrawal requests"
+    },
+    "/security_tokens/{tokenId}": {
+      "schema": "SecurityToken",
+      "description": "One-time consumed anti-replay security tokens"
+    },
+    "/settings/{configDoc}": {
+      "schema": "Settings",
+      "description": "Game rules and payment configuration"
+    }
+  }
+}

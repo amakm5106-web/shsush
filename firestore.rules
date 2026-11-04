@@ -1,0 +1,179 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Authentication & Authorization Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Designate master full admins (primren685@gmail.com and Magire34@gmail.com) and admin collection lookup
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email in ["primren685@gmail.com", "magire34@gmail.com", "Magire34@gmail.com"] ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Connection testing endpoint
+    match /test/{document} {
+      allow read: if true;
+    }
+
+    // Admins Collection
+    match /admins/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || (isSignedIn() && request.auth.uid == userId && request.auth.token.email in ["primren685@gmail.com", "magire34@gmail.com", "Magire34@gmail.com"]);
+    }
+
+    // Game Configuration & Payment Credentials (Admin Only Edit)
+    match /settings/{configDoc} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      // Public profile data for rankings and referral tracking
+      allow read: if isSignedIn();
+
+      // New user account creation (Zero initial bonus; deposit 5000 gives 2000 bonus)
+      allow create: if isSignedIn() && request.auth.uid == userId
+        && (
+          (request.auth.token.email in ["primren685@gmail.com", "magire34@gmail.com", "Magire34@gmail.com"] && request.resource.data.role == "admin") ||
+          (request.resource.data.role == "user" && request.resource.data.get('balance', 0) <= 500)
+        )
+        && request.resource.data.get('hasSuccessfulDeposit', false) == false;
+
+      // Profile updates (Harden against missing property errors with .get())
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        // Prevent role escalation unless user is verified admin email
+        (
+          request.resource.data.role == resource.data.get('role', 'user') ||
+          (request.auth.token.email in ["primren685@gmail.com", "magire34@gmail.com", "Magire34@gmail.com"] && request.resource.data.role == "admin")
+        ) &&
+        // Prevent forging hasSuccessfulDeposit
+        (resource.data.get('hasSuccessfulDeposit', false) == true || request.resource.data.get('hasSuccessfulDeposit', false) == false) &&
+        // Prevent modifying bound bank once bound
+        (resource.data.get('boundBank', null) == null || request.resource.data.get('boundBank', null) == resource.data.get('boundBank', null)) &&
+        // Prevent bypassing hedging flag without completing turnover
+        (
+          resource.data.get('isHedgingFlagged', false) != true ||
+          request.resource.data.get('isHedgingFlagged', false) == true ||
+          resource.data.get('cleanTurnoverRequired', 0) <= 0
+        )
+      ) || (
+        // Allow referral stats increment from other players
+        isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'referralsCount',
+          'referralBalance',
+          'promoClaimedReferrals',
+          'depositedReferralsCount',
+          'referralTotalDeposits',
+          'updatedAt'
+        ])
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // Shared Synchronized Rounds Collection (Global across all players)
+    match /rounds/{roundId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Shared Synchronized Round History Collection (Global across all players)
+    match /round_history/{historyId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // Bets Collection
+    match /bets/{betId} {
+      allow read: if isSignedIn();
+
+      // Authenticated users can place bets for themselves (pending for live dice, win/loss for instant slots)
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status in ['pending', 'win', 'loss']
+        && request.resource.data.amount is number
+        && request.resource.data.amount >= 0
+        && request.resource.data.betKind in ['size', 'number', 'slot'];
+
+      // Only settlement transition or Admin
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status in ['win', 'loss', 'refunded'] &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.amount == resource.data.amount &&
+        request.resource.data.selection == resource.data.selection &&
+        request.resource.data.roundId == resource.data.roundId
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // Deposits Collection (Hacker-Proof: Only Admin can approve or modify status)
+    match /deposits/{depositId} {
+      // Admin sees all deposits; normal user only sees their own
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      // Normal user can only submit a new pending deposit
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.amount is number
+        && request.resource.data.amount >= 1000
+        && request.resource.data.method in ['kpay', 'wave']
+        && request.resource.data.depositId is string;
+
+      // CRITICAL: Normal users CANNOT approve, change amount, or alter deposits!
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Withdrawals Collection (Hacker-Proof: Only Admin can approve)
+    match /withdrawals/{withdrawalId} {
+      // Admin sees all withdrawals; normal user only sees their own
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      // Normal user can only submit a pending withdrawal request
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.amount is number
+        && request.resource.data.amount >= 1000
+        && request.resource.data.method in ['kpay', 'wave']
+        && request.resource.data.phone is string
+        && request.resource.data.accountName is string;
+
+      // CRITICAL: Only Admin can approve or mark paid
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Security Tokens Collection (Anti-Bot & Anti-Replay Tokens)
+    match /security_tokens/{tokenId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.tokenId is string
+        && request.resource.data.consumedAt is number;
+      // Cannot be updated once written (Strict Immutability)
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Xin Aiii Dice Lottery - Telegram WebApp",
+  "description": "မြန်မာ့ အံစာတုံး ထီနှင့် ကာစီနို Telegram WebApp (Real 3D Rolling Dice, KPay/Wave ငွေသွင်းငွေထုတ် & Referral Commission System)",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
