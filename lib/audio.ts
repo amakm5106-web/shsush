@@ -4,6 +4,15 @@ class SoundManager {
   private ctx: AudioContext | null = null;
   public enabled: boolean = true;
 
+  public toggleSound(): boolean {
+    this.enabled = !this.enabled;
+    return this.enabled;
+  }
+
+  public setEnabled(val: boolean) {
+    this.enabled = val;
+  }
+
   private initCtx() {
     if (!this.ctx && typeof window !== 'undefined') {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -15,6 +24,7 @@ class SoundManager {
       this.ctx.resume();
     }
   }
+
 
   public playChip() {
     if (!this.enabled) return;

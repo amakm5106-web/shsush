@@ -43,6 +43,10 @@ import {
   Play,
   Flame,
   Megaphone,
+  Crown,
+  ChevronRight,
+  ChevronLeft,
+  Trophy,
 } from 'lucide-react';
 
 import { auth, db, googleProvider, testConnection, handleFirestoreError, OperationType } from '@/lib/firebase';
@@ -176,6 +180,17 @@ export default function Home() {
   // Page View Routing State
   const [activeTab, setActiveTab] = useState<'home' | 'referral' | 'wallet' | 'profile'>('home');
   const [selectedGame, setSelectedGame] = useState<'lobby' | 'dice' | 'buffalo'>('lobby');
+  const [lobbyCategory, setLobbyCategory] = useState<'all' | 'slots' | 'dice' | 'hot'>('all');
+  const [promoIndex, setPromoIndex] = useState<number>(0);
+
+  // Auto-advance promo carousel every 6 seconds
+  useEffect(() => {
+    if (activeTab !== 'home' || selectedGame !== 'lobby') return;
+    const interval = setInterval(() => {
+      setPromoIndex((prev) => (prev + 1) % 3);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [activeTab, selectedGame]);
 
   // Modals Visibility
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -1643,177 +1658,398 @@ export default function Home() {
   return (
     <main className="w-full min-h-screen bg-[#060a14] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,255,255,0.06),rgba(0,0,0,0))] text-white flex flex-col items-center justify-between pb-24 selection:bg-white/20 selection:text-white">
       {/* 2. Full-Screen Page View Router (ပင်မ, ဖိတ်ခေါ်မှု, ငွေသွင်း/ထုတ်, ပရိုဖိုင်) */}
-      <div className="w-full max-w-md flex flex-col flex-1 mt-2">
+      <div className={`w-full flex flex-col flex-1 mt-2 transition-all ${(selectedGame === 'lobby' || activeTab === 'referral') ? 'max-w-4xl px-2 sm:px-4' : 'max-w-md'}`}>
         {/* VIEW 1: ပင်မ (Games Lobby or Full-Screen Game Arenas) */}
         {activeTab === 'home' && (
-          <div className="w-full px-3.5 flex flex-col gap-3.5 animate-fadeIn pb-6">
-            {/* LOBBY VIEW: Notification Marquee, Dynamic Island & Games Selection */}
+          <div className="w-full flex flex-col gap-3.5 animate-fadeIn pb-6">
+            {/* LOBBY VIEW: VIP Header, Promo Carousel, Category Bar & 2-Column Game Posters */}
             {selectedGame === 'lobby' && (
               <div className="flex flex-col gap-3.5">
-                {/* 1. Continuous Marquee Notification Announcement */}
-                <div className="w-full overflow-hidden py-2 px-3 rounded-2xl bg-black/60 border border-white/15 flex items-center gap-2 text-xs shadow-md">
-                  <div className="p-1 rounded-lg bg-white/10 border border-white/20 text-white shrink-0">
-                    <Megaphone className="w-3.5 h-3.5 stroke-white stroke-[2.2]" />
-                  </div>
-                  <div className="overflow-hidden whitespace-nowrap flex-1">
-                    <span className="animate-marquee font-bold text-white text-xs">
-                      📢 Xin Aiii Casino မှ ကြိုဆိုပါသည် 🔥 ပထမဆုံး ၅,၀၀၀ Ks သွင်းယူပါက ၂,၀၀၀ Ks Bonus အခမဲ့ရယူပါ! ⚡ KPay: 09753499023 (Aung Khant Min) & Wave: 09680327601 (Phyo ko Ko) ဖြင့် ၂၄ နာရီ ငွေသွင်းငွေထုတ် လျင်မြန်စွာ ဆောင်ရွက်ပေးနေပါသည် 🎁 မန်ဘာဖိတ်ခေါ်ဆုကြေး ၂,၀၀၀ Ks မှ ၅,၀၀၀ Ks အထိ ချက်ချင်းရယူပါ!
-                    </span>
-                  </div>
-                </div>
-
-                {/* 2. Dynamic Island Capsule at Top Center + Auth Status Bar */}
-                <div className="flex flex-col items-center justify-center py-1 gap-2">
-                  <div className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl bg-zinc-950/90 border border-white/15 shadow-[0_10px_35px_rgba(0,0,0,0.85)] backdrop-blur-2xl">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400" />
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-white/60 font-bold uppercase tracking-wider">
-                          {userProfile ? userProfile.fullName : 'ဧည့်သည် (Guest)'}
-                        </span>
-                        <span className="text-sm sm:text-base font-black text-white font-mono tracking-tight">
-                          {formatKs(userProfile?.balance || 0)}
-                        </span>
-                      </div>
+                {/* 1. TOP LUXURY VIP APP BAR */}
+                <header className="w-full flex items-center justify-between py-2 px-3 sm:px-4 rounded-2xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl shadow-xl">
+                  {/* Brand Wordmark */}
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-black shadow-md shrink-0">
+                      <Crown className="w-4 h-4 fill-black stroke-black" />
                     </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-black tracking-wider text-white uppercase font-sans leading-none">
+                        X-SITE
+                      </span>
+                      <span className="text-[9px] font-bold tracking-widest text-amber-400 uppercase mt-0.5">
+                        CASINO
+                      </span>
+                    </div>
+                  </div>
 
-                    <div className="flex items-center gap-1.5">
-                      {userProfile ? (
+                  {/* Right Zone: VIP Balance Pill or Login Action */}
+                  <div className="flex items-center gap-2">
+                    {userProfile ? (
+                      <div className="flex items-center gap-1.5 p-1 pl-2.5 rounded-xl bg-zinc-900 border border-white/10">
+                        <div className="flex flex-col text-right">
+                          <span className="text-[9px] text-white/50 font-bold uppercase truncate max-w-[85px]">
+                            {userProfile.fullName}
+                          </span>
+                          <span className="text-xs sm:text-sm font-black text-amber-300 font-mono tabular-nums">
+                            {formatKs(userProfile.balance || 0)}
+                          </span>
+                        </div>
                         <button
                           onClick={() => {
                             sounds.playChip();
                             setActiveTab('wallet');
                           }}
-                          className="px-3.5 py-1.5 rounded-xl bg-white text-black font-black text-xs hover:bg-zinc-200 active:scale-95 transition-all flex items-center gap-1 shadow-md"
-                          title="ငွေသွင်း/ထုတ် သို့ သွားမည်"
+                          className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-black text-[11px] active:scale-95 transition-all shadow-md flex items-center gap-1"
                         >
-                          <Wallet className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span>ငွေသွင်း/ထုတ်</span>
+                          <span>+</span>
+                          <span>ငွေသွင်း</span>
                         </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            sounds.playChip();
-                            setIsAuthModalOpen(true);
-                          }}
-                          className="px-3.5 py-1.5 rounded-xl bg-white text-black font-black text-xs hover:bg-zinc-200 active:scale-95 transition-all flex items-center gap-1.5 shadow-md"
-                          title="အကောင့်ဝင်မည်"
-                        >
-                          <LogIn className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span>အကောင့်ဝင်ရန်</span>
-                        </button>
-                      )}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          sounds.playChip();
+                          setIsAuthModalOpen(true);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-black text-xs active:scale-95 transition-all shadow-md flex items-center gap-1.5"
+                      >
+                        <LogIn className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>အကောင့်ဝင်ရန်</span>
+                      </button>
+                    )}
+
+                    {/* Audio Toggle */}
+                    <button
+                      onClick={() => {
+                        setSoundEnabled(!soundEnabled);
+                        sounds.toggleSound();
+                      }}
+                      className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white transition-all active:scale-95 shrink-0"
+                      title="အသံ ဖွင့်/ပိတ်"
+                    >
+                      {soundEnabled ? <Volume2 className="w-4 h-4 stroke-[2]" /> : <VolumeX className="w-4 h-4 stroke-[2]" />}
+                    </button>
+                  </div>
+                </header>
+
+                {/* 2. PROMOTIONAL SHOWCASE CAROUSEL */}
+                <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-950 aspect-[16/8] sm:aspect-[16/7] md:aspect-[16/6]">
+                  {/* Slide 1: Welcome Deposit Bonus */}
+                  {promoIndex === 0 && (
+                    <div className="relative w-full h-full flex flex-col justify-end p-4 sm:p-6 animate-fadeIn">
+                      <img
+                        src="/assets/casino/promo_deposit.jpg"
+                        alt="Deposit Promotion"
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+                      <div className="relative z-10 flex flex-col gap-1 max-w-lg">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">
+                          VIP WELCOME PROMOTION
+                        </span>
+                        <h2 className="text-sm sm:text-lg md:text-xl font-black text-white leading-tight">
+                          ၅,၀၀၀ Ks သွင်းပါက +၂,၀၀၀ Ks အပိုဆု ရယူပါ
+                        </h2>
+                        <p className="text-[10px] sm:text-xs text-white/70 line-clamp-1">
+                          KPay & Wave ဖြင့် ၂၄ နာရီ ငွေသွင်းငွေထုတ် လျင်မြန်စွာ ဆောင်ရွက်နိုင်သည်
+                        </p>
+                        <div className="pt-1.5">
+                          <button
+                            onClick={() => {
+                              sounds.playChip();
+                              setActiveTab('wallet');
+                            }}
+                            className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs active:scale-95 transition-all shadow-lg flex items-center gap-1.5 w-fit"
+                          >
+                            <span>အပိုဆု ရယူရန်</span>
+                            <ChevronRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Slide 2: Charge Buffalo Slot */}
+                  {promoIndex === 1 && (
+                    <div className="relative w-full h-full flex flex-col justify-end p-4 sm:p-6 animate-fadeIn">
+                      <img
+                        src="/assets/casino/buffalo_poster.jpg"
+                        alt="Charge Buffalo Slot"
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+                      <div className="relative z-10 flex flex-col gap-1 max-w-lg">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">
+                          FEATURED MEGA SLOT
+                        </span>
+                        <h2 className="text-sm sm:text-lg md:text-xl font-black text-white leading-tight">
+                          Charge Buffalo (ကျွဲရွှေ ၄,၀၉၆ Ways)
+                        </h2>
+                        <p className="text-[10px] sm:text-xs text-white/70 line-clamp-1">
+                          Wild Multipliers ×2, ×3, ×5 နှင့် Free Spins အလှည့်တိုင်း အနိုင်ယူပါ
+                        </p>
+                        <div className="pt-1.5">
+                          <button
+                            onClick={() => {
+                              sounds.playChip();
+                              setSelectedGame('buffalo');
+                            }}
+                            className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs active:scale-95 transition-all shadow-lg flex items-center gap-1.5 w-fit"
+                          >
+                            <Play className="w-3 h-3 fill-black stroke-black" />
+                            <span>ချက်ချင်း ကစားမည်</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Slide 3: Live Dice Lottery */}
+                  {promoIndex === 2 && (
+                    <div className="relative w-full h-full flex flex-col justify-end p-4 sm:p-6 animate-fadeIn">
+                      <img
+                        src="/assets/casino/dice_poster.jpg"
+                        alt="Live Dice"
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+                      <div className="relative z-10 flex flex-col gap-1 max-w-lg">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                          LIVE MULTIPLAYER
+                        </span>
+                        <h2 className="text-sm sm:text-lg md:text-xl font-black text-white leading-tight">
+                          အံစာ 777 (Live Dice Lottery)
+                        </h2>
+                        <p className="text-[10px] sm:text-xs text-white/70 line-clamp-1">
+                          စက္ကန့် ၆၀ တိုင်း အကြီး၊ အသေး၊ နံပါတ် ၇ ဆုကြေး ၃၂ ဆ အထိ
+                        </p>
+                        <div className="pt-1.5">
+                          <button
+                            onClick={() => {
+                              sounds.playChip();
+                              setSelectedGame('dice');
+                            }}
+                            className="px-3.5 py-1.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-black font-black text-xs active:scale-95 transition-all shadow-lg flex items-center gap-1.5 w-fit"
+                          >
+                            <Play className="w-3 h-3 fill-black stroke-black" />
+                            <span>တိုက်ရိုက်ကစားမည်</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dots pagination */}
+                  <div className="absolute bottom-2.5 right-3.5 z-20 flex items-center gap-1.5">
+                    {[0, 1, 2].map((idx) => (
+                      <button
+                        key={`promo-dot-${idx}`}
+                        onClick={() => setPromoIndex(idx)}
+                        className={`h-1.5 rounded-full transition-all ${
+                          promoIndex === idx ? 'w-5 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/70'
+                        }`}
+                        aria-label={`Go to slide ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. CATEGORY FILTER TABS */}
+                <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-zinc-950/80 border border-white/10 backdrop-blur-xl overflow-x-auto no-scrollbar">
+                  <button
+                    onClick={() => {
+                      sounds.playChip();
+                      setLobbyCategory('all');
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                      lobbyCategory === 'all'
+                        ? 'bg-white text-black shadow-md'
+                        : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    အားလုံး (All)
+                  </button>
+                  <button
+                    onClick={() => {
+                      sounds.playChip();
+                      setLobbyCategory('slots');
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                      lobbyCategory === 'slots'
+                        ? 'bg-amber-400 text-black shadow-md'
+                        : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    စလော့ (Slots)
+                  </button>
+                  <button
+                    onClick={() => {
+                      sounds.playChip();
+                      setLobbyCategory('dice');
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                      lobbyCategory === 'dice'
+                        ? 'bg-emerald-400 text-black shadow-md'
+                        : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    တိုက်ရိုက်အံစာ (Live Dice)
+                  </button>
+                  <button
+                    onClick={() => {
+                      sounds.playChip();
+                      setLobbyCategory('hot');
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                      lobbyCategory === 'hot'
+                        ? 'bg-red-500 text-white shadow-md'
+                        : 'text-white/60 hover:text-white'
+                    }`}
+                  >
+                    လူကြိုက်များ (Hot)
+                  </button>
+                </div>
+
+                {/* 4. 2-COLUMN PORTRAIT GAME POSTERS (STAKE & PGSOFT STYLE) */}
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-5">
+                  {/* GAME CARD 1: Charge Buffalo Slot */}
+                  {(lobbyCategory === 'all' || lobbyCategory === 'slots' || lobbyCategory === 'hot') && (
+                    <div
+                      onClick={() => {
+                        sounds.playChip();
+                        setSelectedGame('buffalo');
+                      }}
+                      className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[3/4] border border-amber-500/25 hover:border-amber-400/70 transition-all duration-300 shadow-2xl cursor-pointer active:scale-[0.98] bg-zinc-950 flex flex-col justify-between"
+                    >
+                      {/* Cover Art */}
+                      <img
+                        src="/assets/casino/buffalo_poster.jpg"
+                        alt="Charge Buffalo"
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="eager"
+                      />
+
+                      {/* Top Badges */}
+                      <div className="relative z-10 p-2.5 sm:p-3 flex items-center justify-between">
+                        <span className="text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500 text-black shadow-md">
+                          HOT
+                        </span>
+                        <span className="text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-amber-300 border border-amber-400/30">
+                          4,096 Ways
+                        </span>
+                      </div>
+
+                      {/* Hover / Tap Center Play Overlay */}
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/40 backdrop-blur-xs">
+                        <div className="w-12 h-12 rounded-full bg-amber-400 text-black flex items-center justify-center shadow-[0_0_25px_rgba(251,191,36,0.8)] transform scale-90 group-hover:scale-100 transition-transform duration-300">
+                          <Play className="w-5 h-5 fill-black stroke-black ml-0.5" />
+                        </div>
+                        <span className="text-xs font-black uppercase text-amber-300 tracking-wider mt-2">
+                          ကစားမည်
+                        </span>
+                      </div>
+
+                      {/* Bottom Scrim & Info */}
+                      <div className="relative z-10 p-2.5 sm:p-3 bg-gradient-to-t from-black via-black/80 to-transparent flex flex-col">
+                        <span className="text-xs sm:text-sm font-black text-white tracking-tight truncate">
+                          Charge Buffalo
+                        </span>
+                        <div className="flex items-center justify-between text-[10px] text-white/60 font-medium mt-0.5">
+                          <span>PG-Style Slot</span>
+                          <span className="text-amber-400 font-bold">×2, ×3, ×5</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* GAME CARD 2: Live Dice 777 */}
+                  {(lobbyCategory === 'all' || lobbyCategory === 'dice' || lobbyCategory === 'hot') && (
+                    <div
+                      onClick={() => {
+                        sounds.playChip();
+                        setSelectedGame('dice');
+                      }}
+                      className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[3/4] border border-emerald-500/25 hover:border-emerald-400/70 transition-all duration-300 shadow-2xl cursor-pointer active:scale-[0.98] bg-zinc-950 flex flex-col justify-between"
+                    >
+                      {/* Cover Art */}
+                      <img
+                        src="/assets/casino/dice_poster.jpg"
+                        alt="Live Dice 777"
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="eager"
+                      />
+
+                      {/* Top Badges */}
+                      <div className="relative z-10 p-2.5 sm:p-3 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500 text-black shadow-md">
+                          <div className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                          <span className="text-[9px] sm:text-[10px] font-black uppercase">
+                            LIVE
+                          </span>
+                        </div>
+                        <span className="text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-emerald-300 border border-emerald-400/30">
+                          ဆုကြေး 32×
+                        </span>
+                      </div>
+
+                      {/* Hover / Tap Center Play Overlay */}
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/40 backdrop-blur-xs">
+                        <div className="w-12 h-12 rounded-full bg-emerald-400 text-black flex items-center justify-center shadow-[0_0_25px_rgba(52,211,153,0.8)] transform scale-90 group-hover:scale-100 transition-transform duration-300">
+                          <Play className="w-5 h-5 fill-black stroke-black ml-0.5" />
+                        </div>
+                        <span className="text-xs font-black uppercase text-emerald-300 tracking-wider mt-2">
+                          ကစားမည်
+                        </span>
+                      </div>
+
+                      {/* Bottom Scrim & Info */}
+                      <div className="relative z-10 p-2.5 sm:p-3 bg-gradient-to-t from-black via-black/80 to-transparent flex flex-col">
+                        <span className="text-xs sm:text-sm font-black text-white tracking-tight truncate">
+                          အံစာဂိမ်း (Dice 777)
+                        </span>
+                        <div className="flex items-center justify-between text-[10px] text-white/60 font-medium mt-0.5">
+                          <span>Live Multiplayer</span>
+                          <span className="text-emerald-400 font-bold">စက္ကန့် ၆၀</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 5. LIVE RECENT WINS TICKER (SOCIAL PROOF) */}
+                <div className="w-full py-2.5 px-3.5 rounded-2xl bg-zinc-950/80 border border-white/10 backdrop-blur-xl flex items-center gap-2 overflow-hidden shadow-lg">
+                  <div className="flex items-center gap-1.5 text-amber-400 shrink-0 font-black text-xs uppercase tracking-wide">
+                    <Trophy className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span className="hidden sm:inline">တိုက်ရိုက်အနိုင်ဆုများ</span>
+                  </div>
+                  <div className="overflow-hidden whitespace-nowrap flex-1">
+                    <div className="animate-marquee inline-block text-[11px] font-bold text-white/80">
+                      <span className="mx-3 text-emerald-400">Player 09***581 · Charge Buffalo +Ks 36,000</span>
+                      <span className="mx-2 text-white/30">•</span>
+                      <span className="mx-3 text-amber-300">Player 09***419 · အံစာဂိမ်း +Ks 19,000</span>
+                      <span className="mx-2 text-white/30">•</span>
+                      <span className="mx-3 text-emerald-400">Player 09***882 · Charge Buffalo +Ks 50,000</span>
+                      <span className="mx-2 text-white/30">•</span>
+                      <span className="mx-3 text-cyan-300">Player 09***204 · အံစာဂိမ်း +Ks 8,000</span>
+                      <span className="mx-2 text-white/30">•</span>
+                      <span className="mx-3 text-emerald-400">Player 09***713 · Charge Buffalo +Ks 24,000</span>
                     </div>
                   </div>
                 </div>
 
-                {/* 3. Section Header: ဂိမ်းများ (Games Lobby) */}
-                <div className="flex items-center justify-between pt-1 px-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center">
-                      <Flame className="w-3.5 h-3.5 text-amber-400" />
-                    </div>
-                    <h2 className="text-sm font-black text-white uppercase tracking-wide">
-                      ဂိမ်းများ (Casino Games)
-                    </h2>
+                {/* 6. TRUST & SERVICE BADGES */}
+                <div className="grid grid-cols-3 gap-2 pt-1 text-center">
+                  <div className="p-2 rounded-xl bg-zinc-950/60 border border-white/5 flex flex-col items-center gap-1">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400 stroke-[2]" />
+                    <span className="text-[10px] font-bold text-white/80">စက္ကန့် ၃၀ ငွေသွင်း/ထုတ်</span>
                   </div>
-                  <span className="text-[11px] font-bold text-white/50">တိုက်ရိုက်ကစားပါ</span>
-                </div>
-
-                {/* Game Cards Grid: Clean, Modern, Sleek Dark Glass with Bold White Typography */}
-                <div className="grid grid-cols-1 gap-3">
-                  {/* GAME 1: Xin Aiii အံစာဂိမ်း (Dice Game) */}
-                  <div
-                    onClick={() => {
-                      sounds.playChip();
-                      setSelectedGame('dice');
-                    }}
-                    className="group relative rounded-2xl bg-zinc-950/80 hover:bg-zinc-900/80 p-3.5 border border-white/15 hover:border-white/30 cursor-pointer overflow-hidden transition-all active:scale-[0.98] shadow-xl backdrop-blur-xl flex flex-col gap-2.5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-white/20 flex items-center justify-center text-white shadow-inner shrink-0">
-                          <Dices className="w-6 h-6 stroke-white stroke-[2.2]" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-black text-white text-sm sm:text-base tracking-tight">
-                              အံစာဂိမ်း (Dice Lottery)
-                            </h3>
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 font-black text-emerald-300">
-                              LIVE
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-white/60 font-medium">
-                            အကြီး၊ အသေး၊ နံပါတ် ၇ & Mechanical Slot History
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="w-8 h-8 rounded-xl bg-white text-black flex items-center justify-center group-hover:scale-105 transition-all shadow-md shrink-0">
-                        <Play className="w-3.5 h-3.5 fill-black stroke-black ml-0.5" />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 pt-2 border-t border-white/10 text-[10px] text-white/70 font-bold">
-                      <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/15">
-                        ဆုကြေး 1.9x ~ 32x
-                      </span>
-                      <span className="px-2 py-0.5 rounded-md bg-white/10 border border-white/15">
-                        တိုက်ရိုက်လည်ပတ်စနစ်
-                      </span>
-                    </div>
+                  <div className="p-2 rounded-xl bg-zinc-950/60 border border-white/5 flex flex-col items-center gap-1">
+                    <Coins className="w-4 h-4 text-amber-400 stroke-[2]" />
+                    <span className="text-[10px] font-bold text-white/80">အမြင့်ဆုံး ဆုကြေးများ</span>
                   </div>
-
-                  {/* GAME 2: ကျွဲဂိမ်း - Charge Buffalo (6x4 Slot) */}
-                  <div
-                    onClick={() => {
-                      sounds.playChip();
-                      setSelectedGame('buffalo');
-                    }}
-                    className="group relative rounded-2xl bg-zinc-950/80 hover:bg-zinc-900/80 p-3.5 border border-amber-500/40 hover:border-amber-400/60 cursor-pointer overflow-hidden transition-all active:scale-[0.98] shadow-xl backdrop-blur-xl flex flex-col gap-2.5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl border border-amber-400/50 overflow-hidden shadow-md bg-black flex items-center justify-center shrink-0">
-                          <img
-                            src="/assets/slot-symbols/individual/buffalo.webp"
-                            alt="Charge Buffalo"
-                            className="w-full h-full object-cover"
-                            loading="eager"
-                          />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-black text-amber-300 text-sm sm:text-base tracking-tight uppercase">
-                              Charge Buffalo (ကျွဲဂိမ်း)
-                            </h3>
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 font-black text-amber-200">
-                              HOT
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-white/60 font-medium">
-                            Auto Rotate Landscape • 4,096 Ways • Wild ×2, ×3, ×5
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="w-8 h-8 rounded-xl bg-amber-400 text-black flex items-center justify-center group-hover:scale-105 transition-all shadow-md shrink-0">
-                        <Play className="w-3.5 h-3.5 fill-black stroke-black ml-0.5" />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 pt-2 border-t border-white/10 text-[10px] text-amber-200/90 font-bold">
-                      <span className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-400/30">
-                        🔥 4,096 Ways
-                      </span>
-                      <span className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-400/30">
-                        Wild ×2, ×3, ×5
-                      </span>
-                      <span className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-400/30">
-                        Auto Fullscreen
-                      </span>
-                    </div>
+                  <div className="p-2 rounded-xl bg-zinc-950/60 border border-white/5 flex flex-col items-center gap-1">
+                    <Users className="w-4 h-4 text-cyan-400 stroke-[2]" />
+                    <span className="text-[10px] font-bold text-white/80">၂၄ နာရီ ဝန်ဆောင်မှု</span>
                   </div>
                 </div>
               </div>
