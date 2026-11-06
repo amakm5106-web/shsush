@@ -1658,7 +1658,7 @@ export default function Home() {
   return (
     <main className="w-full min-h-screen bg-[#060a14] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,255,255,0.06),rgba(0,0,0,0))] text-white flex flex-col items-center justify-between pb-24 selection:bg-white/20 selection:text-white">
       {/* 2. Full-Screen Page View Router (ပင်မ, ဖိတ်ခေါ်မှု, ငွေသွင်း/ထုတ်, ပရိုဖိုင်) */}
-      <div className={`w-full flex flex-col flex-1 mt-2 transition-all ${(selectedGame === 'lobby' || activeTab === 'referral') ? 'max-w-4xl px-2 sm:px-4' : 'max-w-md'}`}>
+      <div className={`w-full flex flex-col flex-1 mt-2 transition-all ${(selectedGame === 'lobby' || activeTab === 'referral' || activeTab === 'wallet' || activeTab === 'profile') ? 'max-w-4xl px-2 sm:px-4' : 'max-w-md'}`}>
         {/* VIEW 1: ပင်မ (Games Lobby or Full-Screen Game Arenas) */}
         {activeTab === 'home' && (
           <div className="w-full flex flex-col gap-3.5 animate-fadeIn pb-6">
