@@ -59,6 +59,23 @@ export function getResultClassLabel(resultClass: 'small' | 'common' | 'big'): st
   }
 }
 
+export function classifyDiceColor(total: number): 'red' | 'green' | 'violet' {
+  if (total === 6 || total === 7) return 'violet';
+  if (total % 2 === 0) return 'red';
+  return 'green';
+}
+
+export function getColorLabel(color: 'red' | 'green' | 'violet'): string {
+  switch (color) {
+    case 'red':
+      return 'အနီ (Red)';
+    case 'green':
+      return 'အစိမ်း (Green)';
+    case 'violet':
+      return 'ခရမ်း (Violet 6,7)';
+  }
+}
+
 export function formatKs(amount: number | undefined | null): string {
   const val = Math.round(Number(amount) || 0);
   return `${val.toLocaleString()} Ks`;

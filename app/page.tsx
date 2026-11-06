@@ -74,6 +74,8 @@ import {
   ADMIN_EMAILS,
   isAdminEmail,
   classifyDiceTotal,
+  classifyDiceColor,
+  getColorLabel,
   formatKs,
 } from '@/lib/constants';
 import { sounds } from '@/lib/audio';
@@ -92,6 +94,7 @@ import { WalletView } from '@/components/views/WalletView';
 import { ProfileView } from '@/components/views/ProfileView';
 import { BuffaloSlotGame } from '@/components/BuffaloSlotGame';
 import { AuthModal } from '@/components/AuthModal';
+import { RoundResultModal } from '@/components/RoundResultModal';
 
 interface CurrentRoundData {
   roundId: number;
@@ -103,6 +106,7 @@ interface CurrentRoundData {
   dice2: number;
   totalResult: number;
   resultClass: 'small' | 'common' | 'big';
+  resultColor?: 'red' | 'green' | 'violet';
   settledAt: number;
   nextRoundAt: number;
   updatedAt: number;
@@ -157,13 +161,27 @@ export default function Home() {
     dice2: number;
     total: number;
     resultClass: 'small' | 'common' | 'big';
+    resultColor: 'red' | 'green' | 'violet';
   }>({
     roundId: 100,
     dice1: 3,
     dice2: 4,
     total: 7,
     resultClass: 'common',
+    resultColor: 'violet',
   });
+
+  // Round Result Modal Popup State
+  const [isResultModalOpen, setIsResultModalOpen] = useState<boolean>(false);
+  const [settledModalData, setSettledModalData] = useState<{
+    roundId: number;
+    dice1: number;
+    dice2: number;
+    totalResult: number;
+    resultClass: 'small' | 'common' | 'big';
+    resultColor: 'red' | 'green' | 'violet';
+    userBets: PlayerBet[];
+  } | null>(null);
 
   // Recent Synchronized Rounds History & Bets
   const [recentRounds, setRecentRounds] = useState<GameRound[]>([]);
@@ -422,6 +440,7 @@ export default function Home() {
             dice2: 4,
             totalResult: 7,
             resultClass: 'common',
+            resultColor: 'violet',
             settledAt: now,
             nextRoundAt: now,
             updatedAt: now,
@@ -457,6 +476,7 @@ export default function Home() {
             dice2: data.dice2,
             total: data.totalResult,
             resultClass: data.resultClass,
+            resultColor: data.resultColor || classifyDiceColor(data.totalResult),
           });
         }
       },
@@ -489,9 +509,69 @@ export default function Home() {
     return () => unsub();
   }, []);
 
-  // 7. Atomic Settlement Transition Handler across All Users
+  // 7. Atomic Settlement Transition Handler across All Users with Lowest-Pool Optimization
   const triggerGlobalSettlement = useCallback(async (activeRound: CurrentRoundData) => {
     try {
+      // Step A: Read all active bets placed in this round to analyze player pools
+      const activeRoundBets: PlayerBet[] = [];
+      try {
+        const betsQuery = query(
+          collection(db, 'bets'),
+          where('roundId', '==', activeRound.roundId)
+        );
+        const betsSnap = await getDocs(betsQuery);
+        betsSnap.forEach((d) => activeRoundBets.push(d.data() as PlayerBet));
+      } catch (err) {
+        console.warn('Error reading active round bets for lowest-pool evaluation:', err);
+      }
+
+      // Step B: Calculate payout liability for each possible sum (2 through 12)
+      // Across Big/Small, Color (Red, Green, Violet), and Numbers
+      const candidateTotals: { total: number; payout: number; rolls: [number, number][] }[] = [];
+
+      for (let t = 2; t <= 12; t++) {
+        const validRolls: [number, number][] = [];
+        for (let d1 = 1; d1 <= 6; d1++) {
+          const d2 = t - d1;
+          if (d2 >= 1 && d2 <= 6) {
+            validRolls.push([d1, d2]);
+          }
+        }
+
+        const tClass = classifyDiceTotal(t);
+        const tColor = classifyDiceColor(t);
+
+        let sumPayout = 0;
+        for (const bet of activeRoundBets) {
+          let won = false;
+          if (bet.betKind === 'size') {
+            if (bet.selection === 'အသေး' && tClass === 'small') won = true;
+            if (bet.selection === 'အကြီး' && tClass === 'big') won = true;
+          } else if (bet.betKind === 'number') {
+            if (Number(bet.selection) === t) won = true;
+          } else if (bet.betKind === 'color') {
+            if (bet.selection === tColor) won = true;
+          }
+          if (won) {
+            sumPayout += Math.round(bet.amount * bet.multiplier);
+          }
+        }
+
+        candidateTotals.push({ total: t, payout: sumPayout, rolls: validRolls });
+      }
+
+      // Find the lowest payout liability
+      const minPayout = Math.min(...candidateTotals.map((c) => c.payout));
+      const lowestPoolCandidates = candidateTotals.filter((c) => c.payout === minPayout);
+      const chosenCandidate = lowestPoolCandidates[Math.floor(Math.random() * lowestPoolCandidates.length)];
+      const chosenRoll = chosenCandidate.rolls[Math.floor(Math.random() * chosenCandidate.rolls.length)];
+      const roll1 = chosenRoll[0];
+      const roll2 = chosenRoll[1];
+      const total = roll1 + roll2;
+      const resClass = classifyDiceTotal(total);
+      const resColor = classifyDiceColor(total);
+
+      // Step C: Atomic Firestore transaction to transition room to rolling & record in round_history
       await runTransaction(db, async (txn) => {
         const currentRef = doc(db, 'rounds', 'current');
         const snap = await txn.get(currentRef);
@@ -501,10 +581,6 @@ export default function Home() {
         // Ensure state is still 'betting' and matching the round
         if (cur.status !== 'betting' || cur.roundId !== activeRound.roundId) return;
 
-        const roll1 = Math.floor(Math.random() * 6) + 1;
-        const roll2 = Math.floor(Math.random() * 6) + 1;
-        const total = roll1 + roll2;
-        const resClass = classifyDiceTotal(total);
         const now = Date.now();
         const nextRoundAt = now + 5000;
 
@@ -514,6 +590,7 @@ export default function Home() {
           dice2: roll2,
           totalResult: total,
           resultClass: resClass,
+          resultColor: resColor,
           settledAt: now,
           nextRoundAt,
           updatedAt: now,
@@ -529,6 +606,7 @@ export default function Home() {
           dice2: roll2,
           totalResult: total,
           resultClass: resClass,
+          resultColor: resColor,
           settledAt: now,
         });
       });
@@ -614,6 +692,7 @@ export default function Home() {
       const settledRoundId = currentRoundDoc.roundId;
       const total = currentRoundDoc.totalResult;
       const resClass = currentRoundDoc.resultClass;
+      const resColor = currentRoundDoc.resultColor || classifyDiceColor(total);
 
       let totalWinnings = 0;
       let wonAny = false;
@@ -625,6 +704,8 @@ export default function Home() {
           if (bet.selection === 'အကြီး' && resClass === 'big') isWin = true;
         } else if (bet.betKind === 'number') {
           if (Number(bet.selection) === total) isWin = true;
+        } else if (bet.betKind === 'color') {
+          if (bet.selection === resColor) isWin = true;
         }
 
         if (isWin) {
@@ -667,10 +748,10 @@ export default function Home() {
       if (wonAny && totalWinnings > 0) {
         sounds.playWin();
         confetti({
-          particleCount: 80,
+          particleCount: 100,
           spread: 70,
           origin: { y: 0.6 },
-          colors: ['#ffffff', '#cbd5e1', '#94a3b8'],
+          colors: ['#F59E0B', '#EAB308', '#10B981', '#ffffff'],
         });
 
         if (currentUser && userProfile) {
@@ -688,6 +769,18 @@ export default function Home() {
 
       setMyBetsHistory((prev) => [...updatedBets, ...prev].slice(0, 30));
       setCurrentRoundBets([]);
+
+      // Trigger Instant Round Result & Profit/Loss Modal Popup
+      setSettledModalData({
+        roundId: settledRoundId,
+        dice1: currentRoundDoc.dice1,
+        dice2: currentRoundDoc.dice2,
+        totalResult: total,
+        resultClass: resClass,
+        resultColor: resColor,
+        userBets: updatedBets,
+      });
+      setIsResultModalOpen(true);
     };
 
     evaluateMyBets();
@@ -885,7 +978,7 @@ export default function Home() {
 
   // Place Bet Handler with Anti-Hedging Enforcement
   const handlePlaceBet = async (
-    betKind: 'size' | 'number',
+    betKind: 'size' | 'number' | 'color',
     selection: string,
     amount: number,
     multiplier: number
@@ -1658,7 +1751,7 @@ export default function Home() {
   return (
     <main className="w-full min-h-screen bg-[#060a14] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,255,255,0.06),rgba(0,0,0,0))] text-white flex flex-col items-center justify-between pb-24 selection:bg-white/20 selection:text-white">
       {/* 2. Full-Screen Page View Router (ပင်မ, ဖိတ်ခေါ်မှု, ငွေသွင်း/ထုတ်, ပရိုဖိုင်) */}
-      <div className={`w-full flex flex-col flex-1 mt-2 transition-all ${(selectedGame === 'lobby' || activeTab === 'referral' || activeTab === 'wallet' || activeTab === 'profile') ? 'max-w-4xl px-2 sm:px-4' : 'max-w-md'}`}>
+      <div className={`w-full flex flex-col flex-1 mt-2 transition-all ${(selectedGame === 'lobby' || activeTab === 'referral' || activeTab === 'wallet' || activeTab === 'profile') ? 'max-w-4xl px-2 sm:px-4' : selectedGame === 'dice' ? 'max-w-xl px-2 sm:px-3' : 'max-w-md'}`}>
         {/* VIEW 1: ပင်မ (Games Lobby or Full-Screen Game Arenas) */}
         {activeTab === 'home' && (
           <div className="w-full flex flex-col gap-3.5 animate-fadeIn pb-6">
@@ -2121,30 +2214,34 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Live Synchronized Round Header & Countdown Timer */}
-                <div className="p-4 rounded-3xl dark-glass flex flex-col gap-2.5 border border-white/15">
-                  <div className="flex items-center justify-between">
+                {/* Live Synchronized Round Header & Countdown Timer with Luxury Obsidian Felt */}
+                <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-xl bg-zinc-950/90 p-4 flex flex-col gap-3">
+                  <div
+                    className="absolute inset-0 bg-cover bg-center opacity-25 pointer-events-none"
+                    style={{ backgroundImage: `url('/assets/casino/obsidian_bg.jpg')` }}
+                  />
+                  <div className="relative z-10 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-1 rounded-xl text-xs font-black bg-white/15 text-white border border-white/25 font-mono">
+                      <span className="px-3 py-1 rounded-xl text-xs font-black bg-amber-400/20 text-amber-300 border border-amber-400/30 font-mono shadow-sm">
                         ပွဲစဉ် #{roundId}
                       </span>
                       <span className="text-xs font-black text-white flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 stroke-white stroke-[2.4]" />
+                        <Clock className="w-3.5 h-3.5 text-amber-400 stroke-[2.4]" />
                         {bettingOpen ? 'လောင်းကြေးဖွင့်လှစ်ထားပါသည်' : 'လောင်းကြေးပိတ်ပါပြီ'}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1 font-mono text-base font-black text-white">
-                      <span className={timeLeft <= 10 ? 'animate-pulse text-white' : 'text-white'}>
+                    <div className="flex items-center gap-1.5 font-mono text-base font-black">
+                      <span className={`px-2.5 py-0.5 rounded-lg border ${timeLeft <= 10 ? 'bg-red-500/20 border-red-500/40 text-red-400 animate-pulse' : 'bg-white/5 border-white/10 text-white'}`}>
                         {timeLeft}s
                       </span>
                     </div>
                   </div>
 
-                  {/* Smooth Dark Glass Progress Bar */}
-                  <div className="w-full bg-black/60 rounded-full h-2 overflow-hidden border border-white/15 p-0.5">
+                  {/* Smooth Progress Bar */}
+                  <div className="relative z-10 w-full bg-black/60 rounded-full h-2 overflow-hidden border border-white/10 p-0.5">
                     <div
-                      className="h-full rounded-full bg-white transition-all duration-1000"
+                      className={`h-full rounded-full transition-all duration-1000 ${timeLeft <= 10 ? 'bg-gradient-to-r from-red-500 to-amber-400' : 'bg-gradient-to-r from-amber-500 to-amber-300'}`}
                       style={{ width: `${timerPercent}%` }}
                     />
                   </div>
@@ -2373,6 +2470,21 @@ export default function Home() {
           onDeclineWithdrawal={handleDeclineWithdrawal}
           onUpdateSettings={handleUpdateSettings}
           onTriggerRoll={() => currentRoundDoc && triggerGlobalSettlement(currentRoundDoc)}
+        />
+      )}
+
+      {/* Live Round Result & Profit/Loss Settlement Modal Popup */}
+      {settledModalData && (
+        <RoundResultModal
+          isOpen={isResultModalOpen}
+          onClose={() => setIsResultModalOpen(false)}
+          roundId={settledModalData.roundId}
+          dice1={settledModalData.dice1}
+          dice2={settledModalData.dice2}
+          totalResult={settledModalData.totalResult}
+          resultClass={settledModalData.resultClass}
+          resultColor={settledModalData.resultColor}
+          userRoundBets={settledModalData.userBets}
         />
       )}
     </main>

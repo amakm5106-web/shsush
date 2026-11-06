@@ -1,4 +1,4 @@
-export type BetKind = 'size' | 'number' | 'slot';
+export type BetKind = 'size' | 'number' | 'color' | 'slot';
 
 export type SizeSelection = 'အသေး' | 'အကြီး';
 
@@ -59,6 +59,7 @@ export interface GameRound {
   dice2?: number;
   totalResult?: number;
   resultClass?: 'small' | 'common' | 'big';
+  resultColor?: 'red' | 'green' | 'violet';
   settledAt?: number;
 }
 

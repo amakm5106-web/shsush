@@ -54,9 +54,13 @@ export function BuffaloLoadingScreen({ onComplete }: BuffaloLoadingScreenProps) 
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl p-1 bg-gradient-to-br from-amber-300 via-yellow-500 to-amber-700 shadow-[0_0_35px_rgba(245,158,11,0.6)] animate-pulse">
             <div className="w-full h-full rounded-[14px] overflow-hidden bg-black flex items-center justify-center border border-amber-200/50">
               <img
-                src="/assets/slot-symbols/individual/buffalo.webp"
+                src="/assets/slot-symbols/individual/buffalo.png"
                 alt="Charge Buffalo"
+                referrerPolicy="no-referrer"
                 className="w-full h-full object-cover scale-105"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/assets/slot-symbols/individual/buffalo.webp';
+                }}
               />
             </div>
           </div>

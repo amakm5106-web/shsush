@@ -25,7 +25,7 @@ import { formatKs } from '@/lib/constants';
 import { sounds } from '@/lib/audio';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { RenderSlotSymbol } from './ChargeBuffaloSvgSymbols';
+import { BuffaloSymbolImage } from './BuffaloSymbolImage';
 import { BuffaloLoadingScreen } from './BuffaloLoadingScreen';
 import { BuffaloBigWinModal } from './BuffaloBigWinModal';
 
@@ -318,6 +318,15 @@ export function BuffaloSlotGame({
     false,
     false,
   ]);
+  const [bouncingCols, setBouncingCols] = useState<boolean[]>([
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+  ]);
+  const [isScreenShaking, setIsScreenShaking] = useState<boolean>(false);
   const activeSpinningColsRef = useRef<boolean[]>([
     false,
     false,
@@ -350,10 +359,9 @@ export function BuffaloSlotGame({
   const [autoSpinsRemaining, setAutoSpinsRemaining] = useState<number>(0);
   const [isAutoModalOpen, setIsAutoModalOpen] = useState<boolean>(false);
 
-  // Device Portrait Detection & 90-degree Rotation State
-  // Default forceLandscapeView to true so that whenever the user enters Buffalo slot on mobile, it immediately auto-rotates landscape and fills the screen
+  // Device Portrait Detection & Responsive Landscape Toggle
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
-  const [forceLandscapeView, setForceLandscapeView] = useState<boolean>(true);
+  const [forceLandscapeView, setForceLandscapeView] = useState<boolean>(false);
   const [dismissRotatePrompt, setDismissRotatePrompt] = useState<boolean>(true);
   const [isSubBetCelebration, setIsSubBetCelebration] = useState<boolean>(false);
 
@@ -394,9 +402,6 @@ export function BuffaloSlotGame({
       const isMobile = window.innerWidth <= 860;
       const portrait = isMobile && window.innerHeight > window.innerWidth;
       setIsPortrait(portrait);
-      if (portrait) {
-        setForceLandscapeView(true);
-      }
     };
     checkOrientation();
     window.addEventListener('resize', checkOrientation);
@@ -569,48 +574,58 @@ export function BuffaloSlotGame({
         });
       }, 75);
 
-      // Staggered Reel Stopping (Reel by Reel: Col 0 -> Col 1 -> Col 2 -> Col 3 -> Col 4 -> Col 5)
-      // Reel 1 (Col 0) stops at 500ms
+      // Staggered Reel Stopping with Dynamic Physics Bounce
+      // Reel 1 (Col 0) stops at 480ms
       setTimeout(() => {
         activeSpinningColsRef.current[0] = false;
         setSpinningCols((prev) => [false, prev[1], prev[2], prev[3], prev[4], prev[5]]);
         setReels((prev) => [finalReels[0], prev[1], prev[2], prev[3], prev[4], prev[5]]);
+        setBouncingCols((prev) => [true, prev[1], prev[2], prev[3], prev[4], prev[5]]);
+        setTimeout(() => setBouncingCols((prev) => [false, prev[1], prev[2], prev[3], prev[4], prev[5]]), 400);
         playReelStopSound(0);
-      }, 500);
+      }, 480);
 
-      // Reel 2 (Col 1) stops at 800ms (+300ms)
+      // Reel 2 (Col 1) stops at 760ms
       setTimeout(() => {
         activeSpinningColsRef.current[1] = false;
         setSpinningCols((prev) => [false, false, prev[2], prev[3], prev[4], prev[5]]);
         setReels((prev) => [prev[0], finalReels[1], prev[2], prev[3], prev[4], prev[5]]);
+        setBouncingCols((prev) => [prev[0], true, prev[2], prev[3], prev[4], prev[5]]);
+        setTimeout(() => setBouncingCols((prev) => [prev[0], false, prev[2], prev[3], prev[4], prev[5]]), 400);
         playReelStopSound(1);
-      }, 800);
+      }, 760);
 
-      // Reel 3 (Col 2) stops at 1100ms (+300ms)
+      // Reel 3 (Col 2) stops at 1040ms
       setTimeout(() => {
         activeSpinningColsRef.current[2] = false;
         setSpinningCols((prev) => [false, false, false, prev[3], prev[4], prev[5]]);
         setReels((prev) => [prev[0], prev[1], finalReels[2], prev[3], prev[4], prev[5]]);
+        setBouncingCols((prev) => [prev[0], prev[1], true, prev[3], prev[4], prev[5]]);
+        setTimeout(() => setBouncingCols((prev) => [prev[0], prev[1], false, prev[3], prev[4], prev[5]]), 400);
         playReelStopSound(2);
-      }, 1100);
+      }, 1040);
 
-      // Reel 4 (Col 3) stops at 1400ms (+300ms)
+      // Reel 4 (Col 3) stops at 1320ms
       setTimeout(() => {
         activeSpinningColsRef.current[3] = false;
         setSpinningCols((prev) => [false, false, false, false, prev[4], prev[5]]);
         setReels((prev) => [prev[0], prev[1], prev[2], finalReels[3], prev[4], prev[5]]);
+        setBouncingCols((prev) => [prev[0], prev[1], prev[2], true, prev[4], prev[5]]);
+        setTimeout(() => setBouncingCols((prev) => [prev[0], prev[1], prev[2], false, prev[4], prev[5]]), 400);
         playReelStopSound(3);
-      }, 1400);
+      }, 1320);
 
-      // Reel 5 (Col 4) stops at 1700ms (+300ms)
+      // Reel 5 (Col 4) stops at 1600ms
       setTimeout(() => {
         activeSpinningColsRef.current[4] = false;
         setSpinningCols((prev) => [false, false, false, false, false, prev[5]]);
         setReels((prev) => [prev[0], prev[1], prev[2], prev[3], finalReels[4], prev[5]]);
+        setBouncingCols((prev) => [prev[0], prev[1], prev[2], prev[3], true, prev[5]]);
+        setTimeout(() => setBouncingCols((prev) => [prev[0], prev[1], prev[2], prev[3], false, prev[5]]), 400);
         playReelStopSound(4);
-      }, 1700);
+      }, 1600);
 
-      // Reel 6 (Col 5) stops at 2000ms (+300ms) - FINAL REEL
+      // Reel 6 (Col 5) stops at 1880ms - FINAL REEL
       setTimeout(() => {
         activeSpinningColsRef.current[5] = false;
         clearInterval(shuffleInterval);
@@ -618,10 +633,12 @@ export function BuffaloSlotGame({
         setSpinningCols([false, false, false, false, false, false]);
         setReels(finalReels);
         setWildMultipliers(finalWildMults);
+        setBouncingCols([false, false, false, false, false, true]);
+        setTimeout(() => setBouncingCols([false, false, false, false, false, false]), 420);
         playReelStopSound(5);
-      }, 2000);
+      }, 1880);
 
-      // Payout Evaluation & Firestore updates after all reels have settled at 2150ms
+      // Payout Evaluation & Firestore updates after all reels have settled at 2000ms
       setTimeout(async () => {
         setIsSpinning(false);
 
@@ -723,8 +740,10 @@ export function BuffaloSlotGame({
           // Clean, professional win message
           setWinningInfo(`ဆုကြေး Ks ${spinTotalWin.toLocaleString()} ရရှိပါသည်!`);
 
-          // Big Win celebration trigger
+          // Big Win celebration trigger with screen shake physics
           if (spinTotalWin >= betAmount * 3) {
+            setIsScreenShaking(true);
+            setTimeout(() => setIsScreenShaking(false), 550);
             setBigWinData({
               amount: spinTotalWin,
               bet: betAmount,
@@ -943,13 +962,17 @@ export function BuffaloSlotGame({
 
   return (
     <div
-      className={`fixed z-50 bg-[#07090e] text-white flex flex-col justify-between select-none overflow-hidden transition-all duration-300 ${
+      className={`fixed z-50 text-white flex flex-col justify-between select-none overflow-hidden transition-all duration-300 ${
         isRotatedActive
           ? 'w-[100vh] h-[100vw] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center'
           : 'inset-0'
       }`}
       style={{
-        background: 'radial-gradient(circle at 50% 30%, #18181b 0%, #09090b 60%, #020204 100%)',
+        backgroundImage: `radial-gradient(ellipse at 50% 25%, rgba(10, 15, 25, 0.72) 0%, rgba(5, 7, 12, 0.92) 75%, #030407 100%), url('/assets/casino/buffalo_canyon_bg.jpg')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundColor: '#04060a',
       }}
     >
       {/* Device Rotation Advisory: Prompt user to turn phone sideways if opened in portrait */}
@@ -1021,9 +1044,13 @@ export function BuffaloSlotGame({
           <div className="flex items-center gap-1.5">
             <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg overflow-hidden border border-white/20 bg-black flex items-center justify-center">
               <img
-                src="/assets/slot-symbols/individual/buffalo.webp"
+                src="/assets/slot-symbols/individual/buffalo.png"
                 alt="Buffalo"
+                referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/assets/slot-symbols/individual/buffalo.webp';
+                }}
               />
             </div>
             <h1 className="text-xs sm:text-sm font-black font-sans uppercase tracking-widest text-white">
@@ -1136,19 +1163,19 @@ export function BuffaloSlotGame({
       {/* ========================================================================= */}
       <main className="flex-1 w-full flex flex-col justify-center items-center px-1 sm:px-2 py-0.5 overflow-hidden">
         {/* Dynamic Status Message Bar */}
-        <div className="w-full max-w-[390px] sm:max-w-[430px] mb-1 px-2.5 py-0.5 rounded-lg bg-zinc-900/80 border border-white/10 backdrop-blur-md flex items-center justify-between text-center shrink-0">
-          <div className="flex items-center gap-1.5 mx-auto">
+        <div className="w-full max-w-[420px] sm:max-w-xl md:max-w-2xl lg:max-w-3xl mb-1 px-3 py-1 rounded-xl bg-zinc-950/80 border border-white/10 backdrop-blur-md flex items-center justify-between text-center shrink-0">
+          <div className="flex items-center gap-2 mx-auto">
             {isSubBetCelebration || lastWinAmount > 0 ? (
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+              <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
             ) : isSpinning ? (
-              <RotateCw className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+              <RotateCw className="w-4 h-4 text-amber-400 animate-spin" />
             ) : (
-              <ShieldAlert className="w-3.5 h-3.5 text-white/50" />
+              <ShieldAlert className="w-4 h-4 text-white/50" />
             )}
             <span
-              className={`text-[10px] sm:text-[11px] font-bold tracking-wide truncate ${
+              className={`text-[11px] sm:text-xs font-bold tracking-wide truncate ${
                 isSubBetCelebration || lastWinAmount > 0
-                  ? 'text-cyan-300 animate-pulse'
+                  ? 'text-amber-300 animate-pulse font-black'
                   : 'text-white/80'
               }`}
             >
@@ -1157,28 +1184,33 @@ export function BuffaloSlotGame({
           </div>
         </div>
 
-        {/* Compact Slot Grid Container: Sleek Dark Glass with Zero-Glaring Border */}
+        {/* Responsive Slot Grid Container: Luxury Dark Obsidian Glass with Warm Amber Sheen */}
         <div
-          className={`relative rounded-2xl p-1 sm:p-1.5 border backdrop-blur-2xl transition-all flex flex-col justify-center w-full max-w-[390px] sm:max-w-[430px] max-h-[225px] sm:max-h-[255px] ${
+          className={`relative rounded-2xl p-1.5 sm:p-2.5 md:p-3 border backdrop-blur-2xl transition-all flex flex-col justify-center w-full max-w-[420px] sm:max-w-xl md:max-w-2xl lg:max-w-3xl ${
+            isScreenShaking ? 'animate-screen-shake' : ''
+          } ${
             isSubBetCelebration
-              ? 'border-cyan-400/80 shadow-[0_0_30px_rgba(34,211,238,0.35)] bg-zinc-950/90'
-              : 'border-white/15 shadow-[0_12px_40px_rgba(0,0,0,0.95)] bg-zinc-950/85'
+              ? 'border-amber-400/90 shadow-[0_0_35px_rgba(245,158,11,0.35)] bg-zinc-950/90'
+              : 'border-amber-500/25 shadow-[0_16px_50px_rgba(0,0,0,0.95)] bg-zinc-950/85'
           }`}
         >
           {/* Subtle Ambient Sheen */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(255,255,255,0.03),transparent_75%)] pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(245,158,11,0.03),transparent_75%)] pointer-events-none" />
 
-          {/* 6 Columns Container with Compact Aspect-Square Cells */}
-          <div className="grid grid-cols-6 gap-1 relative z-10 w-full">
+          {/* 6 Columns Container with Responsive Aspect-Square Cells */}
+          <div className="grid grid-cols-6 gap-1 sm:gap-1.5 md:gap-2 relative z-10 w-full">
             {reels.map((columnSymbols, colIdx) => {
               const isColSpinning = spinningCols[colIdx];
+              const isColBouncing = bouncingCols[colIdx];
               return (
                 <div
                   key={`reel-col-${colIdx}`}
-                  className={`flex flex-col gap-1 rounded-xl bg-zinc-900/50 backdrop-blur-sm p-0.5 border transition-all ${
+                  className={`flex flex-col gap-1 sm:gap-1.5 rounded-xl bg-zinc-950/70 backdrop-blur-md p-0.5 sm:p-1 border transition-all ${
                     isColSpinning
-                      ? 'animate-slot-spinning blur-[1px] border-white/40 shadow-md shadow-white/10'
-                      : 'animate-reel-drop border-white/10'
+                      ? 'animate-slot-spinning blur-[1.5px] border-amber-400/30 shadow-md'
+                      : isColBouncing
+                      ? 'animate-reel-bounce border-amber-400/50 shadow-lg'
+                      : 'border-white/10'
                   }`}
                 >
                   {columnSymbols.map((symId, rowIdx) => {
@@ -1187,22 +1219,16 @@ export function BuffaloSlotGame({
                     return (
                       <div
                         key={`cell-${colIdx}-${rowIdx}`}
-                        className={`aspect-square w-full max-h-[36px] sm:max-h-[42px] rounded-lg bg-black/60 border flex items-center justify-center p-0.5 relative overflow-hidden transition-all ${
-                          isWinningCell
-                            ? 'ring-2 ring-white shadow-[0_0_15px_rgba(255,255,255,0.8)] scale-[1.03] z-20 border-white bg-zinc-900/90'
-                            : 'border-white/10 shadow-inner'
+                        className={`aspect-square w-full min-h-[42px] sm:min-h-[56px] md:min-h-[68px] lg:min-h-[76px] rounded-lg relative overflow-hidden transition-all ${
+                          isWinningCell ? 'z-20' : ''
                         }`}
                       >
-                        <RenderSlotSymbol
+                        <BuffaloSymbolImage
                           symbolId={symId}
                           wildMultiplier={wildMult}
-                          className="w-full h-full drop-shadow-sm"
+                          isWinning={isWinningCell}
+                          className="w-full h-full"
                         />
-
-                        {/* Crisp Win Indicator Corner for winning cells */}
-                        {isWinningCell && (
-                          <div className="absolute top-0 left-0 w-2 h-2 bg-white rounded-br-full shadow-md animate-pulse" />
-                        )}
                       </div>
                     );
                   })}
