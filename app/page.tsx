@@ -511,6 +511,7 @@ export default function Home() {
 
   // 7. Atomic Settlement Transition Handler across All Users with Lowest-Pool Optimization
   const triggerGlobalSettlement = useCallback(async (activeRound: CurrentRoundData) => {
+    if (!user) return;
     try {
       // Step A: Read all active bets placed in this round to analyze player pools
       const activeRoundBets: PlayerBet[] = [];
@@ -617,6 +618,7 @@ export default function Home() {
 
   // 8. Atomic Next Round Advance Handler
   const triggerGlobalNextRound = useCallback(async (activeRound: CurrentRoundData) => {
+    if (!user) return;
     try {
       await runTransaction(db, async (txn) => {
         const currentRef = doc(db, 'rounds', 'current');
@@ -2033,7 +2035,7 @@ export default function Home() {
                       </div>
 
                       {/* Hover / Tap Center Play Overlay */}
-                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/40 backdrop-blur-xs">
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/40 backdrop-blur-xs pointer-events-none">
                         <div className="w-12 h-12 rounded-full bg-amber-400 text-black flex items-center justify-center shadow-[0_0_25px_rgba(251,191,36,0.8)] transform scale-90 group-hover:scale-100 transition-transform duration-300">
                           <Play className="w-5 h-5 fill-black stroke-black ml-0.5" />
                         </div>
@@ -2086,7 +2088,7 @@ export default function Home() {
                       </div>
 
                       {/* Hover / Tap Center Play Overlay */}
-                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/40 backdrop-blur-xs">
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/40 backdrop-blur-xs pointer-events-none">
                         <div className="w-12 h-12 rounded-full bg-emerald-400 text-black flex items-center justify-center shadow-[0_0_25px_rgba(52,211,153,0.8)] transform scale-90 group-hover:scale-100 transition-transform duration-300">
                           <Play className="w-5 h-5 fill-black stroke-black ml-0.5" />
                         </div>
@@ -2473,8 +2475,8 @@ export default function Home() {
         />
       )}
 
-      {/* Live Round Result & Profit/Loss Settlement Modal Popup */}
-      {settledModalData && (
+      {/* Live Round Result & Profit/Loss Settlement Modal Popup (Only when in dice game or user placed bets) */}
+      {settledModalData && (selectedGame === 'dice' || settledModalData.userBets.length > 0) && (
         <RoundResultModal
           isOpen={isResultModalOpen}
           onClose={() => setIsResultModalOpen(false)}

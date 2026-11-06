@@ -62,6 +62,16 @@ const INITIAL_REELS: string[][] = [
   ['scatter', 'eagle', 'buffalo', 'scatter'],
 ];
 
+// Continuous rolling strips for 60fps downward reel spin animation
+const COLUMN_SPIN_STRIPS: string[][] = [
+  ['buffalo', 'wolf', 'eagle', 'bear', 'buffalo', 'wolf', 'eagle', 'bear'],
+  ['wild', 'moose', 'buffalo', 'scatter', 'wild', 'moose', 'buffalo', 'scatter'],
+  ['bear', 'wolf', 'wild', 'eagle', 'bear', 'wolf', 'wild', 'eagle'],
+  ['moose', 'buffalo', 'scatter', 'bear', 'moose', 'buffalo', 'scatter', 'bear'],
+  ['eagle', 'wild', 'wolf', 'buffalo', 'eagle', 'wild', 'wolf', 'buffalo'],
+  ['scatter', 'bear', 'moose', 'eagle', 'scatter', 'bear', 'moose', 'eagle'],
+];
+
 const ALL_REGULAR_SYMBOLS = ['buffalo', 'eagle', 'bear', 'wolf', 'moose'];
 
 interface GeneratedSpin {
@@ -497,41 +507,32 @@ export function BuffaloSlotGame({
       setWinningInfo('လည်နေသည်...');
       sounds.playChip();
 
-      // Deduct bet if regular spin
+      // 1. Deduct bet immediately in UI state without blocking
       let currentBalance = user.balance;
       if (!isFreeSpin) {
-        currentBalance = user.balance - betAmount;
+        currentBalance = Math.max(0, user.balance - betAmount);
         if (onUpdateUserBalance) onUpdateUserBalance(currentBalance);
 
-        try {
-          const userDocRef = doc(db, 'users', user.uid);
-          await updateDoc(userDocRef, {
-            balance: currentBalance,
-            totalBetCumulative: (user.totalBetCumulative || 0) + betAmount,
-            wagerSinceLastWithdrawal: (user.wagerSinceLastWithdrawal || 0) + betAmount,
-            updatedAt: Date.now(),
-          });
-        } catch (e) {
-          console.error('Balance update error:', e);
-        }
+        // Background update without blocking the animation thread
+        const userDocRef = doc(db, 'users', user.uid);
+        updateDoc(userDocRef, {
+          balance: currentBalance,
+          totalBetCumulative: (user.totalBetCumulative || 0) + betAmount,
+          wagerSinceLastWithdrawal: (user.wagerSinceLastWithdrawal || 0) + betAmount,
+          updatedAt: Date.now(),
+        }).catch((e) => console.error('Balance update error:', e));
       }
 
-      // Calculate Player Engagement Telemetry & Risk Metrics:
-      // 1. Response latency: time elapsed since previous spin completed
+      // Calculate Player Engagement Telemetry & Risk Metrics
       const now = Date.now();
       const responseTimeMs = now - (lastSettledAtRef.current || now);
-      // Churn hesitation: player takes > 6,000ms before taking next action (or idle hesitation)
       const isHesitating = !isFreeSpin && (responseTimeMs >= 6000 || (lastTelemetryRef.current.responseTimeMs || 0) >= 6000);
 
-      // 2. Bet Hike Risk Control: evaluate ratio of current bet compared to previous spin history
       const history = betHistoryRef.current;
       const avgPreviousBet = history.length > 0 ? history.reduce((a, b) => a + b, 0) / history.length : betAmount;
       const betHikeFactor = avgPreviousBet > 0 ? betAmount / avgPreviousBet : 1.0;
-
-      // Update history buffer (keep last 5 bets)
       betHistoryRef.current = [...history.slice(-4), betAmount];
 
-      // Assemble active telemetry payload
       const engagement: EngagementTelemetry = {
         touchSpeed: lastTelemetryRef.current.touchSpeed,
         dragDistance: lastTelemetryRef.current.dragDistance,
@@ -540,7 +541,7 @@ export function BuffaloSlotGame({
         betHikeFactor,
       };
 
-      // Generate realistic slot outcome with dynamic retention win if player exhibits churn hesitation
+      // Generate realistic slot outcome
       const outcome = generateSlotOutcome(isFreeSpinsActive, lossStreak, betAmount, engagement);
       const finalReels = outcome.reels;
       const totalScatterCount = outcome.totalScatterCount;
@@ -552,27 +553,17 @@ export function BuffaloSlotGame({
         playSlotChime();
       }, 140);
 
-      // Mark all 6 reels as actively spinning
+      // Instantly start all 6 columns rolling at 60fps
       activeSpinningColsRef.current = [true, true, true, true, true, true];
       setSpinningCols([true, true, true, true, true, true]);
 
-      // Fast-shuffle animation loop for the columns that are currently spinning
-      const allSyms = ['buffalo', 'eagle', 'bear', 'wolf', 'moose', 'wild', 'scatter'];
-      const shuffleInterval = setInterval(() => {
-        setReels((prev) => {
-          return prev.map((colSyms, cIdx) => {
-            if (!activeSpinningColsRef.current[cIdx]) {
-              return colSyms; // already locked
-            }
-            return [
-              allSyms[Math.floor(Math.random() * allSyms.length)],
-              allSyms[Math.floor(Math.random() * allSyms.length)],
-              allSyms[Math.floor(Math.random() * allSyms.length)],
-              allSyms[Math.floor(Math.random() * allSyms.length)],
-            ];
-          });
-        });
-      }, 75);
+      // Failsafe watchdog to guarantee reels can never get stuck
+      const failsafeTimer = setTimeout(() => {
+        clearInterval(spinInterval);
+        setIsSpinning(false);
+        setSpinningCols([false, false, false, false, false, false]);
+        setBouncingCols([false, false, false, false, false, false]);
+      }, 3500);
 
       // Staggered Reel Stopping with Dynamic Physics Bounce
       // Reel 1 (Col 0) stops at 480ms
@@ -585,7 +576,7 @@ export function BuffaloSlotGame({
         playReelStopSound(0);
       }, 480);
 
-      // Reel 2 (Col 1) stops at 760ms
+      // Reel 2 (Col 1) stops at 720ms
       setTimeout(() => {
         activeSpinningColsRef.current[1] = false;
         setSpinningCols((prev) => [false, false, prev[2], prev[3], prev[4], prev[5]]);
@@ -593,9 +584,9 @@ export function BuffaloSlotGame({
         setBouncingCols((prev) => [prev[0], true, prev[2], prev[3], prev[4], prev[5]]);
         setTimeout(() => setBouncingCols((prev) => [prev[0], false, prev[2], prev[3], prev[4], prev[5]]), 400);
         playReelStopSound(1);
-      }, 760);
+      }, 720);
 
-      // Reel 3 (Col 2) stops at 1040ms
+      // Reel 3 (Col 2) stops at 960ms
       setTimeout(() => {
         activeSpinningColsRef.current[2] = false;
         setSpinningCols((prev) => [false, false, false, prev[3], prev[4], prev[5]]);
@@ -603,9 +594,9 @@ export function BuffaloSlotGame({
         setBouncingCols((prev) => [prev[0], prev[1], true, prev[3], prev[4], prev[5]]);
         setTimeout(() => setBouncingCols((prev) => [prev[0], prev[1], false, prev[3], prev[4], prev[5]]), 400);
         playReelStopSound(2);
-      }, 1040);
+      }, 960);
 
-      // Reel 4 (Col 3) stops at 1320ms
+      // Reel 4 (Col 3) stops at 1200ms
       setTimeout(() => {
         activeSpinningColsRef.current[3] = false;
         setSpinningCols((prev) => [false, false, false, false, prev[4], prev[5]]);
@@ -613,9 +604,9 @@ export function BuffaloSlotGame({
         setBouncingCols((prev) => [prev[0], prev[1], prev[2], true, prev[4], prev[5]]);
         setTimeout(() => setBouncingCols((prev) => [prev[0], prev[1], prev[2], false, prev[4], prev[5]]), 400);
         playReelStopSound(3);
-      }, 1320);
+      }, 1200);
 
-      // Reel 5 (Col 4) stops at 1600ms
+      // Reel 5 (Col 4) stops at 1440ms
       setTimeout(() => {
         activeSpinningColsRef.current[4] = false;
         setSpinningCols((prev) => [false, false, false, false, false, prev[5]]);
@@ -623,12 +614,11 @@ export function BuffaloSlotGame({
         setBouncingCols((prev) => [prev[0], prev[1], prev[2], prev[3], true, prev[5]]);
         setTimeout(() => setBouncingCols((prev) => [prev[0], prev[1], prev[2], prev[3], false, prev[5]]), 400);
         playReelStopSound(4);
-      }, 1600);
+      }, 1440);
 
-      // Reel 6 (Col 5) stops at 1880ms - FINAL REEL
+      // Reel 6 (Col 5) stops at 1680ms - FINAL REEL
       setTimeout(() => {
         activeSpinningColsRef.current[5] = false;
-        clearInterval(shuffleInterval);
         clearInterval(spinInterval);
         setSpinningCols([false, false, false, false, false, false]);
         setReels(finalReels);
@@ -636,10 +626,11 @@ export function BuffaloSlotGame({
         setBouncingCols([false, false, false, false, false, true]);
         setTimeout(() => setBouncingCols([false, false, false, false, false, false]), 420);
         playReelStopSound(5);
-      }, 1880);
+      }, 1680);
 
-      // Payout Evaluation & Firestore updates after all reels have settled at 2000ms
+      // Payout Evaluation & Firestore updates after all reels have settled at 1800ms
       setTimeout(async () => {
+        clearTimeout(failsafeTimer);
         setIsSpinning(false);
 
         // 2. Evaluate 4,096 Ways Win Math (Left to Right starting from Reel 0)
@@ -1202,36 +1193,54 @@ export function BuffaloSlotGame({
             {reels.map((columnSymbols, colIdx) => {
               const isColSpinning = spinningCols[colIdx];
               const isColBouncing = bouncingCols[colIdx];
+              const spinStrip = COLUMN_SPIN_STRIPS[colIdx] || COLUMN_SPIN_STRIPS[0];
+
               return (
                 <div
                   key={`reel-col-${colIdx}`}
-                  className={`flex flex-col gap-1 sm:gap-1.5 rounded-xl bg-zinc-950/70 backdrop-blur-md p-0.5 sm:p-1 border transition-all ${
-                    isColSpinning
-                      ? 'animate-slot-spinning blur-[1.5px] border-amber-400/30 shadow-md'
-                      : isColBouncing
-                      ? 'animate-reel-bounce border-amber-400/50 shadow-lg'
-                      : 'border-white/10'
-                  }`}
+                  className="relative overflow-hidden rounded-xl bg-zinc-950/70 backdrop-blur-md p-0.5 sm:p-1 border border-white/10"
                 >
-                  {columnSymbols.map((symId, rowIdx) => {
-                    const wildMult = wildMultipliers[`${colIdx}-${rowIdx}`] || 1;
-                    const isWinningCell = winningCells.includes(`${colIdx}-${rowIdx}`);
-                    return (
-                      <div
-                        key={`cell-${colIdx}-${rowIdx}`}
-                        className={`aspect-square w-full min-h-[42px] sm:min-h-[56px] md:min-h-[68px] lg:min-h-[76px] rounded-lg relative overflow-hidden transition-all ${
-                          isWinningCell ? 'z-20' : ''
-                        }`}
-                      >
-                        <BuffaloSymbolImage
-                          symbolId={symId}
-                          wildMultiplier={wildMult}
-                          isWinning={isWinningCell}
-                          className="w-full h-full"
-                        />
-                      </div>
-                    );
-                  })}
+                  {isColSpinning ? (
+                    <div className="animate-reel-strip-spin flex flex-col gap-1 sm:gap-1.5 filter blur-[1px]">
+                      {spinStrip.map((symId, sIdx) => (
+                        <div
+                          key={`spin-strip-${colIdx}-${sIdx}`}
+                          className="aspect-square w-full min-h-[42px] sm:min-h-[56px] md:min-h-[68px] lg:min-h-[76px] rounded-lg overflow-hidden shrink-0"
+                        >
+                          <BuffaloSymbolImage
+                            symbolId={symId}
+                            className="w-full h-full"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      className={`flex flex-col gap-1 sm:gap-1.5 ${
+                        isColBouncing ? 'animate-reel-bounce' : ''
+                      }`}
+                    >
+                      {columnSymbols.map((symId, rowIdx) => {
+                        const wildMult = wildMultipliers[`${colIdx}-${rowIdx}`] || 1;
+                        const isWinningCell = winningCells.includes(`${colIdx}-${rowIdx}`);
+                        return (
+                          <div
+                            key={`cell-${colIdx}-${rowIdx}`}
+                            className={`aspect-square w-full min-h-[42px] sm:min-h-[56px] md:min-h-[68px] lg:min-h-[76px] rounded-lg relative overflow-hidden transition-all ${
+                              isWinningCell ? 'z-20' : ''
+                            }`}
+                          >
+                            <BuffaloSymbolImage
+                              symbolId={symId}
+                              wildMultiplier={wildMult}
+                              isWinning={isWinningCell}
+                              className="w-full h-full"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1280,74 +1289,28 @@ export function BuffaloSlotGame({
 
           {/* 3. CENTER COMPACT [ SPIN ] BUTTON: Modern White & Dark Frosted Disc */}
           <button
-            onTouchStart={(e) => {
-              const touch = e.touches[0];
-              if (touch) {
-                touchStartRef.current = {
-                  x: touch.clientX,
-                  y: touch.clientY,
-                  time: Date.now(),
-                };
-              }
-            }}
-            onTouchEnd={(e) => {
-              if (touchStartRef.current && e.changedTouches[0]) {
-                const touch = e.changedTouches[0];
-                const dt = Math.max(1, Date.now() - touchStartRef.current.time);
-                const dx = touch.clientX - touchStartRef.current.x;
-                const dy = touch.clientY - touchStartRef.current.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                const speed = (distance / dt) * 1000; // px per second
-
-                lastTelemetryRef.current = {
-                  touchSpeed: Math.round(speed),
-                  dragDistance: Math.round(distance),
-                  responseTimeMs: Date.now() - lastSettledAtRef.current,
-                  isHesitating: Date.now() - lastSettledAtRef.current >= 6000,
-                };
-              }
-            }}
-            onMouseDown={(e) => {
-              touchStartRef.current = {
-                x: e.clientX,
-                y: e.clientY,
-                time: Date.now(),
-              };
-            }}
-            onMouseUp={(e) => {
-              if (touchStartRef.current) {
-                const dt = Math.max(1, Date.now() - touchStartRef.current.time);
-                const dx = e.clientX - touchStartRef.current.x;
-                const dy = e.clientY - touchStartRef.current.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                const speed = (distance / dt) * 1000; // px per second
-
-                lastTelemetryRef.current = {
-                  touchSpeed: Math.round(speed),
-                  dragDistance: Math.round(distance),
-                  responseTimeMs: Date.now() - lastSettledAtRef.current,
-                  isHesitating: Date.now() - lastSettledAtRef.current >= 6000,
-                };
-              }
-            }}
             onClick={() => executeSpin(false)}
             disabled={isSpinning || (user ? user.balance < betAmount : false)}
             className={`relative rounded-full p-1 transition-all shadow-[0_0_20px_rgba(255,255,255,0.25)] ${
               isSpinning
-                ? 'scale-95 cursor-not-allowed opacity-80'
+                ? 'scale-95 cursor-not-allowed opacity-90'
                 : 'hover:scale-105 active:scale-95'
             }`}
             style={{
-              width: '52px',
-              height: '52px',
+              width: '54px',
+              height: '54px',
               background: 'linear-gradient(135deg, #ffffff 0%, #d4d4d8 60%, #71717a 100%)',
             }}
           >
-            {/* Concentric Dark Core with Bold White Text */}
+            {/* Concentric Dark Core with Bold White Text / Active Spinner */}
             <div className="w-full h-full rounded-full flex flex-col items-center justify-center bg-black shadow-inner">
-              <span className="text-[11px] font-black font-sans uppercase tracking-tight text-white">
-                {isSpinning ? '...' : 'SPIN'}
-              </span>
+              {isSpinning ? (
+                <RotateCw className="w-5 h-5 text-amber-400 animate-spin" />
+              ) : (
+                <span className="text-[12px] font-black font-sans uppercase tracking-tight text-white">
+                  SPIN
+                </span>
+              )}
             </div>
           </button>
 
