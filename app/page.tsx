@@ -5,6 +5,8 @@ import {
   signInWithPopup,
   signOut,
   onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
   User as FirebaseUser,
 } from 'firebase/auth';
 import {
@@ -1455,32 +1457,71 @@ export default function Home() {
     psw: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const cleanPhone = phone.trim().replace(/\s+/g, '');
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('phoneNumber', '==', cleanPhone));
-      const querySnap = await getDocs(q);
-
-      if (querySnap.empty) {
-        return { success: false, error: 'ဤဖုန်းနံပါတ်ဖြင့် အကောင့်ဖွင့်ထားခြင်း မရှိသေးပါ (Sign Up ပြုလုပ်ပေးပါ)' };
+      const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+      if (!cleanPhone || cleanPhone.length < 7) {
+        return { success: false, error: 'ဖုန်းနံပါတ် အပြည့်အစုံ မှန်ကန်စွာ ထည့်သွင်းပေးပါ' };
       }
 
-      const userDoc = querySnap.docs[0];
-      const profile = userDoc.data() as UserProfile;
+      const syntheticEmail = `${cleanPhone}@phone.casino`;
 
-      // Verify password hash or plain match
-      if (profile.passwordHash && profile.passwordHash !== btoa(psw)) {
-        return { success: false, error: 'စကားဝှက် (Password) မှားယွင်းနေပါသည်' };
+      // 1. Authenticate with Firebase Auth directly (works on all domains including Vercel)
+      const userCredential = await signInWithEmailAndPassword(auth, syntheticEmail, psw);
+      const user = userCredential.user;
+
+      // 2. Fetch or initialize User Profile in Firestore
+      const userDocRef = doc(db, 'users', user.uid);
+      const snap = await getDoc(userDocRef);
+      if (snap.exists()) {
+        setUserProfile(snap.data() as UserProfile);
+      } else {
+        const newProfile: UserProfile = {
+          uid: user.uid,
+          email: syntheticEmail,
+          phoneNumber: cleanPhone,
+          fullName: `Player ${cleanPhone.slice(-4)}`,
+          role: 'user',
+          balance: 0,
+          referralBalance: 0,
+          referralsCount: 0,
+          totalBetCumulative: 0,
+          totalSuccessfulDeposit: 0,
+          withdrawalCount: 0,
+          wagerSinceLastWithdrawal: 0,
+          hasSuccessfulDeposit: false,
+          isHedgingFlagged: false,
+          cleanTurnoverRequired: 0,
+          firstDepositBonusClaimed: false,
+          promoClaimedReferrals: [],
+          claimedMilestones: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        await setDoc(userDocRef, newProfile);
+        setUserProfile(newProfile);
       }
 
-      // Successful sign in
-      setUserProfile(profile);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('xai_phone_user', JSON.stringify({ uid: profile.uid, phone: cleanPhone }));
+        localStorage.setItem('xai_phone_user', JSON.stringify({ uid: user.uid, phone: cleanPhone }));
       }
       return { success: true };
     } catch (err: unknown) {
       console.error('Phone Sign In Error:', err);
-      return { success: false, error: err instanceof Error ? err.message : 'အကောင့်ဝင်ရောက်မှု မအောင်မြင်ပါ' };
+      const errCode = (err as { code?: string })?.code;
+      if (
+        errCode === 'auth/user-not-found' ||
+        errCode === 'auth/invalid-credential' ||
+        errCode === 'auth/wrong-password' ||
+        errCode === 'auth/invalid-email'
+      ) {
+        return {
+          success: false,
+          error: 'ဖုန်းနံပါတ် သို့မဟုတ် စကားဝှက် မှားယွင်းနေပါသည် (အကောင့်မရှိသေးပါက Sign Up ပြုလုပ်ပါ)',
+        };
+      }
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'အကောင့်ဝင်ရောက်မှု မအောင်မြင်ပါ',
+      };
     }
   };
 
@@ -1491,24 +1532,42 @@ export default function Home() {
     refCode?: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const cleanPhone = phone.trim().replace(/\s+/g, '');
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('phoneNumber', '==', cleanPhone));
-      const querySnap = await getDocs(q);
-
-      if (!querySnap.empty) {
-        return { success: false, error: 'ဤဖုန်းနံပါတ်ဖြင့် အကောင့်ရှိပြီးဖြစ်ပါသည် (Login ဝင်ပေးပါ)' };
+      const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+      if (!cleanPhone || cleanPhone.length < 7) {
+        return { success: false, error: 'ဖုန်းနံပါတ် အပြည့်အစုံ မှန်ကန်စွာ ထည့်သွင်းပေးပါ' };
       }
 
-      // Generate deterministic clean phone UID
-      const newUid = `phone_${cleanPhone}_${Date.now().toString(36)}`;
+      const syntheticEmail = `${cleanPhone}@phone.casino`;
+
+      // 1. Create genuine Firebase Auth User
+      let userCredential;
+      try {
+        userCredential = await createUserWithEmailAndPassword(auth, syntheticEmail, psw);
+      } catch (authErr: unknown) {
+        const errCode = (authErr as { code?: string })?.code;
+        if (errCode === 'auth/email-already-in-use') {
+          return {
+            success: false,
+            error: 'ဤဖုန်းနံပါတ်ဖြင့် အကောင့်ဖွင့်ပြီးဖြစ်ပါသည် (Login ဝင်ရောက်ပေးပါ)',
+          };
+        } else if (errCode === 'auth/weak-password') {
+          return {
+            success: false,
+            error: 'စကားဝှက်သည် အနည်းဆုံး ၆ လုံး ရှိရပါမည်',
+          };
+        }
+        throw authErr;
+      }
+
+      const user = userCredential.user;
       const referrerCandidate = refCode || urlReferralCode || null;
 
+      // 2. Create User Profile document in Firestore under user.uid (allowed by security rules)
+      const userDocRef = doc(db, 'users', user.uid);
       const newProfile: UserProfile = {
-        uid: newUid,
-        email: `${cleanPhone}@phone.casino`,
+        uid: user.uid,
+        email: syntheticEmail,
         phoneNumber: cleanPhone,
-        passwordHash: btoa(psw),
         fullName: name.trim(),
         role: 'user',
         balance: 0,
@@ -1530,11 +1589,11 @@ export default function Home() {
         updatedAt: Date.now(),
       };
 
-      await setDoc(doc(db, 'users', newUid), newProfile);
+      await setDoc(userDocRef, newProfile);
       setUserProfile(newProfile);
 
-      // If referred by another user, credit referrer's count
-      if (referrerCandidate && referrerCandidate !== newUid) {
+      // 3. Credit referrer count if valid
+      if (referrerCandidate && referrerCandidate !== user.uid) {
         try {
           const refDocRef = doc(db, 'users', referrerCandidate);
           const refSnap = await getDoc(refDocRef);
@@ -1551,13 +1610,16 @@ export default function Home() {
       }
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem('xai_phone_user', JSON.stringify({ uid: newUid, phone: cleanPhone }));
+        localStorage.setItem('xai_phone_user', JSON.stringify({ uid: user.uid, phone: cleanPhone }));
       }
 
       return { success: true };
     } catch (err: unknown) {
       console.error('Phone Sign Up Error:', err);
-      return { success: false, error: err instanceof Error ? err.message : 'အကောင့်ဖွင့်ခြင်း မအောင်မြင်ပါ' };
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'အကောင့်ဖွင့်ခြင်း မအောင်မြင်ပါ',
+      };
     }
   };
 

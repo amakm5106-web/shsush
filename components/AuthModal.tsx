@@ -54,7 +54,7 @@ export function AuthModal({
     e.preventDefault();
     setErrorMessage('');
 
-    const cleanPhone = phone.trim().replace(/\s+/g, '');
+    const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
     if (!cleanPhone || cleanPhone.length < 7) {
       setErrorMessage('ဖုန်းနံပါတ် အပြည့်အစုံ မှန်ကန်စွာ ထည့်သွင်းပေးပါ (ဥပမာ 09xxxxxxxxx)');
       return;

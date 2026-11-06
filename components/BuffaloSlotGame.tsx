@@ -39,14 +39,14 @@ interface BuffaloSlotGameProps {
   onUpdateUserBalance?: (newBalance: number) => void;
 }
 
-// Tight House-Edge Casino Math: Lowered RTP (~82-86%), 14% Regular Hit Rate
-// Non-winning spins default to 2-Reel Teaser Near-Misses to maintain excitement while keeping player bets in the house
+// Tight House-Edge Casino Math: Lowered RTP (~80-84%), 9% Base Regular Hit Rate
+// Payouts and hit rates dynamically scale down on high stakes to protect casino bankroll.
 const SYMBOL_PAYOUTS: Record<string, { name: string; p3: number; p4: number; p5: number; p6: number }> = {
-  buffalo: { name: 'ကျွဲရွှေ (Buffalo)', p3: 0.6, p4: 1.1, p5: 2.0, p6: 3.5 },
-  eagle: { name: 'လင်းယုန် (Eagle)', p3: 0.45, p4: 0.8, p5: 1.4, p6: 2.5 },
-  bear: { name: 'ဝက်ဝံ (Bear)', p3: 0.35, p4: 0.65, p5: 1.1, p6: 1.8 },
-  wolf: { name: 'ဝံပုလွေ (Wolf)', p3: 0.25, p4: 0.5, p5: 0.8, p6: 1.4 },
-  moose: { name: 'သမင်/မုစ် (Moose)', p3: 0.2, p4: 0.35, p5: 0.6, p6: 1.0 },
+  buffalo: { name: 'ကျွဲရွှေ (Buffalo)', p3: 0.40, p4: 0.75, p5: 1.25, p6: 2.00 },
+  eagle: { name: 'လင်းယုန် (Eagle)', p3: 0.30, p4: 0.55, p5: 0.95, p6: 1.50 },
+  bear: { name: 'ဝက်ဝံ (Bear)', p3: 0.20, p4: 0.40, p5: 0.70, p6: 1.10 },
+  wolf: { name: 'ဝံပုလွေ (Wolf)', p3: 0.15, p4: 0.30, p5: 0.50, p6: 0.80 },
+  moose: { name: 'သမင်/မုစ် (Moose)', p3: 0.10, p4: 0.20, p5: 0.35, p6: 0.60 },
 };
 
 // Available Bet Options
@@ -81,28 +81,44 @@ interface EngagementTelemetry {
   betHikeFactor?: number; // ratio of current bet vs average previous bets
 }
 
-// Casino Math Engine: Strict Low-RTP (~84%) House-Favorable Engine
-// - Regular Hit Rate lowered to ~14% (86% of spins are house-wins with 2-reel near misses)
-// - Cold streak recovery trigger raised from 5 to 8 losses, awarding modest 3-reel returns
-// - Churn retention adjusted to small sub-bet return (0.3x-0.5x bet) so house retains profit while keeping user playing
-// - Extreme bet hike strictly restricts payouts to prevent large player windfalls
+// Casino Math Engine: Strict Low-RTP (~82%) House-Protected Engine
+// - Regular Hit Rate lowered to ~9% (91% of spins are house-wins)
+// - High bet scaling: bets >= 2,000 Ks reduce hit rates and heavily taper payout multipliers
+// - Streak recovery raised to 12 consecutive losses, giving only modest returns
 function generateSlotOutcome(
   isFreeSpins: boolean,
   lossStreak: number = 0,
+  betAmount: number = 500,
   engagement?: EngagementTelemetry
 ): GeneratedSpin {
-  // Low-RTP base hit probability: 14% for standard spins, 28% for free spins
-  let hitProbability = isFreeSpins ? 0.28 : (lossStreak >= 8 ? 0.22 : 0.14);
+  // Low-RTP base hit probability: 9% for standard spins, 18% for free spins
+  let hitProbability = isFreeSpins ? 0.18 : 0.09;
 
-  // Churn Prevention: If player hesitates (> 6000ms), provide a controlled sub-bet return (~35% chance, low-paying symbol)
-  const isRetentionTriggered = !isFreeSpins && engagement?.isHesitating === true && Math.random() < 0.35;
+  // Streak recovery: Only after 12 consecutive losses, granting a modest 14% chance
+  if (!isFreeSpins && lossStreak >= 12) {
+    hitProbability = 0.14;
+  }
+
+  // Stake-based Hit Rate Tapering: High bets face lower hit probability to prevent casino bleed
+  if (!isFreeSpins) {
+    if (betAmount >= 20000) {
+      hitProbability = Math.min(hitProbability, 0.05); // 5% max for 20,000 - 50,000 Ks bets
+    } else if (betAmount >= 5000) {
+      hitProbability = Math.min(hitProbability, 0.065); // 6.5% max for 5,000 - 10,000 Ks bets
+    } else if (betAmount >= 2000) {
+      hitProbability = Math.min(hitProbability, 0.08); // 8% max for 2,000 Ks bets
+    }
+  }
+
+  // Subtle churn retention: small probability for tiny return
+  const isRetentionTriggered = !isFreeSpins && engagement?.isHesitating === true && Math.random() < 0.15;
   if (isRetentionTriggered) {
-    hitProbability = 0.55;
+    hitProbability = 0.18;
   }
 
   // Extreme Bet Hike Control: If player rapidly multiplies bet (> 2.5x), cut hit chance heavily to shield casino
   if (engagement?.betHikeFactor && engagement.betHikeFactor >= 2.5) {
-    hitProbability = Math.max(0.08, hitProbability * 0.45);
+    hitProbability = Math.max(0.04, hitProbability * 0.4);
   }
 
   const isWinningSpin = Math.random() < hitProbability;
@@ -115,35 +131,33 @@ function generateSlotOutcome(
   let celebrate = false;
 
   if (isWinningSpin) {
-    // Cold streak comeback requires 8 consecutive losses, yielding modest 3-4 length regular symbol
-    const isRecoveryBonus = !isFreeSpins && lossStreak >= 8;
+    const isRecoveryBonus = !isFreeSpins && lossStreak >= 12;
 
     let winSym = 'moose';
     let winLength = 3;
 
     if (isRetentionTriggered) {
-      // Retention: Small sub-bet return (moose/wolf 3 cols) - user sees celebrate lights without breaking house bank
-      winSym = Math.random() < 0.6 ? 'moose' : 'wolf';
+      winSym = Math.random() < 0.7 ? 'moose' : 'wolf';
       winLength = 3;
     } else if (isRecoveryBonus) {
-      winSym = Math.random() < 0.5 ? 'bear' : 'eagle';
+      winSym = Math.random() < 0.6 ? 'wolf' : 'bear';
       winLength = 3;
     } else {
-      // Standard spins: low-paying symbols (90% moose/wolf/bear)
+      // Standard spins: low-paying symbols (92% moose/wolf/bear)
       const symRand = Math.random();
-      if (symRand < 0.03) winSym = 'buffalo';
-      else if (symRand < 0.10) winSym = 'eagle';
-      else if (symRand < 0.35) winSym = 'bear';
-      else if (symRand < 0.68) winSym = 'wolf';
+      if (symRand < 0.02) winSym = 'buffalo';
+      else if (symRand < 0.07) winSym = 'eagle';
+      else if (symRand < 0.28) winSym = 'bear';
+      else if (symRand < 0.62) winSym = 'wolf';
       else winSym = 'moose';
 
       const lenRand = Math.random();
-      if (lenRand < 0.92) winLength = 3;
+      if (lenRand < 0.94) winLength = 3;
       else winLength = 4;
     }
 
-    // Very low chance for 3 Scatters Free Spins (~1.2%)
-    const triggerBonus = Math.random() < 0.012;
+    // Low chance for 3 Scatters Free Spins (~1.0%)
+    const triggerBonus = Math.random() < 0.01;
 
     for (let col = 0; col < 6; col++) {
       const colSyms: string[] = [];
@@ -187,16 +201,14 @@ function generateSlotOutcome(
       reels[col] = colSyms;
     }
   } else {
-    // 76% NON-WINNING SPINS: Near-Miss Engine (ပထမ Reel ၂ ခုတွင် Jackpot သင်္ကေတပြပြီး တတိယ Reel တွင် ကပ်လွဲ)
+    // NON-WINNING SPINS (House-Wins)
     isNearMiss = true;
     const missTypeRand = Math.random();
 
     if (missTypeRand < 0.80) {
-      // Near-Miss Type A (80% of misses): 2-Reel Jackpot Teaser
-      // Reels 0 & 1 prominently hit the Jackpot symbol (buffalo or eagle), Reel 2 strictly avoids it!
+      // Reels 0 & 1 show symbol connection, Reel 2 misses connection
       const teaserSym = Math.random() < 0.65 ? 'buffalo' : 'eagle';
-      const teaserLabel = teaserSym === 'buffalo' ? 'ကျွဲရွှေ' : 'လင်းယုန်ရွှေ';
-      nearMissDescription = `${teaserLabel} ၂ ကော်လံကျပြီး တတိယကော်လံ ကပ်သီးကပ်သပ် လွဲသွားပါသည်!`;
+      nearMissDescription = 'နောက်တစ်ကြိမ် ထပ်စမ်းပါ';
 
       // Assign matching rows for Reel 0 and Reel 1
       const matchRow0 = Math.floor(Math.random() * 4);
@@ -211,7 +223,7 @@ function generateSlotOutcome(
           } else if (col === 1 && row === matchRow1) {
             colSyms.push(teaserSym);
           } else if (col === 2) {
-            // Reel 2 MUST strictly avoid the teaser symbol and wild to guarantee a narrow miss
+            // Reel 2 strictly avoids the symbol and wild
             const safeReel2Pool = ALL_REGULAR_SYMBOLS.filter(
               (s) => s !== teaserSym && s !== 'buffalo' && s !== 'wild'
             );
@@ -235,10 +247,9 @@ function generateSlotOutcome(
         reels[col] = colSyms;
       }
     } else {
-      // Near-Miss Type B (20% of misses): 2-Scatter Teaser (2 Coins land, missing the 3rd Free Spins coin)
-      nearMissDescription = 'ရွှေဒင်္ဂါး ၂ ခုကျသည် (ကပ်သီးကပ်သပ် လွဲ!)';
+      nearMissDescription = 'နောက်တစ်ကြိမ် ထပ်စမ်းပါ';
       totalScatterCount = 2;
-      const scatterCols = [0, 1]; // First two reels show Scatter!
+      const scatterCols = [0, 1]; // First two reels show Scatter
 
       for (let col = 0; col < 6; col++) {
         const colSyms: string[] = [];
@@ -337,6 +348,7 @@ export function BuffaloSlotGame({
   // Auto Spin State
   const [isAutoSpinning, setIsAutoSpinning] = useState<boolean>(false);
   const [autoSpinsRemaining, setAutoSpinsRemaining] = useState<number>(0);
+  const [isAutoModalOpen, setIsAutoModalOpen] = useState<boolean>(false);
 
   // Device Portrait Detection & 90-degree Rotation State
   // Default forceLandscapeView to true so that whenever the user enters Buffalo slot on mobile, it immediately auto-rotates landscape and fills the screen
@@ -524,7 +536,7 @@ export function BuffaloSlotGame({
       };
 
       // Generate realistic slot outcome with dynamic retention win if player exhibits churn hesitation
-      const outcome = generateSlotOutcome(isFreeSpinsActive, lossStreak, engagement);
+      const outcome = generateSlotOutcome(isFreeSpinsActive, lossStreak, betAmount, engagement);
       const finalReels = outcome.reels;
       const totalScatterCount = outcome.totalScatterCount;
       const finalWildMults = outcome.wildMultipliers;
@@ -656,18 +668,39 @@ export function BuffaloSlotGame({
             else if (consecutiveCols === 5) baseMult = payoutDef.p5;
             else if (consecutiveCols >= 6) baseMult = payoutDef.p6;
 
-            // Clamp effective ways and wild multiplier so total multiplier remains moderate and healthy
+            // High-Stake Payout Multiplier Dampener:
+            // Inversely scales down payout multipliers as bet size increases to shield casino bankroll
+            let stakeDampener = 1.0;
+            if (betAmount >= 50000) stakeDampener = 0.45;
+            else if (betAmount >= 20000) stakeDampener = 0.55;
+            else if (betAmount >= 10000) stakeDampener = 0.65;
+            else if (betAmount >= 5000) stakeDampener = 0.75;
+            else if (betAmount >= 2000) stakeDampener = 0.85;
+
+            // Clamp effective ways and wild multiplier so total multiplier remains balanced
             const effectiveWays = Math.min(waysCount, 2);
-            const effectiveWildMult = isFreeSpinsActive ? Math.min(wildMultiplierProduct, 5) : 1;
-            const waysMultiplier = baseMult * effectiveWays * effectiveWildMult;
+            const effectiveWildMult = isFreeSpinsActive ? Math.min(wildMultiplierProduct, 3) : 1;
+            const waysMultiplier = baseMult * effectiveWays * effectiveWildMult * stakeDampener;
             const waysWinAmount = Math.round(betAmount * waysMultiplier);
             spinTotalWin += waysWinAmount;
             hitSymbols.push(`${payoutDef.name} ${consecutiveCols} ကော်လံ`);
           }
         }
 
-        // Cap maximum multiplier per spin: Regular max 5x, Free Spins max 12x (Protects house from runaway payouts)
-        const maxAllowedMultiplier = isFreeSpinsActive ? 12 : 5;
+        // Cap maximum multiplier per spin scaled tightly by bet size (protects house from runaway payouts)
+        let maxAllowedMultiplier = isFreeSpinsActive ? 6.0 : 2.8;
+        if (betAmount >= 50000) {
+          maxAllowedMultiplier = isFreeSpinsActive ? 2.0 : 1.25;
+        } else if (betAmount >= 20000) {
+          maxAllowedMultiplier = isFreeSpinsActive ? 2.5 : 1.40;
+        } else if (betAmount >= 10000) {
+          maxAllowedMultiplier = isFreeSpinsActive ? 3.0 : 1.65;
+        } else if (betAmount >= 5000) {
+          maxAllowedMultiplier = isFreeSpinsActive ? 3.5 : 1.85;
+        } else if (betAmount >= 2000) {
+          maxAllowedMultiplier = isFreeSpinsActive ? 4.5 : 2.20;
+        }
+
         const maxAllowedWin = Math.round(betAmount * maxAllowedMultiplier);
         if (spinTotalWin > maxAllowedWin) {
           spinTotalWin = maxAllowedWin;
@@ -676,7 +709,6 @@ export function BuffaloSlotGame({
         setLastWinAmount(spinTotalWin);
 
         // 3. Handle Payout & Firestore Bet Recording
-        // Calculate celebration flag: true if outcome has celebrate flag or if user wins any amount (including sub-bet returns e.g. 500 Ks on 1000 Ks bet)
         const shouldCelebrate = spinTotalWin > 0;
         outcome.celebrate = shouldCelebrate;
 
@@ -684,19 +716,14 @@ export function BuffaloSlotGame({
           setLossStreak(0);
           setWinningCells(winningKeys);
 
-          // Sub-bet win celebration (e.g. bet 1,000 Ks, win 500 Ks):
-          // Triggers celebratory sound and neon border lighting to keep the user engaged
           sounds.playWin();
           setIsSubBetCelebration(true);
           setTimeout(() => setIsSubBetCelebration(false), 2400);
 
-          if (spinTotalWin < betAmount) {
-            setWinningInfo(`ဆုကြေး Ks ${spinTotalWin.toLocaleString()} ရရှိပါသည်! (Sub-Bet အနိုင်ဆု)`);
-          } else {
-            setWinningInfo(`ဆုကြေး Ks ${spinTotalWin.toLocaleString()} ရရှိပါသည်!`);
-          }
+          // Clean, professional win message
+          setWinningInfo(`ဆုကြေး Ks ${spinTotalWin.toLocaleString()} ရရှိပါသည်!`);
 
-          // Spectacular Big Win modal trigger (>= 3x of bet)
+          // Big Win celebration trigger
           if (spinTotalWin >= betAmount * 3) {
             setBigWinData({
               amount: spinTotalWin,
@@ -743,7 +770,7 @@ export function BuffaloSlotGame({
           setWinningInfo(
             isFreeSpin
               ? 'Free Spin တွင် ဆုကြေးမပေါက်ပါ'
-              : nearMissText || 'ကပ်သီးကပ်သပ်လေး လွဲသွားပါသည်! နောက်တစ်ကြိမ် ထပ်စမ်းပါ'
+              : 'နောက်တစ်ကြိမ် ထပ်စမ်းပါ'
           );
           // Record Loss Bet if paid spin
           if (!isFreeSpin) {
@@ -833,11 +860,21 @@ export function BuffaloSlotGame({
 
     // Handle Auto Spins
     if (isAutoSpinning && !isFreeSpinsActive) {
+      // Balance safety stop: stop auto spin if user's balance is less than current bet
+      if (user && user.balance < betAmount) {
+        const stopTimer = setTimeout(() => {
+          setIsAutoSpinning(false);
+          setAutoSpinsRemaining(0);
+          setWinningInfo('လက်ကျန်ငွေ မလုံလောက်သဖြင့် Auto Spin ရပ်တန့်ပါသည်');
+        }, 0);
+        return () => clearTimeout(stopTimer);
+      }
+
       if (autoSpinsRemaining > 0) {
         const timer = setTimeout(() => {
           setAutoSpinsRemaining((prev) => prev - 1);
           executeSpin(false);
-        }, 1000);
+        }, 1100);
         return () => clearTimeout(timer);
       } else {
         const stopTimer = setTimeout(() => {
@@ -854,6 +891,8 @@ export function BuffaloSlotGame({
     isAutoSpinning,
     autoSpinsRemaining,
     executeSpin,
+    user,
+    betAmount,
   ]);
 
   // Buy Bonus Action (100x Bet for 10 Free Spins)
@@ -1096,22 +1135,20 @@ export function BuffaloSlotGame({
       {/* CENTER ARENA: Compact 6 Reels x 4 Rows Matrix (Neatly Proportioned)       */}
       {/* ========================================================================= */}
       <main className="flex-1 w-full flex flex-col justify-center items-center px-1 sm:px-2 py-0.5 overflow-hidden">
-        {/* Dynamic Status / Teaser Message Bar */}
+        {/* Dynamic Status Message Bar */}
         <div className="w-full max-w-[390px] sm:max-w-[430px] mb-1 px-2.5 py-0.5 rounded-lg bg-zinc-900/80 border border-white/10 backdrop-blur-md flex items-center justify-between text-center shrink-0">
           <div className="flex items-center gap-1.5 mx-auto">
-            {isSubBetCelebration ? (
+            {isSubBetCelebration || lastWinAmount > 0 ? (
               <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
-            ) : winningInfo.includes('လွဲ') ? (
-              <Zap className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+            ) : isSpinning ? (
+              <RotateCw className="w-3.5 h-3.5 text-amber-400 animate-spin" />
             ) : (
               <ShieldAlert className="w-3.5 h-3.5 text-white/50" />
             )}
             <span
               className={`text-[10px] sm:text-[11px] font-bold tracking-wide truncate ${
-                isSubBetCelebration
+                isSubBetCelebration || lastWinAmount > 0
                   ? 'text-cyan-300 animate-pulse'
-                  : winningInfo.includes('လွဲ')
-                  ? 'text-amber-300'
                   : 'text-white/80'
               }`}
             >
@@ -1292,22 +1329,23 @@ export function BuffaloSlotGame({
           <button
             onClick={() => {
               if (isAutoSpinning) {
+                sounds.playChip();
                 setIsAutoSpinning(false);
                 setAutoSpinsRemaining(0);
               } else {
-                setIsAutoSpinning(true);
-                setAutoSpinsRemaining(20);
+                sounds.playChip();
+                setIsAutoModalOpen(true);
               }
             }}
-            className={`flex flex-col items-center px-2.5 py-1 rounded-xl border transition-all min-w-[65px] sm:min-w-[80px] ${
+            className={`flex flex-col items-center px-2 py-1 rounded-xl border transition-all min-w-[70px] sm:min-w-[85px] ${
               isAutoSpinning
-                ? 'bg-white text-black border-white font-black shadow-[0_0_12px_rgba(255,255,255,0.4)]'
+                ? 'bg-amber-400 text-black border-amber-300 font-black shadow-[0_0_15px_rgba(251,191,36,0.5)] animate-pulse'
                 : 'bg-white/10 hover:bg-white/15 border-white/20 text-white active:scale-95'
             }`}
           >
             <RotateCcw className={`w-3.5 h-3.5 ${isAutoSpinning ? 'animate-spin stroke-[2.5]' : 'stroke-[2]'}`} />
             <span className="text-[9px] font-black uppercase mt-0.5">
-              {isAutoSpinning ? `${autoSpinsRemaining}` : 'AUTO'}
+              {isAutoSpinning ? `STOP (${autoSpinsRemaining})` : 'AUTO'}
             </span>
           </button>
 
@@ -1453,6 +1491,62 @@ export function BuffaloSlotGame({
             >
               <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
               <span>စတင်လည်မည်</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: AUTO SPIN COUNT SELECTION MODAL */}
+      {isAutoModalOpen && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-2xl animate-fadeIn select-none">
+          <div className="w-full max-w-xs sm:max-w-sm rounded-2xl p-3.5 sm:p-4 border border-white/20 bg-zinc-950/95 shadow-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <RotateCcw className="w-4 h-4 text-white stroke-[2.5]" />
+                <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
+                  Auto Spin အရေအတွက် ရွေးချယ်ပါ
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsAutoModalOpen(false)}
+                className="p-1 rounded-full text-white/60 hover:text-white"
+              >
+                <X className="w-4 h-4 stroke-[2]" />
+              </button>
+            </div>
+
+            <p className="text-[11px] text-white/70">
+              အလိုအလျောက် လှည့်မည့် အကြိမ်ရေကို ရွေးချယ်ပါ။ လှည့်နေစဉ် အချိန်မရွေး STOP နှိပ်၍ ရပ်တန့်နိုင်ပါသည်။
+            </p>
+
+            <div className="grid grid-cols-2 gap-2">
+              {[10, 20, 50, 100].map((count) => (
+                <button
+                  key={`auto-spin-count-${count}`}
+                  onClick={() => {
+                    sounds.playChip();
+                    if (user && user.balance < betAmount) {
+                      setWinningInfo('လက်ကျန်ငွေ မလုံလောက်ပါ');
+                      setIsAutoModalOpen(false);
+                      return;
+                    }
+                    setAutoSpinsRemaining(count);
+                    setIsAutoSpinning(true);
+                    setIsAutoModalOpen(false);
+                  }}
+                  className="py-2.5 px-2 rounded-xl text-xs font-black font-mono border border-white/20 bg-zinc-900/90 hover:bg-white hover:text-black hover:border-white transition-all active:scale-95 flex items-center justify-center gap-1.5 shadow-md"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 stroke-[2]" />
+                  <span>{count} ကြိမ်</span>
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setIsAutoModalOpen(false)}
+              className="w-full py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white/80 font-bold text-[11px] transition-all"
+            >
+              ပိတ်မည်
             </button>
           </div>
         </div>
