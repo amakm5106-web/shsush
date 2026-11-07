@@ -129,11 +129,32 @@ const createFallbackUser = (uid: string, email: string, name: string): UserProfi
 const cacheUserProfile = (profile: UserProfile | null) => {
   if (typeof window === 'undefined' || !profile) return;
   try {
-    localStorage.setItem(`xai_user_profile_${profile.uid}`, JSON.stringify(profile));
-    localStorage.setItem(
-      'xai_last_active_user',
-      JSON.stringify({ uid: profile.uid, email: profile.email, phone: profile.phoneNumber })
-    );
+    const existingRaw = localStorage.getItem(`xai_user_profile_${profile.uid}`);
+    if (existingRaw) {
+      try {
+        const existing = JSON.parse(existingRaw);
+        // Protect existing valid balance & referral counts: if incoming is a fresh fallback with 0, preserve existing!
+        if (
+          (existing.balance > 0 || existing.referralsCount > 0 || existing.referralBalance > 0) &&
+          profile.balance === 0 &&
+          profile.referralsCount === 0 &&
+          profile.referralBalance === 0 &&
+          profile.createdAt === 0
+        ) {
+          return;
+        }
+      } catch {
+        // ignore parse error
+      }
+    }
+    // Only cache if it is a real profile (not a zeroed fallback with createdAt === 0)
+    if (profile.createdAt !== 0 || !existingRaw) {
+      localStorage.setItem(`xai_user_profile_${profile.uid}`, JSON.stringify(profile));
+      localStorage.setItem(
+        'xai_last_active_user',
+        JSON.stringify({ uid: profile.uid, email: profile.email, phone: profile.phoneNumber })
+      );
+    }
   } catch {
     // ignore quota storage issues
   }
@@ -143,7 +164,26 @@ const getCachedUserProfile = (uid: string): UserProfile | null => {
   if (typeof window === 'undefined' || !uid) return null;
   try {
     const raw = localStorage.getItem(`xai_user_profile_${uid}`);
-    return raw ? JSON.parse(raw) : null;
+    if (raw) return JSON.parse(raw);
+
+    // Look for prefix match (e.g. if phone or uid starts with same prefix)
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('xai_user_profile_')) {
+        const item = localStorage.getItem(key);
+        if (item) {
+          try {
+            const parsed = JSON.parse(item);
+            if (parsed && (parsed.uid === uid || uid.startsWith(parsed.uid.slice(0, 8)))) {
+              return parsed;
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+    }
+    return null;
   } catch {
     return null;
   }
@@ -291,7 +331,7 @@ export default function Home() {
               const fallbackProfile = createFallbackUser(user.uid, user.email || '', user.displayName || 'မန်ဘာ');
               if (isUserAdmin) fallbackProfile.role = 'admin';
               setUserProfile(fallbackProfile);
-              cacheUserProfile(fallbackProfile);
+              // Do not cache a blank zero profile over any existing session
             }
             setAuthLoading(false);
             return;
@@ -932,9 +972,26 @@ export default function Home() {
     return () => unsub();
   }, [currentUser, recentRounds]);
 
-  // Realtime Referral Members Listener for Current User
+  // Realtime Referral Members Listener for Current User with Offline Cache Recovery
   useEffect(() => {
     if (!currentUser) return;
+
+    // Immediately restore cached referral members if available
+    const cacheTimer = setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        try {
+          const cachedRaw = localStorage.getItem(`xai_ref_members_${currentUser.uid}`);
+          if (cachedRaw) {
+            const parsed = JSON.parse(cachedRaw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setReferralMembers(parsed);
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }, 0);
 
     const q = query(
       collection(db, 'users'),
@@ -970,6 +1027,14 @@ export default function Home() {
         list.sort((a, b) => b.joinedAt - a.joinedAt);
         setReferralMembers(list);
 
+        if (typeof window !== 'undefined' && list.length > 0) {
+          try {
+            localStorage.setItem(`xai_ref_members_${currentUser.uid}`, JSON.stringify(list));
+          } catch {
+            // ignore
+          }
+        }
+
         // Keep local userProfile in sync with latest referral counts
         setUserProfile((prev) => {
           if (!prev) return null;
@@ -978,20 +1043,41 @@ export default function Home() {
             prev.referralTotalDeposits !== totalDep ||
             prev.referralsCount !== list.length
           ) {
-            return {
+            const updated = {
               ...prev,
               depositedReferralsCount: depCount,
               referralTotalDeposits: totalDep,
               referralsCount: list.length,
             };
+            cacheUserProfile(updated);
+            return updated;
           }
           return prev;
         });
       },
-      (err) => console.warn('Referral members listener note:', err)
+      (err) => {
+        console.warn('Referral members listener note:', err);
+        // Fallback to local cache if network/quota is throttled
+        if (typeof window !== 'undefined') {
+          try {
+            const cachedRaw = localStorage.getItem(`xai_ref_members_${currentUser.uid}`);
+            if (cachedRaw) {
+              const parsed = JSON.parse(cachedRaw);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setReferralMembers(parsed);
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
     );
 
-    return () => unsub();
+    return () => {
+      clearTimeout(cacheTimer);
+      unsub();
+    };
   }, [currentUser]);
 
   // 12. Realtime Pending Deposits & Withdrawals for Admin

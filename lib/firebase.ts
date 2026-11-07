@@ -1,21 +1,58 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore, initializeFirestore, doc, getDocFromServer, Firestore } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  setLogLevel,
+  doc,
+  getDocFromServer,
+  Firestore,
+} from 'firebase/firestore';
 import firebaseConfig from '@/firebase-applet-config.json';
+
+// Silence internal transient network retry notices from Firestore logger
+try {
+  setLogLevel('error');
+} catch {
+  // ignore
+}
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-/* CRITICAL: Must pass firebaseConfig.firestoreDatabaseId with force long polling for reliable webview & sandbox connection */
+/* CRITICAL: Must pass firebaseConfig.firestoreDatabaseId with persistent local cache for offline/quota survivability */
 let dbInstance: Firestore;
 try {
-  dbInstance = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
-  }, firebaseConfig.firestoreDatabaseId);
+  if (typeof window !== 'undefined') {
+    dbInstance = initializeFirestore(
+      app,
+      {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+        experimentalAutoDetectLongPolling: true,
+      },
+      firebaseConfig.firestoreDatabaseId
+    );
+  } else {
+    dbInstance = initializeFirestore(
+      app,
+      {
+        experimentalAutoDetectLongPolling: true,
+      },
+      firebaseConfig.firestoreDatabaseId
+    );
+  }
 } catch {
   try {
-    dbInstance = initializeFirestore(app, {
-      experimentalAutoDetectLongPolling: true,
-    }, firebaseConfig.firestoreDatabaseId);
+    dbInstance = initializeFirestore(
+      app,
+      {
+        experimentalAutoDetectLongPolling: true,
+      },
+      firebaseConfig.firestoreDatabaseId
+    );
   } catch {
     dbInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId);
   }
@@ -77,8 +114,14 @@ export async function testConnection() {
       return;
     }
     await getDocFromServer(doc(db, 'test', 'connection')).catch((err) => {
-      // Gracefully silence expected transient unavailable/offline error while connecting
-      if (err?.code === 'unavailable' || err?.message?.includes('offline')) {
+      // Gracefully silence expected transient unavailable/offline/quota error while connecting
+      if (
+        err?.code === 'unavailable' ||
+        err?.code === 'resource-exhausted' ||
+        err?.message?.includes('offline') ||
+        err?.message?.includes('Quota') ||
+        err?.message?.includes('backend')
+      ) {
         return;
       }
       console.warn("Firestore connection check note:", err?.message || err);

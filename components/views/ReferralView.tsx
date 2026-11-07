@@ -128,9 +128,12 @@ export function ReferralView({
     }
   };
 
-  // Milestone Calculations
-  const depositedCount = user.depositedReferralsCount || 0;
-  const totalTeamDeposit = user.referralTotalDeposits || 0;
+  // Milestone & Metric Calculations (with fallback to referralMembers data if user object is temporarily throttled)
+  const calculatedDepositedCount = referralMembers.filter((m) => m.hasSuccessfulDeposit).length;
+  const calculatedTeamDeposit = referralMembers.reduce((sum, m) => sum + (m.totalSuccessfulDeposit || 0), 0);
+  const depositedCount = Math.max(user.depositedReferralsCount || 0, calculatedDepositedCount);
+  const totalTeamDeposit = Math.max(user.referralTotalDeposits || 0, calculatedTeamDeposit);
+  const totalInvitedCount = Math.max(user.referralsCount || 0, referralMembers.length);
   const claimedList = user.claimedMilestones || [];
 
   const tier1Claimed = claimedList.includes('tier_2_deposited');
@@ -271,7 +274,7 @@ export function ReferralView({
           </div>
           <div className="mt-3">
             <span className="text-xl sm:text-2xl font-black text-white font-mono tabular-nums">
-              {user.referralsCount || 0}
+              {totalInvitedCount}
             </span>
             <span className="text-xs text-zinc-400 ml-1 font-bold">ယောက်</span>
           </div>
