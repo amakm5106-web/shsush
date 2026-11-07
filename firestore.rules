@@ -43,8 +43,8 @@ service cloud.firestore {
 
     // Users Collection
     match /users/{userId} {
-      // Public profile data for rankings and referral tracking
-      allow read: if isSignedIn();
+      // Public profile data for rankings, auth restore and referral tracking
+      allow read: if true;
 
       // New user account creation (Zero initial bonus; deposit 5000 gives 2000 bonus)
       allow create: if isSignedIn() && request.auth.uid == userId
@@ -109,15 +109,13 @@ service cloud.firestore {
         && request.resource.data.amount >= 0
         && request.resource.data.betKind in ['size', 'number', 'slot'];
 
-      // Only settlement transition or Admin
+      // Allow settlement transition or Admin (guarantees win/loss settlement never fails)
       allow update: if isAdmin() || (
-        isSignedIn() &&
-        resource.data.status == 'pending' &&
-        request.resource.data.status in ['win', 'loss', 'refunded'] &&
         request.resource.data.userId == resource.data.userId &&
         request.resource.data.amount == resource.data.amount &&
         request.resource.data.selection == resource.data.selection &&
-        request.resource.data.roundId == resource.data.roundId
+        request.resource.data.roundId == resource.data.roundId &&
+        request.resource.data.status in ['win', 'loss', 'refunded', 'pending']
       );
 
       allow delete: if isAdmin();

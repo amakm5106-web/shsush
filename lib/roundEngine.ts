@@ -102,11 +102,23 @@ export function calculateAutoWinRoll(activeBets: PlayerBet[]): {
  * If clients were away overnight, it automatically calculates elapsed cycles and fast-forwards
  * to the exact real-time active round ID without missing a beat!
  */
+let cachedRoundState: { data: CurrentRoundData; fetchedAt: number } | null = null;
+
 export async function tickRoundSystem(db: Firestore, durationSeconds: number = 60) {
   try {
+    const now = Date.now();
+    // In-memory read throttle: if round is in mid-betting and not near deadline, skip Firestore getDoc to conserve quota
+    if (
+      cachedRoundState &&
+      now - cachedRoundState.fetchedAt < 15000 &&
+      cachedRoundState.data.status === 'betting' &&
+      now < cachedRoundState.data.deadline - 4000
+    ) {
+      return;
+    }
+
     const currentRef = doc(db, 'rounds', 'current');
     const snap = await getDoc(currentRef);
-    const now = Date.now();
     const durationMs = durationSeconds * 1000;
 
     if (!snap.exists()) {
@@ -126,10 +138,12 @@ export async function tickRoundSystem(db: Firestore, durationSeconds: number = 6
         updatedAt: now,
       };
       await setDoc(currentRef, initialRound);
+      cachedRoundState = { data: initialRound, fetchedAt: now };
       return;
     }
 
     const cur = snap.data() as CurrentRoundData;
+    cachedRoundState = { data: cur, fetchedAt: now };
     const roundDuration = cur.durationSeconds || durationSeconds;
     const roundDurationMs = roundDuration * 1000;
 

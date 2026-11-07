@@ -4,14 +4,14 @@ export async function register() {
       const { db } = await import('@/lib/firebase');
       const { tickRoundSystem } = await import('@/lib/roundEngine');
 
-      // Autonomous 24/7 background round ticker runs continuously on the server
+      // Autonomous 24/7 background round ticker (throttled to conserve quota)
       setInterval(async () => {
         try {
           await tickRoundSystem(db, 60);
         } catch {
           // ignore transient background ticker errors
         }
-      }, 5000);
+      }, 20000);
     } catch (err) {
       console.warn('Instrumentation background worker startup note:', err);
     }

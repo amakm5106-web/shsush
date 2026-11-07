@@ -126,10 +126,53 @@ const createFallbackUser = (uid: string, email: string, name: string): UserProfi
   updatedAt: 0,
 });
 
+const cacheUserProfile = (profile: UserProfile | null) => {
+  if (typeof window === 'undefined' || !profile) return;
+  try {
+    localStorage.setItem(`xai_user_profile_${profile.uid}`, JSON.stringify(profile));
+    localStorage.setItem(
+      'xai_last_active_user',
+      JSON.stringify({ uid: profile.uid, email: profile.email, phone: profile.phoneNumber })
+    );
+  } catch {
+    // ignore quota storage issues
+  }
+};
+
+const getCachedUserProfile = (uid: string): UserProfile | null => {
+  if (typeof window === 'undefined' || !uid) return null;
+  try {
+    const raw = localStorage.getItem(`xai_user_profile_${uid}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
 export default function Home() {
   // Auth & User Profile State
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const storedPhone = localStorage.getItem('xai_phone_user');
+        if (storedPhone) {
+          const { uid } = JSON.parse(storedPhone);
+          const cached = getCachedUserProfile(uid);
+          if (cached) return cached;
+        }
+        const lastActive = localStorage.getItem('xai_last_active_user');
+        if (lastActive) {
+          const { uid } = JSON.parse(lastActive);
+          const cached = getCachedUserProfile(uid);
+          if (cached) return cached;
+        }
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [authLoading, setAuthLoading] = useState<boolean>(true);
 
   // Live Settings
@@ -254,14 +297,28 @@ export default function Home() {
           } catch (e) {
             console.warn('User profile initial fetch offline/reconnecting note:', e);
             const isUserAdmin = isAdminEmail(user.email);
-            const fallbackProfile = createFallbackUser(user.uid, user.email || '', user.displayName || 'မန်ဘာ');
-            if (isUserAdmin) fallbackProfile.role = 'admin';
-            setUserProfile(fallbackProfile);
+            const cachedProfile = getCachedUserProfile(user.uid);
+            if (cachedProfile) {
+              if (isUserAdmin) cachedProfile.role = 'admin';
+              setUserProfile(cachedProfile);
+            } else {
+              const fallbackProfile = createFallbackUser(user.uid, user.email || '', user.displayName || 'မန်ဘာ');
+              if (isUserAdmin) fallbackProfile.role = 'admin';
+              setUserProfile(fallbackProfile);
+              cacheUserProfile(fallbackProfile);
+            }
             setAuthLoading(false);
             return;
           }
 
           if (!snap.exists()) {
+            const cachedProfile = getCachedUserProfile(user.uid);
+            if (cachedProfile) {
+              setUserProfile(cachedProfile);
+              setAuthLoading(false);
+              return;
+            }
+
             let referrerUid: string | null = null;
             if (typeof window !== 'undefined') {
               const urlParams = new URLSearchParams(window.location.search);
@@ -293,6 +350,7 @@ export default function Home() {
 
             await setDoc(userDocRef, newProfile);
             setUserProfile(newProfile);
+            cacheUserProfile(newProfile);
 
             if (isUserAdmin) {
               try {
@@ -356,9 +414,14 @@ export default function Home() {
               }
             }
             setUserProfile(data);
+            cacheUserProfile(data);
           }
         } catch (error) {
           console.warn('Error fetching user profile:', error);
+          const cachedProfile = getCachedUserProfile(user.uid);
+          if (cachedProfile) {
+            setUserProfile(cachedProfile);
+          }
         }
       } else {
         // If not logged in via Firebase Auth, check if user is logged in via phone & password in localStorage
@@ -367,9 +430,19 @@ export default function Home() {
           if (stored) {
             const { uid } = JSON.parse(stored);
             if (uid) {
-              const snap = await getDoc(doc(db, 'users', uid));
-              if (snap.exists()) {
-                setUserProfile(snap.data() as UserProfile);
+              try {
+                const snap = await getDoc(doc(db, 'users', uid));
+                if (snap.exists()) {
+                  const p = snap.data() as UserProfile;
+                  setUserProfile(p);
+                  cacheUserProfile(p);
+                } else {
+                  const cached = getCachedUserProfile(uid);
+                  if (cached) setUserProfile(cached);
+                }
+              } catch {
+                const cached = getCachedUserProfile(uid);
+                if (cached) setUserProfile(cached);
               }
             }
           } else {
@@ -377,7 +450,16 @@ export default function Home() {
           }
         } catch (phoneErr) {
           console.warn('Phone auth session restore note:', phoneErr);
-          setUserProfile(null);
+          const stored = typeof window !== 'undefined' ? localStorage.getItem('xai_phone_user') : null;
+          if (stored) {
+            try {
+              const { uid } = JSON.parse(stored);
+              const cached = getCachedUserProfile(uid);
+              if (cached) setUserProfile(cached);
+            } catch {
+              setUserProfile(null);
+            }
+          }
         }
       }
       setAuthLoading(false);
@@ -394,11 +476,17 @@ export default function Home() {
       userDocRef,
       (docSnap) => {
         if (docSnap.exists()) {
-          setUserProfile(docSnap.data() as UserProfile);
+          const data = docSnap.data() as UserProfile;
+          setUserProfile(data);
+          cacheUserProfile(data);
         }
       },
       (error) => {
-        handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
+        console.warn('User profile onSnapshot note:', error?.message || error);
+        const cached = getCachedUserProfile(currentUser.uid);
+        if (cached) {
+          setUserProfile(cached);
+        }
       }
     );
     return () => unsub();
@@ -1597,34 +1685,50 @@ export default function Home() {
 
       // 2. Fetch or initialize User Profile in Firestore
       const userDocRef = doc(db, 'users', user.uid);
-      const snap = await getDoc(userDocRef);
-      if (snap.exists()) {
-        setUserProfile(snap.data() as UserProfile);
-      } else {
-        const newProfile: UserProfile = {
-          uid: user.uid,
-          email: syntheticEmail,
-          phoneNumber: cleanPhone,
-          fullName: `Player ${cleanPhone.slice(-4)}`,
-          role: 'user',
-          balance: 0,
-          referralBalance: 0,
-          referralsCount: 0,
-          totalBetCumulative: 0,
-          totalSuccessfulDeposit: 0,
-          withdrawalCount: 0,
-          wagerSinceLastWithdrawal: 0,
-          hasSuccessfulDeposit: false,
-          isHedgingFlagged: false,
-          cleanTurnoverRequired: 0,
-          firstDepositBonusClaimed: false,
-          promoClaimedReferrals: [],
-          claimedMilestones: [],
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-        await setDoc(userDocRef, newProfile);
-        setUserProfile(newProfile);
+      try {
+        const snap = await getDoc(userDocRef);
+        if (snap.exists()) {
+          const p = snap.data() as UserProfile;
+          setUserProfile(p);
+          cacheUserProfile(p);
+        } else {
+          const cached = getCachedUserProfile(user.uid);
+          if (cached) {
+            setUserProfile(cached);
+          } else {
+            const newProfile: UserProfile = {
+              uid: user.uid,
+              email: syntheticEmail,
+              phoneNumber: cleanPhone,
+              fullName: `Player ${cleanPhone.slice(-4)}`,
+              role: 'user',
+              balance: 0,
+              referralBalance: 0,
+              referralsCount: 0,
+              totalBetCumulative: 0,
+              totalSuccessfulDeposit: 0,
+              withdrawalCount: 0,
+              wagerSinceLastWithdrawal: 0,
+              hasSuccessfulDeposit: false,
+              isHedgingFlagged: false,
+              cleanTurnoverRequired: 0,
+              firstDepositBonusClaimed: false,
+              promoClaimedReferrals: [],
+              claimedMilestones: [],
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            };
+            await setDoc(userDocRef, newProfile);
+            setUserProfile(newProfile);
+            cacheUserProfile(newProfile);
+          }
+        }
+      } catch (docErr) {
+        console.warn('Profile read note during sign in:', docErr);
+        const cached = getCachedUserProfile(user.uid);
+        if (cached) {
+          setUserProfile(cached);
+        }
       }
 
       if (typeof window !== 'undefined') {
@@ -1718,6 +1822,7 @@ export default function Home() {
 
       await setDoc(userDocRef, newProfile);
       setUserProfile(newProfile);
+      cacheUserProfile(newProfile);
 
       // 3. Credit referrer count if valid
       if (referrerCandidate && referrerCandidate !== user.uid) {
