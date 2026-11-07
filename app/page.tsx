@@ -1080,10 +1080,10 @@ export default function Home() {
     };
   }, [currentUser]);
 
-  // 12. Realtime Pending Deposits & Withdrawals for Admin
+  // 12. Realtime Pending Deposits & Withdrawals for Admin (Only active when Admin Panel is open to conserve reads)
   useEffect(() => {
     const isUserAdmin = userProfile?.role === 'admin' || isAdminEmail(currentUser?.email);
-    if (!isUserAdmin || !currentUser) return;
+    if (!isUserAdmin || !currentUser || !isAdminOpen) return;
 
     const unsubDep = onSnapshot(
       collection(db, 'deposits'),
@@ -1115,8 +1115,9 @@ export default function Home() {
       (err) => console.warn('Withdrawals listener note:', err?.message || err)
     );
 
+    const betsQuery = query(collection(db, 'bets'), orderBy('placedAt', 'desc'), limit(30));
     const unsubBets = onSnapshot(
-      collection(db, 'bets'),
+      betsQuery,
       (snapshot) => {
         const bets: PlayerBet[] = [];
         snapshot.forEach((d) => bets.push(d.data() as PlayerBet));
@@ -1130,7 +1131,7 @@ export default function Home() {
       unsubWith();
       unsubBets();
     };
-  }, [currentUser, userProfile]);
+  }, [currentUser, userProfile, isAdminOpen]);
 
   // 13. Realtime User's Own Withdrawals Listener (for rejection notes & daily limit)
   useEffect(() => {
@@ -1725,6 +1726,136 @@ export default function Home() {
       return true;
     } catch (e) {
       console.error(e);
+      return false;
+    }
+  };
+
+  // Admin User Balance Adjustment (Direct ID / Phone Topup or Deduct)
+  const handleAdjustUserBalance = async (
+    targetIdOrPhone: string,
+    amount: number,
+    isDeduct: boolean,
+    note: string
+  ): Promise<{ success: boolean; newBalance?: number; error?: string; user?: UserProfile }> => {
+    try {
+      const cleanTarget = targetIdOrPhone.trim();
+      let targetDocRef = doc(db, 'users', cleanTarget);
+      let targetSnap = await getDoc(targetDocRef);
+
+      // If not found by direct UID, attempt lookup by phone
+      if (!targetSnap.exists()) {
+        const phoneClean = cleanTarget.replace(/[^0-9]/g, '');
+        if (phoneClean) {
+          const q = query(collection(db, 'users'), where('phoneNumber', '==', phoneClean), limit(1));
+          const qSnap = await getDocs(q);
+          if (!qSnap.empty) {
+            targetDocRef = doc(db, 'users', qSnap.docs[0].id);
+            targetSnap = qSnap.docs[0];
+          }
+        }
+      }
+
+      if (!targetSnap.exists()) {
+        return { success: false, error: 'ဤ User ID သို့မဟုတ် ဖုန်းနံပါတ်ဖြင့် မန်ဘာမတွေ့ရှိပါ' };
+      }
+
+      const u = targetSnap.data() as UserProfile;
+      const currentBal = u.balance || 0;
+      const newBal = isDeduct ? Math.max(0, currentBal - amount) : currentBal + amount;
+
+      await updateDoc(targetDocRef, {
+        balance: newBal,
+        updatedAt: Date.now(),
+      });
+
+      const updatedUser: UserProfile = { ...u, balance: newBal, updatedAt: Date.now() };
+
+      // If target happens to be currently logged-in user, sync local state and cache
+      if (currentUser && (targetSnap.id === currentUser.uid || u.uid === currentUser.uid)) {
+        setUserProfile(updatedUser);
+        cacheUserProfile(updatedUser);
+      }
+
+      return { success: true, newBalance: newBal, user: updatedUser };
+    } catch (err: unknown) {
+      console.error('Error adjusting balance:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Balance ပြင်ဆင်မှု မအောင်မြင်ပါ' };
+    }
+  };
+
+  // Admin Search / Fetch Users Explorer (Paginated & on-demand to save quota)
+  const handleSearchUsers = async (searchQuery: string): Promise<UserProfile[]> => {
+    try {
+      const qText = searchQuery.trim().toLowerCase();
+      const usersQuery = query(collection(db, 'users'), limit(50));
+      const snap = await getDocs(usersQuery);
+      const list: UserProfile[] = [];
+      snap.forEach((d) => {
+        const u = d.data() as UserProfile;
+        list.push({ ...u, uid: d.id });
+      });
+
+      if (!qText) return list;
+      return list.filter((u) =>
+        u.uid.toLowerCase().includes(qText) ||
+        (u.fullName && u.fullName.toLowerCase().includes(qText)) ||
+        (u.phoneNumber && u.phoneNumber.includes(qText)) ||
+        (u.email && u.email.toLowerCase().includes(qText))
+      );
+    } catch (err) {
+      console.warn('Search users note:', err);
+      return [];
+    }
+  };
+
+  // Admin Toggle User Hedging / Ban Flag
+  const handleToggleUserFlag = async (userId: string, isFlagged: boolean): Promise<boolean> => {
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        isHedgingFlagged: isFlagged,
+        updatedAt: Date.now(),
+      });
+      return true;
+    } catch (err) {
+      console.error('Toggle flag error:', err);
+      return false;
+    }
+  };
+
+  // Admin Toggle User Role
+  const handleToggleUserRole = async (userId: string, newRole: 'admin' | 'user'): Promise<boolean> => {
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        role: newRole,
+        updatedAt: Date.now(),
+      });
+      return true;
+    } catch (err) {
+      console.error('Toggle role error:', err);
+      return false;
+    }
+  };
+
+  // Admin Force Next Dice Roll
+  const handleForceDiceRoll = async (d1: number, d2: number): Promise<boolean> => {
+    try {
+      const total = d1 + d2;
+      const resClass = classifyDiceTotal(total);
+      const resColor = classifyDiceColor(total);
+      const currentRef = doc(db, 'rounds', 'current');
+      await updateDoc(currentRef, {
+        forcedDice1: d1,
+        forcedDice2: d2,
+        dice1: d1,
+        dice2: d2,
+        totalResult: total,
+        resultClass: resClass,
+        resultColor: resColor,
+        updatedAt: Date.now(),
+      });
+      return true;
+    } catch (err) {
+      console.error('Force dice roll error:', err);
       return false;
     }
   };
@@ -2681,13 +2812,18 @@ export default function Home() {
           pendingDeposits={pendingDeposits}
           pendingWithdrawals={pendingWithdrawals}
           allBets={allBets}
-          currentRound={null}
+          currentRound={currentRoundDoc}
           onApproveDeposit={handleApproveDeposit}
           onDeclineDeposit={handleDeclineDeposit}
           onApproveWithdrawal={handleApproveWithdrawal}
           onDeclineWithdrawal={handleDeclineWithdrawal}
           onUpdateSettings={handleUpdateSettings}
           onTriggerRoll={() => currentRoundDoc && triggerGlobalSettlement(currentRoundDoc)}
+          onAdjustUserBalance={handleAdjustUserBalance}
+          onSearchUsers={handleSearchUsers}
+          onToggleUserFlag={handleToggleUserFlag}
+          onToggleUserRole={handleToggleUserRole}
+          onForceDiceRoll={handleForceDiceRoll}
         />
       )}
 
