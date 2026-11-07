@@ -98,7 +98,7 @@ import { BuffaloSlotGame } from '@/components/BuffaloSlotGame';
 import { AuthModal } from '@/components/AuthModal';
 import { RoundResultModal } from '@/components/RoundResultModal';
 import { SupportChatModal } from '@/components/SupportChatModal';
-import { tickRoundSystem } from '@/lib/roundEngine';
+import { tickRoundSystem, calculateAutoWinRoll } from '@/lib/roundEngine';
 
 const createFallbackUser = (uid: string, email: string, name: string): UserProfile => ({
   uid,
@@ -174,6 +174,10 @@ export default function Home() {
   // Recent Synchronized Rounds History & Bets
   const [recentRounds, setRecentRounds] = useState<GameRound[]>([]);
   const [currentRoundBets, setCurrentRoundBets] = useState<PlayerBet[]>([]);
+  const currentRoundBetsRef = useRef<PlayerBet[]>([]);
+  useEffect(() => {
+    currentRoundBetsRef.current = currentRoundBets;
+  }, [currentRoundBets]);
   const [myBetsHistory, setMyBetsHistory] = useState<PlayerBet[]>([]);
   const [allBets, setAllBets] = useState<PlayerBet[]>([]);
   const [referralMembers, setReferralMembers] = useState<ReferralMember[]>([]);
@@ -549,49 +553,21 @@ export default function Home() {
         console.warn('Error reading active round bets for lowest-pool evaluation:', err);
       }
 
-      // Step B: Calculate payout liability for each possible sum (2 through 12)
-      // Across Big/Small, Color (Red, Green, Violet), and Numbers
-      const candidateTotals: { total: number; payout: number; rolls: [number, number][] }[] = [];
-
-      for (let t = 2; t <= 12; t++) {
-        const validRolls: [number, number][] = [];
-        for (let d1 = 1; d1 <= 6; d1++) {
-          const d2 = t - d1;
-          if (d2 >= 1 && d2 <= 6) {
-            validRolls.push([d1, d2]);
-          }
+      // Merge with in-memory bets placed by current client (eliminates any replication delay)
+      const betsMap = new Map<string, PlayerBet>();
+      activeRoundBets.forEach((b) => betsMap.set(b.betId, b));
+      currentRoundBetsRef.current.forEach((b) => {
+        if (b.roundId === activeRound.roundId) {
+          betsMap.set(b.betId, b);
         }
+      });
+      const allActiveBets = Array.from(betsMap.values());
 
-        const tClass = classifyDiceTotal(t);
-        const tColor = classifyDiceColor(t);
-
-        let sumPayout = 0;
-        for (const bet of activeRoundBets) {
-          let won = false;
-          if (bet.betKind === 'size') {
-            if (bet.selection === 'အသေး' && tClass === 'small') won = true;
-            if (bet.selection === 'အကြီး' && tClass === 'big') won = true;
-          } else if (bet.betKind === 'number') {
-            if (Number(bet.selection) === t) won = true;
-          } else if (bet.betKind === 'color') {
-            if (bet.selection === tColor) won = true;
-          }
-          if (won) {
-            sumPayout += Math.round(bet.amount * bet.multiplier);
-          }
-        }
-
-        candidateTotals.push({ total: t, payout: sumPayout, rolls: validRolls });
-      }
-
-      // Find the lowest payout liability
-      const minPayout = Math.min(...candidateTotals.map((c) => c.payout));
-      const lowestPoolCandidates = candidateTotals.filter((c) => c.payout === minPayout);
-      const chosenCandidate = lowestPoolCandidates[Math.floor(Math.random() * lowestPoolCandidates.length)];
-      const chosenRoll = chosenCandidate.rolls[Math.floor(Math.random() * chosenCandidate.rolls.length)];
-      const roll1 = chosenRoll[0];
-      const roll2 = chosenRoll[1];
-      const total = roll1 + roll2;
+      // Step B: Calculate Auto-Win roll (strictly chooses outcome with lowest bet liability/zero player payout)
+      const autoRoll = calculateAutoWinRoll(allActiveBets);
+      const roll1 = autoRoll.roll1;
+      const roll2 = autoRoll.roll2;
+      const total = autoRoll.total;
       const resClass = classifyDiceTotal(total);
       const resColor = classifyDiceColor(total);
 
@@ -1151,9 +1127,8 @@ export default function Home() {
 
       return true;
     } catch (err: unknown) {
-      console.error('Error placing bet:', err);
       const errMsg = err instanceof Error ? err.message : String(err);
-      alert(`လောင်းကြေးတင်ခြင်း မအောင်မြင်ပါ (${errMsg.includes('permission') ? 'ခွင့်ပြုချက် မရရှိပါ' : 'ခေတ္တစောင့်ပြီး ပြန်လည်ကြိုးစားပါ'})။`);
+      showToast(`လောင်းကြေးတင်ခြင်း မအောင်မြင်ပါ (${errMsg.includes('permission') ? 'ခွင့်ပြုချက် မရရှိပါ' : 'ခေတ္တစောင့်ပြီး ပြန်လည်ကြိုးစားပါ'})။`, 'error');
       return false;
     }
   };

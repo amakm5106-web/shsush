@@ -52,11 +52,12 @@ export function BettingBoard({
   ) => {
     if (!bettingOpen) return;
     if (selectedAmount < settings.MINIMUM_BET) {
-      alert(`အနည်းဆုံးလောင်းကြေးမှာ ${formatKs(settings.MINIMUM_BET)} ဖြစ်ပါသည်။`);
+      sounds.playTick();
       return;
     }
     if (selectedAmount > userBalance) {
-      alert('လက်ကျန်ငွေ မလုံလောက်ပါ။ ကျေးဇူးပြု၍ ငွေအရင်ဖြည့်သွင်းပါ။');
+      sounds.playTick();
+      await onPlaceBet(betKind, selection, selectedAmount, multiplier);
       return;
     }
 
