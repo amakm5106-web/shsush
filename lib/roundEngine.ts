@@ -103,10 +103,17 @@ export function calculateAutoWinRoll(activeBets: PlayerBet[]): {
  * to the exact real-time active round ID without missing a beat!
  */
 let cachedRoundState: { data: CurrentRoundData; fetchedAt: number } | null = null;
+let quotaCooldownUntil = 0;
+let lastQuotaWarnTime = 0;
 
 export async function tickRoundSystem(db: Firestore, durationSeconds: number = 60) {
+  const now = Date.now();
+  // If Firestore read quota was exhausted, back off until cooldown expires to avoid spamming
+  if (now < quotaCooldownUntil) {
+    return;
+  }
+
   try {
-    const now = Date.now();
     // In-memory read throttle: if round is in mid-betting and not near deadline, skip Firestore getDoc to conserve quota
     if (
       cachedRoundState &&
@@ -299,7 +306,22 @@ export async function tickRoundSystem(db: Firestore, durationSeconds: number = 6
         });
       }
     }
-  } catch (err) {
+  } catch (err: unknown) {
+    const errorObj = err as { code?: string; message?: string };
+    const isQuotaExceeded =
+      errorObj?.code === 'resource-exhausted' ||
+      errorObj?.message?.includes('Quota limit exceeded') ||
+      errorObj?.message?.includes('Quota exceeded');
+
+    if (isQuotaExceeded) {
+      // Back off for 5 minutes when Firestore quota is exhausted to prevent spamming
+      quotaCooldownUntil = now + 5 * 60 * 1000;
+      if (now - lastQuotaWarnTime > 60000) {
+        lastQuotaWarnTime = now;
+        console.warn('Firestore daily read quota exhausted. Backing off tickRoundSystem ticker for 5 minutes.');
+      }
+      return;
+    }
     console.warn('tickRoundSystem note:', err);
   }
 }

@@ -152,27 +152,7 @@ const getCachedUserProfile = (uid: string): UserProfile | null => {
 export default function Home() {
   // Auth & User Profile State
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const storedPhone = localStorage.getItem('xai_phone_user');
-        if (storedPhone) {
-          const { uid } = JSON.parse(storedPhone);
-          const cached = getCachedUserProfile(uid);
-          if (cached) return cached;
-        }
-        const lastActive = localStorage.getItem('xai_last_active_user');
-        if (lastActive) {
-          const { uid } = JSON.parse(lastActive);
-          const cached = getCachedUserProfile(uid);
-          if (cached) return cached;
-        }
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
 
   // Live Settings
@@ -247,13 +227,7 @@ export default function Home() {
 
   // Modals Visibility
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [urlReferralCode, setUrlReferralCode] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get('ref') || urlParams.get('referral') || urlParams.get('start') || '';
-    }
-    return '';
-  });
+  const [urlReferralCode, setUrlReferralCode] = useState<string>('');
   const [isWalletOpen, setIsWalletOpen] = useState<boolean>(false);
   const [isRulesOpen, setIsRulesOpen] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
@@ -276,11 +250,23 @@ export default function Home() {
   useEffect(() => {
     testConnection();
     if (typeof window !== 'undefined') {
+      const timer = setTimeout(() => {
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const refParam = urlParams.get('ref') || urlParams.get('referral') || urlParams.get('start') || '';
+          if (refParam) setUrlReferralCode(refParam);
+        } catch {
+          // ignore storage access errors
+        }
+      }, 0);
+
       if ((window as unknown as { Telegram?: { WebApp?: { ready: () => void; expand: () => void } } }).Telegram?.WebApp) {
         const tg = (window as unknown as { Telegram: { WebApp: { ready: () => void; expand: () => void } } }).Telegram.WebApp;
         tg.ready();
         tg.expand();
       }
+
+      return () => clearTimeout(timer);
     }
   }, []);
 
