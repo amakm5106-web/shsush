@@ -5,14 +5,20 @@ import firebaseConfig from '@/firebase-applet-config.json';
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-/* CRITICAL: Must pass firebaseConfig.firestoreDatabaseId with auto-detect long polling for reliable webview connection */
+/* CRITICAL: Must pass firebaseConfig.firestoreDatabaseId with force long polling for reliable webview & sandbox connection */
 let dbInstance: Firestore;
 try {
   dbInstance = initializeFirestore(app, {
-    experimentalAutoDetectLongPolling: true,
+    experimentalForceLongPolling: true,
   }, firebaseConfig.firestoreDatabaseId);
 } catch {
-  dbInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  try {
+    dbInstance = initializeFirestore(app, {
+      experimentalAutoDetectLongPolling: true,
+    }, firebaseConfig.firestoreDatabaseId);
+  } catch {
+    dbInstance = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  }
 }
 export const db = dbInstance;
 export const auth = getAuth(app);
@@ -67,10 +73,17 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 export async function testConnection() {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn("Firestore client is connecting or running in offline mode.");
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && !navigator.onLine) {
+      return;
     }
+    await getDocFromServer(doc(db, 'test', 'connection')).catch((err) => {
+      // Gracefully silence expected transient unavailable/offline error while connecting
+      if (err?.code === 'unavailable' || err?.message?.includes('offline')) {
+        return;
+      }
+      console.warn("Firestore connection check note:", err?.message || err);
+    });
+  } catch {
+    // Graceful offline fallback
   }
 }

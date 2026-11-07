@@ -89,19 +89,17 @@ service cloud.firestore {
 
     // Shared Synchronized Rounds Collection (Global across all players)
     match /rounds/{roundId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow read, write: if true;
     }
 
     // Shared Synchronized Round History Collection (Global across all players)
     match /round_history/{historyId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow read, write: if true;
     }
 
     // Bets Collection
     match /bets/{betId} {
-      allow read: if isSignedIn();
+      allow read: if true;
 
       // Authenticated users can place bets for themselves (pending for live dice, win/loss for instant slots)
       allow create: if isSignedIn()

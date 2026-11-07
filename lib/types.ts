@@ -63,6 +63,22 @@ export interface GameRound {
   settledAt?: number;
 }
 
+export interface CurrentRoundData {
+  roundId: number;
+  status: 'betting' | 'rolling' | 'settled';
+  openedAt: number;
+  durationSeconds: number;
+  deadline: number;
+  dice1: number;
+  dice2: number;
+  totalResult: number;
+  resultClass: 'small' | 'common' | 'big';
+  resultColor?: 'red' | 'green' | 'violet';
+  settledAt: number;
+  nextRoundAt: number;
+  updatedAt: number;
+}
+
 export interface PlayerBet {
   id?: string;
   betId: string;

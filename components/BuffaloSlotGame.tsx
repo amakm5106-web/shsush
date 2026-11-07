@@ -347,6 +347,15 @@ export function BuffaloSlotGame({
   ]);
   const [isBetModalOpen, setIsBetModalOpen] = useState<boolean>(false);
   const [isBuyBonusModalOpen, setIsBuyBonusModalOpen] = useState<boolean>(false);
+  const [guestBalance, setGuestBalance] = useState<number>(50000);
+  const [gameToast, setGameToast] = useState<string | null>(null);
+
+  const showGameToast = useCallback((msg: string) => {
+    setGameToast(msg);
+    setTimeout(() => {
+      setGameToast((prev) => (prev === msg ? null : prev));
+    }, 3200);
+  }, []);
 
   // 6 Reels x 4 Rows Matrix (Diverse symbols vertically and horizontally)
   const [reels, setReels] = useState<string[][]>(INITIAL_REELS);
@@ -489,16 +498,11 @@ export function BuffaloSlotGame({
     async (isFreeSpin = false) => {
       if (isSpinning) return;
 
-      if (!user) {
-        alert('ကစားရန် အရင်ဆုံး Google ဖြင့် အကောင့်ဝင်ပေးပါ။');
-        return;
-      }
-
-      // Check balance if not a free spin
-      if (!isFreeSpin && user.balance < betAmount) {
+      const availableBalance = user ? user.balance : guestBalance;
+      if (!isFreeSpin && availableBalance < betAmount) {
         setIsAutoSpinning(false);
-        alert('လက်ကျန်ငွေ မလုံလောက်ပါ။ ကျေးဇူးပြု၍ ငွေအရင်ဖြည့်သွင်းပါ။');
-        onGoToWallet();
+        showGameToast('လက်ကျန်ငွေ မလုံလောက်ပါ။ ကျေးဇူးပြု၍ ငွေအရင်ဖြည့်သွင်းပါ။');
+        if (user) onGoToWallet();
         return;
       }
 
@@ -508,19 +512,22 @@ export function BuffaloSlotGame({
       sounds.playChip();
 
       // 1. Deduct bet immediately in UI state without blocking
-      let currentBalance = user.balance;
+      let currentBalance = availableBalance;
       if (!isFreeSpin) {
-        currentBalance = Math.max(0, user.balance - betAmount);
-        if (onUpdateUserBalance) onUpdateUserBalance(currentBalance);
-
-        // Background update without blocking the animation thread
-        const userDocRef = doc(db, 'users', user.uid);
-        updateDoc(userDocRef, {
-          balance: currentBalance,
-          totalBetCumulative: (user.totalBetCumulative || 0) + betAmount,
-          wagerSinceLastWithdrawal: (user.wagerSinceLastWithdrawal || 0) + betAmount,
-          updatedAt: Date.now(),
-        }).catch((e) => console.error('Balance update error:', e));
+        currentBalance = Math.max(0, availableBalance - betAmount);
+        if (user) {
+          if (onUpdateUserBalance) onUpdateUserBalance(currentBalance);
+          // Background update without blocking the animation thread
+          const userDocRef = doc(db, 'users', user.uid);
+          updateDoc(userDocRef, {
+            balance: currentBalance,
+            totalBetCumulative: (user.totalBetCumulative || 0) + betAmount,
+            wagerSinceLastWithdrawal: (user.wagerSinceLastWithdrawal || 0) + betAmount,
+            updatedAt: Date.now(),
+          }).catch((e) => console.error('Balance update error:', e));
+        } else {
+          setGuestBalance(currentBalance);
+        }
       }
 
       // Calculate Player Engagement Telemetry & Risk Metrics
@@ -741,38 +748,42 @@ export function BuffaloSlotGame({
             });
           }
 
-          // 1. Credit balance to Firestore
+          // 1. Credit balance
           const finalBal = currentBalance + spinTotalWin;
-          if (onUpdateUserBalance) onUpdateUserBalance(finalBal);
-          try {
-            await updateDoc(doc(db, 'users', user.uid), {
-              balance: finalBal,
-              updatedAt: Date.now(),
-            });
-          } catch (balanceErr) {
-            console.error('Balance credit error:', balanceErr);
-          }
+          if (user) {
+            if (onUpdateUserBalance) onUpdateUserBalance(finalBal);
+            try {
+              await updateDoc(doc(db, 'users', user.uid), {
+                balance: finalBal,
+                updatedAt: Date.now(),
+              });
+            } catch (balanceErr) {
+              console.error('Balance credit error:', balanceErr);
+            }
 
-          // 2. Record Win Bet in Firestore
-          try {
-            const betId = `buffalo_${Date.now()}`;
-            const newBet: PlayerBet = {
-              betId,
-              roundId: Math.floor(Date.now() / 1000),
-              userId: user.uid,
-              userName: user.fullName,
-              betKind: 'slot',
-              selection: 'Charge Buffalo (6x4 Ways Slot)',
-              amount: isFreeSpin ? 0 : betAmount,
-              multiplier: betAmount > 0 ? Number((spinTotalWin / betAmount).toFixed(2)) : 0,
-              status: 'win',
-              payout: spinTotalWin,
-              profit: isFreeSpin ? spinTotalWin : spinTotalWin - betAmount,
-              createdAt: Date.now(),
-            };
-            await setDoc(doc(db, 'bets', betId), newBet);
-          } catch (betErr) {
-            console.error('Win bet record error:', betErr);
+            // 2. Record Win Bet in Firestore
+            try {
+              const betId = `buffalo_${Date.now()}`;
+              const newBet: PlayerBet = {
+                betId,
+                roundId: Math.floor(Date.now() / 1000),
+                userId: user.uid,
+                userName: user.fullName,
+                betKind: 'slot',
+                selection: 'Charge Buffalo (6x4 Ways Slot)',
+                amount: isFreeSpin ? 0 : betAmount,
+                multiplier: betAmount > 0 ? Number((spinTotalWin / betAmount).toFixed(2)) : 0,
+                status: 'win',
+                payout: spinTotalWin,
+                profit: isFreeSpin ? spinTotalWin : spinTotalWin - betAmount,
+                createdAt: Date.now(),
+              };
+              await setDoc(doc(db, 'bets', betId), newBet);
+            } catch (betErr) {
+              console.error('Win bet record error:', betErr);
+            }
+          } else {
+            setGuestBalance(finalBal);
           }
         } else {
           setIsSubBetCelebration(false);
@@ -782,8 +793,8 @@ export function BuffaloSlotGame({
               ? 'Free Spin တွင် ဆုကြေးမပေါက်ပါ'
               : 'နောက်တစ်ကြိမ် ထပ်စမ်းပါ'
           );
-          // Record Loss Bet if paid spin
-          if (!isFreeSpin) {
+          // Record Loss Bet if paid spin and logged in
+          if (!isFreeSpin && user) {
             try {
               const betId = `buffalo_${Date.now()}`;
               const newBet: PlayerBet = {
@@ -907,31 +918,31 @@ export function BuffaloSlotGame({
 
   // Buy Bonus Action (100x Bet for 10 Free Spins)
   const handleConfirmBuyBonus = async () => {
-    if (!user) {
-      alert('ကစားရန် အရင်ဆုံး အကောင့်ဝင်ပေးပါ။');
-      return;
-    }
+    const availableBalance = user ? user.balance : guestBalance;
     const cost = betAmount * 100;
-    if (user.balance < cost) {
-      alert(`လက်ကျန်ငွေ မလုံလောက်ပါ။ Buy Bonus ဝယ်ယူရန် Ks ${cost.toLocaleString()} လိုအပ်ပါသည်။`);
+    if (availableBalance < cost) {
+      showGameToast(`လက်ကျန်ငွေ မလုံလောက်ပါ။ Buy Bonus ဝယ်ယူရန် Ks ${cost.toLocaleString()} လိုအပ်ပါသည်။`);
       setIsBuyBonusModalOpen(false);
-      onGoToWallet();
+      if (user) onGoToWallet();
       return;
     }
 
     setIsBuyBonusModalOpen(false);
-    const newBal = user.balance - cost;
-    if (onUpdateUserBalance) onUpdateUserBalance(newBal);
-
-    try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        balance: newBal,
-        totalBetCumulative: (user.totalBetCumulative || 0) + cost,
-        wagerSinceLastWithdrawal: (user.wagerSinceLastWithdrawal || 0) + cost,
-        updatedAt: Date.now(),
-      });
-    } catch (e) {
-      console.error(e);
+    const newBal = availableBalance - cost;
+    if (user) {
+      if (onUpdateUserBalance) onUpdateUserBalance(newBal);
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          balance: newBal,
+          totalBetCumulative: (user.totalBetCumulative || 0) + cost,
+          wagerSinceLastWithdrawal: (user.wagerSinceLastWithdrawal || 0) + cost,
+          updatedAt: Date.now(),
+        });
+      } catch (e) {
+        console.error('Buy bonus update error:', e);
+      }
+    } else {
+      setGuestBalance(newBal);
     }
 
     // Award 10 Free Spins
@@ -966,6 +977,14 @@ export function BuffaloSlotGame({
         backgroundColor: '#04060a',
       }}
     >
+      {/* Toast Notification Banner (Zero alerts, non-blocking smooth feedback) */}
+      {gameToast && (
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-[#141822]/95 border border-amber-400/50 shadow-2xl shadow-black/80 rounded-full px-5 py-2 text-amber-200 text-xs sm:text-sm font-bold flex items-center gap-2 backdrop-blur-md pointer-events-none transition-all">
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
+          <span>{gameToast}</span>
+        </div>
+      )}
+
       {/* Device Rotation Advisory: Prompt user to turn phone sideways if opened in portrait */}
       {isPortrait && !dismissRotatePrompt && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center p-4 sm:p-6 bg-black/95 backdrop-blur-2xl text-center select-none animate-fadeIn">
@@ -1076,8 +1095,9 @@ export function BuffaloSlotGame({
           {/* Quick Balance */}
           <div className="flex items-center gap-1 px-2 py-0.5 rounded-xl bg-black/60 border border-white/15 shadow-inner">
             <span className="text-[9px] text-white/50 font-bold hidden sm:inline">လက်ကျန်:</span>
-            <span className="text-xs font-black font-mono text-white">
-              {formatKs(user?.balance || 0)}
+            <span className="text-xs font-black font-mono text-white flex items-center gap-1">
+              <span>{formatKs(user ? user.balance : guestBalance)}</span>
+              {!user && <span className="text-[9px] text-amber-400 font-sans font-bold">(Demo)</span>}
             </span>
             <button
               onClick={() => {

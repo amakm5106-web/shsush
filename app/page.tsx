@@ -47,6 +47,7 @@ import {
   ChevronRight,
   ChevronLeft,
   Trophy,
+  Headphones,
 } from 'lucide-react';
 
 import { auth, db, googleProvider, testConnection, handleFirestoreError, OperationType } from '@/lib/firebase';
@@ -67,6 +68,7 @@ import {
   WithdrawalRequest,
   ReferralMember,
   BoundBank,
+  CurrentRoundData,
 } from '@/lib/types';
 import {
   DEFAULT_SETTINGS,
@@ -95,22 +97,8 @@ import { ProfileView } from '@/components/views/ProfileView';
 import { BuffaloSlotGame } from '@/components/BuffaloSlotGame';
 import { AuthModal } from '@/components/AuthModal';
 import { RoundResultModal } from '@/components/RoundResultModal';
-
-interface CurrentRoundData {
-  roundId: number;
-  status: 'betting' | 'rolling' | 'settled';
-  openedAt: number;
-  durationSeconds: number;
-  deadline: number;
-  dice1: number;
-  dice2: number;
-  totalResult: number;
-  resultClass: 'small' | 'common' | 'big';
-  resultColor?: 'red' | 'green' | 'violet';
-  settledAt: number;
-  nextRoundAt: number;
-  updatedAt: number;
-}
+import { SupportChatModal } from '@/components/SupportChatModal';
+import { tickRoundSystem } from '@/lib/roundEngine';
 
 const createFallbackUser = (uid: string, email: string, name: string): UserProfile => ({
   uid,
@@ -224,7 +212,16 @@ export default function Home() {
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
+  const [isSupportOpen, setIsSupportOpen] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [globalToast, setGlobalToast] = useState<{ message: string; type?: 'info' | 'error' | 'success' } | null>(null);
+
+  const showToast = useCallback((msg: string, type: 'info' | 'error' | 'success' = 'info') => {
+    setGlobalToast({ message: msg, type });
+    setTimeout(() => {
+      setGlobalToast((prev) => (prev?.message === msg ? null : prev));
+    }, 3500);
+  }, []);
 
   const lastProcessedSettledRoundRef = useRef<number | null>(null);
 
@@ -458,11 +455,38 @@ export default function Home() {
         setCurrentRoundDoc(data);
         setRoundId(data.roundId);
 
+        // Immediate 24/7 fast-forward catchup if round document is behind real-world time
+        const now = Date.now();
+        const roundDurSec = data.durationSeconds || settings.ROUND_DURATION_SECONDS || 60;
+        const roundDurMs = roundDurSec * 1000;
+        const elapsedSinceOpen = now - data.openedAt;
+        if (elapsedSinceOpen > roundDurMs + 5000) {
+          tickRoundSystem(db, roundDurSec);
+        }
+
         if (data.status === 'rolling') {
-          setIsRolling(true);
+          const now = Date.now();
+          const elapsed = now - (data.settledAt || now);
+          const rollDuration = 2500;
+          if (elapsed < rollDuration) {
+            setIsRolling(true);
+            setTimeout(() => {
+              setIsRolling(false);
+            }, rollDuration - elapsed);
+          } else {
+            setIsRolling(false);
+          }
           setBettingOpen(false);
           setDice1(data.dice1);
           setDice2(data.dice2);
+          setLastRoundResult({
+            roundId: data.roundId,
+            dice1: data.dice1,
+            dice2: data.dice2,
+            total: data.totalResult,
+            resultClass: data.resultClass,
+            resultColor: data.resultColor || classifyDiceColor(data.totalResult),
+          });
         } else if (data.status === 'betting') {
           setIsRolling(false);
           const remaining = Math.max(0, Math.ceil((data.deadline - Date.now()) / 1000));
@@ -511,7 +535,6 @@ export default function Home() {
 
   // 7. Atomic Settlement Transition Handler across All Users with Lowest-Pool Optimization
   const triggerGlobalSettlement = useCallback(async (activeRound: CurrentRoundData) => {
-    if (!user) return;
     try {
       // Step A: Read all active bets placed in this round to analyze player pools
       const activeRoundBets: PlayerBet[] = [];
@@ -618,7 +641,6 @@ export default function Home() {
 
   // 8. Atomic Next Round Advance Handler
   const triggerGlobalNextRound = useCallback(async (activeRound: CurrentRoundData) => {
-    if (!user) return;
     try {
       await runTransaction(db, async (txn) => {
         const currentRef = doc(db, 'rounds', 'current');
@@ -674,14 +696,17 @@ export default function Home() {
         }
       }
 
-      // Safeguard: Room catchup if browser was asleep for > 15s past deadline
-      if (currentRoundDoc.status === 'betting' && now > currentRoundDoc.deadline + 15000) {
-        triggerGlobalSettlement(currentRoundDoc);
+      // Autonomous 24/7 Catchup: If round is past deadline or idle for more than 5s
+      if (
+        (currentRoundDoc.status === 'betting' && now > currentRoundDoc.deadline + 5000) ||
+        (currentRoundDoc.status === 'rolling' && now > currentRoundDoc.nextRoundAt + 5000)
+      ) {
+        tickRoundSystem(db, settings.ROUND_DURATION_SECONDS || 60);
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [currentRoundDoc, soundEnabled, triggerGlobalNextRound, triggerGlobalSettlement]);
+  }, [currentRoundDoc, soundEnabled, settings.ROUND_DURATION_SECONDS, triggerGlobalNextRound, triggerGlobalSettlement]);
 
   // 10. Evaluate User Bets when Round Settles & Persist Settlement to Firestore
   useEffect(() => {
@@ -695,6 +720,12 @@ export default function Home() {
       const total = currentRoundDoc.totalResult;
       const resClass = currentRoundDoc.resultClass;
       const resColor = currentRoundDoc.resultColor || classifyDiceColor(total);
+
+      // Only evaluate & show result modal if user actually placed bets in this round!
+      if (currentRoundBets.length === 0) {
+        setIsResultModalOpen(false);
+        return;
+      }
 
       let totalWinnings = 0;
       let wonAny = false;
@@ -730,7 +761,7 @@ export default function Home() {
         }
       });
 
-      // Write settled status to Firestore immediately so history updates permanently!
+      // Write settled status to Firestore for player's bets
       for (const b of updatedBets) {
         try {
           const betDocRef = doc(db, 'bets', b.betId);
@@ -747,46 +778,54 @@ export default function Home() {
         }
       }
 
-      if (wonAny && totalWinnings > 0) {
-        sounds.playWin();
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#F59E0B', '#EAB308', '#10B981', '#ffffff'],
-        });
-
-        if (currentUser && userProfile) {
-          try {
-            const userDocRef = doc(db, 'users', currentUser.uid);
-            await updateDoc(userDocRef, {
-              balance: (userProfile.balance || 0) + totalWinnings,
-              updatedAt: Date.now(),
-            });
-          } catch (e) {
-            console.error('Error crediting winnings:', e);
-          }
-        }
-      }
-
       setMyBetsHistory((prev) => [...updatedBets, ...prev].slice(0, 30));
       setCurrentRoundBets([]);
 
-      // Trigger Instant Round Result & Profit/Loss Modal Popup
-      setSettledModalData({
-        roundId: settledRoundId,
-        dice1: currentRoundDoc.dice1,
-        dice2: currentRoundDoc.dice2,
-        totalResult: total,
-        resultClass: resClass,
-        resultColor: resColor,
-        userBets: updatedBets,
-      });
-      setIsResultModalOpen(true);
+      // CRITICAL: Wait until the 3D dice finish rolling (~2.6s) before revealing result modal & celebrating
+      const elapsed = Date.now() - (currentRoundDoc.settledAt || Date.now());
+      const delayBeforeResult = Math.max(100, 2600 - elapsed);
+
+      setTimeout(async () => {
+        if (wonAny && totalWinnings > 0) {
+          sounds.playWin();
+          confetti({
+            particleCount: 110,
+            spread: 75,
+            origin: { y: 0.6 },
+            colors: ['#F59E0B', '#EAB308', '#10B981', '#ffffff'],
+          });
+
+          if (currentUser && userProfile) {
+            try {
+              const userDocRef = doc(db, 'users', currentUser.uid);
+              await updateDoc(userDocRef, {
+                balance: (userProfile.balance || 0) + totalWinnings,
+                updatedAt: Date.now(),
+              });
+            } catch (e) {
+              console.error('Error crediting winnings:', e);
+            }
+          }
+        }
+
+        // Trigger Result Modal ONLY for users who placed bets in this round
+        if (updatedBets.length > 0) {
+          setSettledModalData({
+            roundId: settledRoundId,
+            dice1: currentRoundDoc.dice1,
+            dice2: currentRoundDoc.dice2,
+            totalResult: total,
+            resultClass: resClass,
+            resultColor: resColor,
+            userBets: updatedBets,
+          });
+          setIsResultModalOpen(true);
+        }
+      }, delayBeforeResult);
     };
 
     evaluateMyBets();
-  }, [currentRoundBets, currentRoundDoc, currentUser, userProfile]);
+  }, [currentRoundBets, currentRoundDoc, currentUser, userProfile, selectedGame]);
 
   // 11. Realtime Bets Listener for Current User with Auto-Settlement Self-Healing
   useEffect(() => {
@@ -986,26 +1025,28 @@ export default function Home() {
     multiplier: number
   ): Promise<boolean> => {
     if (!currentUser || !userProfile) {
-      alert('လောင်းကြေးတင်ရန် အရင်ဆုံး Sign In ပြုလုပ်ပေးပါ။');
+      showToast('လောင်းကြေးတင်ရန် အရင်ဆုံး Google ဖြင့် အကောင့်ဝင်ပေးပါ', 'error');
+      setIsAuthModalOpen(true);
       return false;
     }
 
     if (userProfile.balance < amount) {
-      alert('လက်ကျန်ငွေ မလုံလောက်ပါ။ ကျေးဇူးပြု၍ ငွေအရင်ဖြည့်သွင်းပါ။');
+      showToast('လက်ကျန်ငွေ မလုံလောက်ပါ။ ကျေးဇူးပြု၍ ငွေအရင်ဖြည့်သွင်းပါ', 'error');
+      setIsWalletOpen(true);
       return false;
     }
 
     // 0. Anti-Bot & Automation Detection (Reject headless browsers & scrapers)
     const botCheck = detectBotOrAutomation();
     if (botCheck.isBot) {
-      alert(`⚠️ လုံခြုံရေးကာကွယ်မှု: အလိုအလျောက်ခေါ်ယူသော Bot သို့မဟုတ် Script ဖြစ်သဖြင့် ခွင့်မပြုပါ (${botCheck.reason})။`);
+      showToast(`⚠️ လုံခြုံရေးကာကွယ်မှု: အလိုအလျောက်ခေါ်ယူသော Bot သို့မဟုတ် Script ဖြစ်သဖြင့် ခွင့်မပြုပါ (${botCheck.reason})`, 'error');
       return false;
     }
 
     // 1. Rate Limiting / Velocity Shield (Prevent superhuman flood attacks)
     const velocityCheck = verifyActionVelocity();
     if (!velocityCheck.allowed) {
-      alert(`⚠️ ${velocityCheck.reason}`);
+      showToast(`⚠️ ${velocityCheck.reason}`, 'error');
       return false;
     }
 
@@ -1013,7 +1054,7 @@ export default function Home() {
     const securityToken = generateEphemeralToken(currentUser.uid, 'bet');
     const tokenCheck = isTokenValid(securityToken, 'bet', currentUser.uid);
     if (!tokenCheck.valid) {
-      alert(`⚠️ လုံခြုံရေး Token အမှား: ${tokenCheck.error}`);
+      showToast(`⚠️ လုံခြုံရေး Token အမှား: ${tokenCheck.error}`, 'error');
       return false;
     }
 
@@ -1035,8 +1076,9 @@ export default function Home() {
       );
 
       if (hasOppositeBet) {
-        alert(
-          'စည်းကမ်းသတိပေးချက်: အလှည့်တစ်ခုတည်းတွင် အကြီးရော အသေးပါ နှစ်ဖက်လုံးလောင်းခြင်း (Hedging) ကို တင်းကြပ်စွာ တားမြစ်ထားပါသည်။ ဤလောင်းကြေးကို လက်မခံပါ။'
+        showToast(
+          'စည်းကမ်းသတိပေးချက်: အလှည့်တစ်ခုတည်းတွင် အကြီးရော အသေးပါ နှစ်ဖက်လုံးလောင်းခြင်း (Hedging) ကို တင်းကြပ်စွာ တားမြစ်ထားပါသည်',
+          'error'
         );
         return false;
       }
@@ -1752,6 +1794,14 @@ export default function Home() {
 
   return (
     <main className="w-full min-h-screen bg-[#060a14] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,255,255,0.06),rgba(0,0,0,0))] text-white flex flex-col items-center justify-between pb-24 selection:bg-white/20 selection:text-white">
+      {/* Global In-Game Toast Banner (Zero blocking alerts) */}
+      {globalToast && (
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-[#141822]/95 border border-amber-400/50 shadow-2xl shadow-black/80 rounded-2xl px-5 py-2.5 text-white text-xs sm:text-sm font-bold flex items-center gap-2.5 backdrop-blur-md pointer-events-none animate-fadeIn">
+          <span className={`w-2 h-2 rounded-full shrink-0 ${globalToast.type === 'error' ? 'bg-red-400 animate-ping' : globalToast.type === 'success' ? 'bg-emerald-400 animate-ping' : 'bg-amber-400 animate-ping'}`} />
+          <span>{globalToast.message}</span>
+        </div>
+      )}
+
       {/* 2. Full-Screen Page View Router (ပင်မ, ဖိတ်ခေါ်မှု, ငွေသွင်း/ထုတ်, ပရိုဖိုင်) */}
       <div className={`w-full flex flex-col flex-1 mt-2 transition-all ${(selectedGame === 'lobby' || activeTab === 'referral' || activeTab === 'wallet' || activeTab === 'profile') ? 'max-w-4xl px-2 sm:px-4' : selectedGame === 'dice' ? 'max-w-xl px-2 sm:px-3' : 'max-w-md'}`}>
         {/* VIEW 1: ပင်မ (Games Lobby or Full-Screen Game Arenas) */}
@@ -1812,6 +1862,20 @@ export default function Home() {
                         <span>အကောင့်ဝင်ရန်</span>
                       </button>
                     )}
+
+                    {/* Support Chat Button */}
+                    <button
+                      onClick={() => {
+                        sounds.playChip();
+                        setIsSupportOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-xs active:scale-95 transition-all shadow-sm shrink-0"
+                      title="Support Chat (၂၄ နာရီ ကူညီရေး)"
+                    >
+                      <Headphones className="w-3.5 h-3.5 text-amber-400 stroke-[2.2]" />
+                      <span className="hidden xs:inline sm:inline">Support Chat</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    </button>
 
                     {/* Audio Toggle */}
                     <button
@@ -2475,8 +2539,8 @@ export default function Home() {
         />
       )}
 
-      {/* Live Round Result & Profit/Loss Settlement Modal Popup (Only when in dice game or user placed bets) */}
-      {settledModalData && (selectedGame === 'dice' || settledModalData.userBets.length > 0) && (
+      {/* Live Round Result & Profit/Loss Settlement Modal Popup (Only when user placed bets in this round) */}
+      {settledModalData && settledModalData.userBets.length > 0 && (
         <RoundResultModal
           isOpen={isResultModalOpen}
           onClose={() => setIsResultModalOpen(false)}
@@ -2489,6 +2553,37 @@ export default function Home() {
           userRoundBets={settledModalData.userBets}
         />
       )}
+
+      {/* Floating 24/7 Support Quick Action Button (Lobby) */}
+      {selectedGame === 'lobby' && activeTab === 'home' && (
+        <aside aria-label="Customer Support" className="fixed bottom-20 right-3 sm:right-5 z-40 animate-fadeIn">
+          <button
+            onClick={() => {
+              sounds.playChip();
+              setIsSupportOpen(true);
+            }}
+            className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full bg-gradient-to-r from-zinc-950 via-zinc-900 to-black border border-amber-400/40 text-white shadow-[0_8px_25px_rgba(245,158,11,0.3)] hover:border-amber-400 hover:scale-105 active:scale-95 transition-all"
+            title="Support Chat (၂၄ နာရီ ဝန်ဆောင်မှု)"
+          >
+            <div className="relative">
+              <Headphones className="w-4 h-4 text-amber-400 stroke-[2.3]" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-black animate-ping" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-black" />
+            </div>
+            <span className="text-xs font-black text-amber-300 tracking-wide font-sans">
+              Support Chat
+            </span>
+          </button>
+        </aside>
+      )}
+
+      {/* 24/7 Customer Support Live Chat Modal */}
+      <SupportChatModal
+        isOpen={isSupportOpen}
+        onClose={() => setIsSupportOpen(false)}
+        user={userProfile}
+        settings={settings}
+      />
     </main>
   );
 }
