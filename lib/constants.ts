@@ -17,6 +17,24 @@ export function isAdminEmail(email: string | null | undefined): boolean {
   );
 }
 
+export const TELEGRAM_CHANNEL_LINK = 'https://t.me/dicemyanmar1';
+export const CUSTOMER_SERVICE_BOT_LINK = 'https://t.me/xsitecasinobot';
+export const CUSTOMER_SERVICE_BOT_HANDLE = '@xsitecasinobot';
+
+export function openTelegramLink(url: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const tg = (window as unknown as { Telegram?: { WebApp?: { openTelegramLink?: (url: string) => void } } })?.Telegram?.WebApp;
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(url);
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  } catch {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
+
 export const DEFAULT_SETTINGS: GameSettings = {
   OVER_UNDER_MULTIPLIER: 1.9,
   SIX_MULTIPLIER: 3.9, // Common 7 multiplier
@@ -38,7 +56,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   COMMISSION_RATE: 0.01,
   MINIMUM_TRANSFER_AMOUNT: 5000,
   ROUND_DURATION_SECONDS: 60,
-  GAME_GROUP_LINK: 'https://t.me/wingogp',
+  GAME_GROUP_LINK: 'https://t.me/dicemyanmar1',
 };
 
 export function classifyDiceTotal(total: number): 'small' | 'common' | 'big' {

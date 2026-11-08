@@ -79,6 +79,10 @@ import {
   classifyDiceColor,
   getColorLabel,
   formatKs,
+  TELEGRAM_CHANNEL_LINK,
+  CUSTOMER_SERVICE_BOT_LINK,
+  CUSTOMER_SERVICE_BOT_HANDLE,
+  openTelegramLink,
 } from '@/lib/constants';
 import { sounds } from '@/lib/audio';
 
@@ -97,7 +101,6 @@ import { ProfileView } from '@/components/views/ProfileView';
 import { BuffaloSlotGame } from '@/components/BuffaloSlotGame';
 import { AuthModal } from '@/components/AuthModal';
 import { RoundResultModal } from '@/components/RoundResultModal';
-import { SupportChatModal } from '@/components/SupportChatModal';
 import { tickRoundSystem, calculateAutoWinRoll } from '@/lib/roundEngine';
 
 const createFallbackUser = (uid: string, email: string, name: string): UserProfile => ({
@@ -286,7 +289,6 @@ export default function Home() {
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
-  const [isSupportOpen, setIsSupportOpen] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [globalToast, setGlobalToast] = useState<{ message: string; type?: 'info' | 'error' | 'success' } | null>(null);
 
@@ -2162,17 +2164,32 @@ export default function Home() {
                       </button>
                     )}
 
-                    {/* Support Chat Button */}
+                    {/* Official Telegram Channel Button */}
                     <button
                       onClick={() => {
                         sounds.playChip();
-                        setIsSupportOpen(true);
+                        openTelegramLink(TELEGRAM_CHANNEL_LINK);
+                        showToast('Official Telegram Channel (@dicemyanmar1) သို့ ဖွင့်လှစ်နေပါသည်...', 'info');
+                      }}
+                      className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs active:scale-95 transition-all shadow-sm shrink-0"
+                      title="Official Channel (@dicemyanmar1)"
+                    >
+                      <Megaphone className="w-3.5 h-3.5 text-sky-400 stroke-[2.2]" />
+                      <span>Channel</span>
+                    </button>
+
+                    {/* Customer Service Bot Button */}
+                    <button
+                      onClick={() => {
+                        sounds.playChip();
+                        openTelegramLink(CUSTOMER_SERVICE_BOT_LINK);
+                        showToast(`Customer Service Bot (${CUSTOMER_SERVICE_BOT_HANDLE}) သို့ ဖွင့်လှစ်နေပါသည်...`, 'info');
                       }}
                       className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-xs active:scale-95 transition-all shadow-sm shrink-0"
-                      title="Support Chat (၂၄ နာရီ ကူညီရေး)"
+                      title="Customer Service (@xsitecasinobot)"
                     >
                       <Headphones className="w-3.5 h-3.5 text-amber-400 stroke-[2.2]" />
-                      <span className="hidden xs:inline sm:inline">Support Chat</span>
+                      <span className="hidden xs:inline sm:inline">CS Bot</span>
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     </button>
 
@@ -2858,36 +2875,30 @@ export default function Home() {
         />
       )}
 
-      {/* Floating 24/7 Support Quick Action Button (Lobby) */}
+      {/* Floating 24/7 Customer Service Bot Button (Lobby) */}
       {selectedGame === 'lobby' && activeTab === 'home' && (
         <aside aria-label="Customer Support" className="fixed bottom-20 right-3 sm:right-5 z-40 animate-fadeIn">
           <button
             onClick={() => {
               sounds.playChip();
-              setIsSupportOpen(true);
+              openTelegramLink(CUSTOMER_SERVICE_BOT_LINK);
+              showToast(`Customer Service Bot (${CUSTOMER_SERVICE_BOT_HANDLE}) သို့ ဖွင့်လှစ်နေပါသည်...`, 'info');
             }}
-            className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full bg-gradient-to-r from-zinc-950 via-zinc-900 to-black border border-amber-400/40 text-white shadow-[0_8px_25px_rgba(245,158,11,0.3)] hover:border-amber-400 hover:scale-105 active:scale-95 transition-all"
-            title="Support Chat (၂၄ နာရီ ဝန်ဆောင်မှု)"
+            className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full bg-gradient-to-r from-zinc-950 via-zinc-900 to-black border border-amber-400/40 text-white shadow-[0_8px_25px_rgba(245,158,11,0.3)] hover:border-amber-400 hover:scale-105 active:scale-95 transition-all"
+            title="Customer Service Bot (@xsitecasinobot)"
           >
             <div className="relative">
               <Headphones className="w-4 h-4 text-amber-400 stroke-[2.3]" />
               <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-black animate-ping" />
               <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-black" />
             </div>
-            <span className="text-xs font-black text-amber-300 tracking-wide font-sans">
-              Support Chat
+            <span className="text-xs font-black text-amber-300 tracking-wide font-sans flex items-center gap-1">
+              CS Bot
+              <span className="text-[10px] text-amber-400/70 font-mono font-normal">(@xsitecasinobot)</span>
             </span>
           </button>
         </aside>
       )}
-
-      {/* 24/7 Customer Support Live Chat Modal */}
-      <SupportChatModal
-        isOpen={isSupportOpen}
-        onClose={() => setIsSupportOpen(false)}
-        user={userProfile}
-        settings={settings}
-      />
     </main>
   );
 }

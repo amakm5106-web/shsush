@@ -22,6 +22,8 @@ import {
   Wallet,
   Dices,
   Flame,
+  Megaphone,
+  Headphones,
 } from 'lucide-react';
 import { GameSettings, UserProfile, PlayerBet } from '@/lib/types';
 import { formatKs } from '@/lib/constants';
@@ -277,6 +279,39 @@ export function ProfileView({
         <span className="text-[10px] text-zinc-500 font-bold">
           {user.role === 'admin' ? 'အက်ဒမင်' : 'VIP အကောင့်'}
         </span>
+      </div>
+
+      {/* Official Telegram Channel & Customer Service Bot */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <a
+          href="https://t.me/dicemyanmar1"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-3 rounded-2xl bg-sky-950/40 border border-sky-500/30 hover:border-sky-400/60 flex items-center gap-2.5 transition-all active:scale-95 group shadow-sm"
+        >
+          <div className="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <Megaphone className="w-4 h-4 stroke-[2.3]" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[11px] font-black text-white truncate">တရားဝင် Channel</span>
+            <span className="text-[10px] text-sky-300 font-mono">@dicemyanmar1</span>
+          </div>
+        </a>
+
+        <a
+          href="https://t.me/xsitecasinobot"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-3 rounded-2xl bg-amber-950/40 border border-amber-500/30 hover:border-amber-400/60 flex items-center gap-2.5 transition-all active:scale-95 group shadow-sm"
+        >
+          <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <Headphones className="w-4 h-4 stroke-[2.3]" />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[11px] font-black text-white truncate">Customer Service</span>
+            <span className="text-[10px] text-amber-300 font-mono">@xsitecasinobot</span>
+          </div>
+        </a>
       </div>
 
       {/* 3. COMPREHENSIVE BETTING HISTORY LEDGER */}

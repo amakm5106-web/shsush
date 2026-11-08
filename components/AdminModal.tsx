@@ -1143,6 +1143,17 @@ export function AdminModal({
                 </div>
               </div>
 
+              <div>
+                <label className="text-[11px] font-bold text-zinc-400 block mb-1">Official Telegram Channel Link:</label>
+                <input
+                  type="text"
+                  value={formSettings.GAME_GROUP_LINK || 'https://t.me/dicemyanmar1'}
+                  onChange={(e) => setFormSettings({ ...formSettings, GAME_GROUP_LINK: e.target.value })}
+                  placeholder="https://t.me/dicemyanmar1"
+                  className="w-full p-2 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
               <div className="flex items-center justify-end pt-2">
                 <button
                   type="submit"
