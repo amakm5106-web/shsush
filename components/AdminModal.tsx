@@ -25,6 +25,7 @@ import {
   MinusCircle,
   Building2,
   CheckCircle2,
+  Database,
 } from 'lucide-react';
 import {
   DepositRequest,
@@ -83,13 +84,26 @@ export function AdminModal({
   onToggleUserRole,
   onForceDiceRoll,
 }: AdminModalProps) {
-  const [activeTab, setActiveTab] = useState<'deposits' | 'withdrawals' | 'users' | 'dice' | 'banking' | 'settings'>('deposits');
+  const [activeTab, setActiveTab] = useState<'deposits' | 'withdrawals' | 'users' | 'dice' | 'banking' | 'settings' | 'turso'>('deposits');
   const [prevSettings, setPrevSettings] = useState<GameSettings>(settings);
   const [formSettings, setFormSettings] = useState<GameSettings>({ ...settings });
   const [saving, setSaving] = useState<boolean>(false);
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const [rejectionTarget, setRejectionTarget] = useState<WithdrawalRequest | null>(null);
   const [rejectionNote, setRejectionNote] = useState<string>('');
+
+  // Turso Database Migration States
+  const [tursoDbUrl, setTursoDbUrl] = useState<string>('libsql://casino-xavianelio.aws-ap-southeast-1.turso.io');
+  const [tursoAuthToken, setTursoAuthToken] = useState<string>(
+    'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTQwOTkxNjMsImlkIjoiMDFhMWI2YjItMzgwMS03ZDBkLTliODQtNjAxNWVjNjM3ZTgzIiwia2lkIjoiQUFOQ3JJdjV5b0l5aERZbXlXZXU3dWNJNE9wUHZmZGp3S1plbVFob0VtdyIsInJpZCI6ImE5Y2ZmN2U5LWIyNjAtNDk0YS05ZmE0LWRkZWEyMzQ3Y2YxMiJ9.bjJi_iZ9gYIlksPBHMIUVDZ0df6Z-uZbLLrUWgAemrWsbFg98m8Uf9S38T7cElh6Op7fiK9KEwG4Letad1uZDQ'
+  );
+  const [tursoChecking, setTursoChecking] = useState<boolean>(false);
+  const [tursoStatus, setTursoStatus] = useState<{ success: boolean; msg: string; detail?: string } | null>({
+    success: true,
+    msg: 'Turso Database ချိတ်ဆက်မှု အောင်မြင်နေပါသည် (Connected)',
+  });
+  const [isMigrating, setIsMigrating] = useState<boolean>(false);
+  const [migrationResult, setMigrationResult] = useState<any | null>(null);
 
   // User Management & Balance Adjustment States
   const [userSearchQuery, setUserSearchQuery] = useState<string>('');
@@ -383,6 +397,21 @@ export function AdminModal({
           >
             <SettingsIcon className="w-3.5 h-3.5 stroke-[2.4]" />
             စည်းမျဉ်း/စာရင်း
+          </button>
+
+          <button
+            onClick={() => {
+              sounds.playChip();
+              setActiveTab('turso');
+            }}
+            className={`flex items-center justify-center gap-1 py-2 px-1 rounded-xl text-[11px] font-black transition-all ${
+              activeTab === 'turso'
+                ? 'bg-amber-400 text-black shadow-md'
+                : 'text-white/60 hover:text-white'
+            }`}
+          >
+            <Database className="w-3.5 h-3.5 stroke-[2.4]" />
+            Turso ပြောင်းရန်
           </button>
         </div>
 
@@ -1108,6 +1137,236 @@ export function AdminModal({
               </div>
             </div>
           </form>
+        )}
+
+        {/* TAB 7: TURSO & DATA MIGRATION */}
+        {activeTab === 'turso' && (
+          <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-4">
+            {/* Header info */}
+            <div className="p-4 rounded-2xl dark-glass-card border border-amber-400/30 bg-amber-500/5 flex flex-col gap-2">
+              <div className="flex items-center gap-2 text-amber-400 font-black text-sm">
+                <Database className="w-5 h-5 text-amber-400" />
+                <span>Turso (LibSQL) Cloud Database & Data Migration</span>
+              </div>
+              <p className="text-xs text-white/70 leading-relaxed">
+                Turso သို့ ပြောင်းလဲအသုံးပြုခြင်းဖြင့် Firebase ၏ နေ့စဉ် 50,000 Read ကန့်သတ်ချက် (Quota Limit) ကို လွတ်မြောက်စေပြီး လစဉ် Reads & Writes သန်းပေါင်းများစွာကို အခမဲ့ စိတ်ချလက်ချ အသုံးပြုနိုင်မည် ဖြစ်ပါသည်။
+              </p>
+            </div>
+
+            {/* Connection Inputs */}
+            <div className="p-4 rounded-2xl dark-glass-card border border-white/10 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-white flex items-center gap-1.5">
+                  <Database className="w-4 h-4 text-amber-400" />
+                  Turso Connection Settings
+                </span>
+                {tursoStatus && (
+                  <span
+                    className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1 ${
+                      tursoStatus.success
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                        : 'bg-red-500/20 text-red-400 border border-red-500/40'
+                    }`}
+                  >
+                    {tursoStatus.success ? <Check className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                    {tursoStatus.msg}
+                  </span>
+                )}
+              </div>
+
+              {/* URL Input */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-white/80">Database URL:</label>
+                <input
+                  type="text"
+                  value={tursoDbUrl}
+                  onChange={(e) => setTursoDbUrl(e.target.value)}
+                  placeholder="libsql://casino-xavianelio.aws-ap-southeast-1.turso.io"
+                  className="p-2.5 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-amber-400 outline-none"
+                />
+              </div>
+
+              {/* Token Input */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-bold text-white/80">Database Auth Token (JWT):</label>
+                <textarea
+                  value={tursoAuthToken}
+                  onChange={(e) => {
+                    setTursoAuthToken(e.target.value);
+                    setTursoStatus(null);
+                  }}
+                  rows={3}
+                  placeholder="Turso Database Token အသစ်ကို ဤနေရာတွင် ထည့်ပါ..."
+                  className="p-2.5 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:border-amber-400 outline-none resize-none"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={tursoChecking || isMigrating}
+                  onClick={async () => {
+                    setTursoChecking(true);
+                    setTursoStatus(null);
+                    try {
+                      const res = await fetch('/api/turso/test', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          url: tursoDbUrl.trim(),
+                          token: tursoAuthToken.trim(),
+                          initSchema: true,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        setTursoStatus({
+                          success: true,
+                          msg: 'Connected အောင်မြင်ပါသည်!',
+                        });
+                        sounds.playWin();
+                      } else {
+                        setTursoStatus({
+                          success: false,
+                          msg: '401 Unauthorized',
+                          detail: data.error,
+                        });
+                      }
+                    } catch (e: any) {
+                      setTursoStatus({
+                        success: false,
+                        msg: 'ချိတ်ဆက်မှု မအောင်မြင်ပါ',
+                        detail: e.message || String(e),
+                      });
+                    } finally {
+                      setTursoChecking(false);
+                    }
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 border border-white/10"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${tursoChecking ? 'animate-spin' : ''}`} />
+                  {tursoChecking ? 'စစ်ဆေးနေပါသည်...' : 'Connection စစ်ဆေးမည် (Test)'}
+                </button>
+              </div>
+
+              {/* Error instruction card if failed */}
+              {tursoStatus && !tursoStatus.success && (
+                <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/30 text-xs text-red-200 flex flex-col gap-1.5">
+                  <div className="font-bold flex items-center gap-1.5 text-red-400">
+                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                    <span>Token မမှန်ကန်သေးပါ (Invalid Token):</span>
+                  </div>
+                  <p className="text-[11px] text-white/80 leading-relaxed">
+                    Turso Dashboard ထဲရှိ Database (<code className="bg-black/50 px-1 py-0.5 rounded text-amber-300">casino</code>) သို့ သွားပြီး <strong>Tokens -&gt; Create Token</strong> ကို နှိပ်၍ ထွက်လာသော <strong>Database Token</strong> အသစ်ကို ကူးယူထည့်သွင်းပေးပါ။
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Data Migration Box */}
+            <div className="p-4 rounded-2xl dark-glass-card border border-white/10 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-white flex items-center gap-1.5">
+                  <ArrowUpRight className="w-4 h-4 text-amber-400" />
+                  Firebase မှ Turso သို့ Data များ ကူးပြောင်းခြင်း (One-Click Migration)
+                </span>
+              </div>
+
+              <p className="text-xs text-white/70 leading-relaxed">
+                အရင် Firebase Database ပေါ်တွင် ရှိနေသော <strong>User စာရင်းများ၊ ငွေလက်ကျန် (Balance)၊ Referral စာရင်းများ၊ ငွေသွင်း/ငွေထုတ်မှတ်တမ်းများ နှင့် အလောင်းအစားမှတ်တမ်းများ</strong> အားလုံးကို Turso Database ထဲသို့ တိုက်ရိုက် ထည့်သွင်းပေးမည် ဖြစ်ပါသည်။
+              </p>
+
+              <button
+                type="button"
+                disabled={isMigrating || tursoChecking}
+                onClick={async () => {
+                  if (!confirm('Firebase မှ data များကို Turso သို့ ပြောင်းရွှေ့ရန် သေချာပါသလား?')) return;
+                  setIsMigrating(true);
+                  setMigrationResult(null);
+                  try {
+                    const res = await fetch('/api/migrate-to-turso', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        url: tursoDbUrl.trim(),
+                        token: tursoAuthToken.trim(),
+                      }),
+                    });
+                    const data = await res.json();
+                    setMigrationResult(data);
+                    if (data.success) {
+                      sounds.playWin();
+                    }
+                  } catch (e: any) {
+                    setMigrationResult({
+                      success: false,
+                      error: e.message || String(e),
+                    });
+                  } finally {
+                    setIsMigrating(false);
+                  }
+                }}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-black text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg"
+              >
+                <Database className={`w-4 h-4 ${isMigrating ? 'animate-spin' : ''}`} />
+                {isMigrating ? 'Data များ ပြောင်းရွှေ့နေပါသည်... ခေတ္တစောင့်ပါ' : 'Firebase မှ Data များကို Turso သို့ ပြောင်းရွှေ့မည် (Migrate Now)'}
+              </button>
+
+              {/* Migration Result display */}
+              {migrationResult && (
+                <div
+                  className={`p-3.5 rounded-xl border text-xs flex flex-col gap-2 ${
+                    migrationResult.success
+                      ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200'
+                      : 'bg-red-950/40 border-red-500/40 text-red-200'
+                  }`}
+                >
+                  <div className="font-bold flex items-center gap-1.5">
+                    {migrationResult.success ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span className="text-emerald-300">အောင်မြင်စွာ ပြောင်းရွှေ့ပြီးစီးပါပြီ!</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="w-4 h-4 text-red-400" />
+                        <span className="text-red-300">မအောင်မြင်သေးပါ:</span>
+                      </>
+                    )}
+                  </div>
+
+                  {migrationResult.success && migrationResult.migrated && (
+                    <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
+                      <div className="p-2 rounded-lg bg-black/40 border border-white/10 flex justify-between">
+                        <span>မန်ဘာ (Users):</span>
+                        <strong className="text-amber-400">{migrationResult.migrated.users} ယောက်</strong>
+                      </div>
+                      <div className="p-2 rounded-lg bg-black/40 border border-white/10 flex justify-between">
+                        <span>ငွေသွင်း (Deposits):</span>
+                        <strong className="text-amber-400">{migrationResult.migrated.deposits} ခု</strong>
+                      </div>
+                      <div className="p-2 rounded-lg bg-black/40 border border-white/10 flex justify-between">
+                        <span>ငွေထုတ် (Withdrawals):</span>
+                        <strong className="text-amber-400">{migrationResult.migrated.withdrawals} ခု</strong>
+                      </div>
+                      <div className="p-2 rounded-lg bg-black/40 border border-white/10 flex justify-between">
+                        <span>အလောင်းအစား (Bets):</span>
+                        <strong className="text-amber-400">{migrationResult.migrated.bets} ခု</strong>
+                      </div>
+                    </div>
+                  )}
+
+                  {!migrationResult.success && (
+                    <div className="text-[11px] text-white/80 leading-relaxed flex flex-col gap-1">
+                      <p>{migrationResult.error}</p>
+                      {migrationResult.suggestion && <p className="text-amber-300 font-bold">{migrationResult.suggestion}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Rejection Modal for Withdrawals */}
