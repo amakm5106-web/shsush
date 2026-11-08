@@ -126,6 +126,17 @@ const createFallbackUser = (uid: string, email: string, name: string): UserProfi
   updatedAt: 0,
 });
 
+const syncToTurso = (type: 'user' | 'bet' | 'deposit' | 'withdrawal', data: any) => {
+  if (typeof window === 'undefined' || !data) return;
+  try {
+    fetch('/api/turso/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, data }),
+    }).catch(() => {});
+  } catch {}
+};
+
 const cacheUserProfile = (profile: UserProfile | null) => {
   if (typeof window === 'undefined' || !profile) return;
   try {
@@ -154,6 +165,8 @@ const cacheUserProfile = (profile: UserProfile | null) => {
         'xai_last_active_user',
         JSON.stringify({ uid: profile.uid, email: profile.email, phone: profile.phoneNumber })
       );
+      // Sync real-time to Turso Cloud Database
+      syncToTurso('user', profile);
     }
   } catch {
     // ignore quota storage issues
@@ -1258,6 +1271,7 @@ export default function Home() {
       });
 
       await setDoc(doc(db, 'bets', betId), newBet);
+      syncToTurso('bet', newBet);
       setCurrentRoundBets((prev) => [...prev, newBet]);
 
       if (userProfile.referrerId) {
@@ -1347,6 +1361,7 @@ export default function Home() {
 
     try {
       await setDoc(doc(db, 'deposits', depId), newDep);
+      syncToTurso('deposit', newDep);
       sounds.playWin();
       return true;
     } catch (err) {
@@ -1491,6 +1506,7 @@ export default function Home() {
 
       await updateDoc(userDocRef, updates);
       await setDoc(doc(db, 'withdrawals', withId), newWith);
+      syncToTurso('withdrawal', newWith);
       return true;
     } catch (err) {
       console.error('Withdrawal error:', err);

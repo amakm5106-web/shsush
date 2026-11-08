@@ -104,6 +104,24 @@ export function AdminModal({
   });
   const [isMigrating, setIsMigrating] = useState<boolean>(false);
   const [migrationResult, setMigrationResult] = useState<any | null>(null);
+  const [tursoLiveStats, setTursoLiveStats] = useState<{
+    users: number;
+    deposits: number;
+    withdrawals: number;
+    bets: number;
+    settings: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (activeTab === 'turso' && isOpen) {
+      fetch('/api/turso/stats')
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success && data.stats) setTursoLiveStats(data.stats);
+        })
+        .catch(() => {});
+    }
+  }, [activeTab, isOpen]);
 
   // User Management & Balance Adjustment States
   const [userSearchQuery, setUserSearchQuery] = useState<string>('');
@@ -1151,6 +1169,48 @@ export function AdminModal({
               <p className="text-xs text-white/70 leading-relaxed">
                 Turso သို့ ပြောင်းလဲအသုံးပြုခြင်းဖြင့် Firebase ၏ နေ့စဉ် 50,000 Read ကန့်သတ်ချက် (Quota Limit) ကို လွတ်မြောက်စေပြီး လစဉ် Reads & Writes သန်းပေါင်းများစွာကို အခမဲ့ စိတ်ချလက်ချ အသုံးပြုနိုင်မည် ဖြစ်ပါသည်။
               </p>
+            </div>
+
+            {/* Live Turso Stats Counter */}
+            <div className="p-3.5 rounded-2xl dark-glass-card border border-white/10 bg-black/40 flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black text-white/90 flex items-center gap-1.5">
+                  <Flame className="w-3.5 h-3.5 text-amber-400" />
+                  Turso ပေါ်ရှိ လက်ရှိ Data အရေအတွက် (Live Records in Database)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    fetch('/api/turso/stats')
+                      .then((r) => r.json())
+                      .then((d) => {
+                        if (d.success && d.stats) setTursoLiveStats(d.stats);
+                      });
+                  }}
+                  className="text-[10px] text-amber-400 font-bold hover:underline flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" /> Refresh
+                </button>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2 font-mono text-[11px]">
+                <div className="p-2 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center">
+                  <span className="text-[10px] text-white/50">မန်ဘာ</span>
+                  <strong className="text-amber-400 text-sm">{tursoLiveStats?.users ?? 0}</strong>
+                </div>
+                <div className="p-2 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center">
+                  <span className="text-[10px] text-white/50">ငွေသွင်း</span>
+                  <strong className="text-amber-400 text-sm">{tursoLiveStats?.deposits ?? 0}</strong>
+                </div>
+                <div className="p-2 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center">
+                  <span className="text-[10px] text-white/50">ငွေထုတ်</span>
+                  <strong className="text-amber-400 text-sm">{tursoLiveStats?.withdrawals ?? 0}</strong>
+                </div>
+                <div className="p-2 rounded-xl bg-white/5 border border-white/5 flex flex-col items-center">
+                  <span className="text-[10px] text-white/50">အလောင်းအစား</span>
+                  <strong className="text-amber-400 text-sm">{tursoLiveStats?.bets ?? 0}</strong>
+                </div>
+              </div>
             </div>
 
             {/* Connection Inputs */}
