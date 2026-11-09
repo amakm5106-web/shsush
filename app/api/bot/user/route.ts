@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateBotAuth, findUserUnified } from '@/lib/botApi';
+import { validateBotAuth, findUserUnified, lastTursoError } from '@/lib/botApi';
+import { getTursoClient } from '@/lib/turso';
 import { formatKs } from '@/lib/constants';
+ 
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   const authCheck = validateBotAuth(req);
@@ -8,8 +11,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: authCheck.error }, { status: 401 });
   }
 
-  const { searchParams } = new URL(req.url);
-  const query = searchParams.get('query') || searchParams.get('uid') || searchParams.get('id') || '';
+  const url = new URL(req.url, 'http://localhost:3000');
+  const query = url.searchParams.get('query') || url.searchParams.get('uid') || url.searchParams.get('id') || '';
 
   if (!query.trim()) {
     return NextResponse.json({

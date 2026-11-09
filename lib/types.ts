@@ -107,6 +107,7 @@ export interface DepositRequest {
   phone?: string;
   accountName?: string;
   receiptImage?: string;
+  trxLast5?: string;
   status: 'pending' | 'approved' | 'declined';
   isFirstDeposit: boolean;
   createdAt: number;

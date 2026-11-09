@@ -1,63 +1,62 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import {
   Wallet,
   ArrowDownLeft,
   ArrowUpRight,
   Copy,
   Check,
-  Upload,
   AlertCircle,
-  Sparkles,
   ShieldCheck,
   CreditCard,
   RefreshCw,
-  Lock,
   Coins,
   History,
   Clock,
   CheckCircle2,
   XCircle,
-  X,
-  ChevronRight,
-  Info,
+  Hash,
 } from 'lucide-react';
-import { GameSettings, UserProfile, BoundBank, WithdrawalRequest } from '@/lib/types';
+import { GameSettings, UserProfile, DepositRequest, WithdrawalRequest } from '@/lib/types';
 import { formatKs } from '@/lib/constants';
 import { sounds } from '@/lib/audio';
-import { compressReceiptImage } from '@/lib/imageUtils';
 
 interface WalletViewProps {
   user: UserProfile;
   settings: GameSettings;
   userWithdrawals?: WithdrawalRequest[];
-  onSubmitDeposit: (amount: number, method: 'kpay' | 'wave', receiptImage: string) => Promise<boolean>;
+  userDeposits?: DepositRequest[];
+  initialTab?: 'deposit' | 'withdraw' | 'history' | 'transfer';
+  onSubmitDeposit: (amount: number, method: 'kpay' | 'wave', trxLast5: string) => Promise<boolean>;
   onSubmitWithdrawal: (amount: number, method: 'kpay' | 'wave', phone: string, accountName: string) => Promise<boolean>;
   onTransferReferral: () => Promise<boolean>;
   onBindBank?: (method: 'kpay' | 'wave', phone: string, accountName: string) => Promise<boolean>;
   onRefreshUser?: () => void;
+  onRequireAuth?: () => void;
 }
 
 export function WalletView({
   user,
   settings,
   userWithdrawals = [],
+  userDeposits = [],
+  initialTab = 'deposit',
   onSubmitDeposit,
   onSubmitWithdrawal,
   onTransferReferral,
   onBindBank,
   onRefreshUser,
+  onRequireAuth,
 }: WalletViewProps) {
-  const [tab, setTab] = useState<'deposit' | 'withdraw' | 'history' | 'transfer'>('deposit');
+  const [tab, setTab] = useState<'deposit' | 'withdraw' | 'history' | 'transfer'>(initialTab);
+  const [historySubTab, setHistorySubTab] = useState<'deposits' | 'withdrawals'>('deposits');
   const [method, setMethod] = useState<'kpay' | 'wave'>(user.boundBank?.method || 'kpay');
   const [depositAmount, setDepositAmount] = useState<number>(settings.MINIMUM_DEPOSIT || 3000);
   const [withdrawAmount, setWithdrawAmount] = useState<number>(settings.MINIMUM_WITHDRAW || 3000);
   const [phone, setPhone] = useState<string>(user.boundBank?.phone || '');
   const [accountName, setAccountName] = useState<string>(user.boundBank?.accountName || '');
-  const [receiptBase64, setReceiptBase64] = useState<string>('');
-  const [compressing, setCompressing] = useState<boolean>(false);
+  const [trxLast5, setTrxLast5] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [bindingBank, setBindingBank] = useState<boolean>(false);
@@ -102,47 +101,34 @@ export function WalletView({
     setTimeout(() => setCopied(false), 2200);
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      alert('ဓါတ်ပုံဖိုင် (JPG, PNG) သာ တင်ပေးပါရန်။');
+  const handleDepositSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || user.uid === 'guest') {
+      if (onRequireAuth) onRequireAuth();
+      else alert('ငွေသွင်းရန် အကောင့်ဝင်ပေးပါရန်။');
       return;
     }
 
-    setCompressing(true);
-    try {
-      sounds.playChip();
-      const compressed = await compressReceiptImage(file);
-      setReceiptBase64(compressed);
-    } catch (err) {
-      console.error('Image compression failed:', err);
-      alert('ဓါတ်ပုံ တင်ရာတွင် အမှားဖြစ်ပေါ်သွားပါသည်။ ပြန်လည် ကြိုးစားပေးပါ။');
-    } finally {
-      setCompressing(false);
-    }
-  };
-
-  const handleDepositSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
     if (depositAmount < minDepositRequired) {
       alert(`အနည်းဆုံး ငွေသွင်းပမာဏမှာ ${formatKs(minDepositRequired)} ဖြစ်ပါသည်။`);
       return;
     }
-    if (!receiptBase64) {
-      alert('ငွေလွှဲပြေစာ (Screenshot) ဓါတ်ပုံ ထည့်သွင်းပေးပါရန်။');
+
+    const cleanTrx = trxLast5.trim();
+    if (!cleanTrx || cleanTrx.length < 5) {
+      alert('ငွေလွှဲပြေစာမှ နောက်ဆုံးဂဏန်း ၅ လုံးကို အပြည့်အစုံ ရိုက်ထည့်ပေးပါရန်။');
       return;
     }
 
     setLoading(true);
     try {
-      const ok = await onSubmitDeposit(depositAmount, method, receiptBase64);
+      const ok = await onSubmitDeposit(depositAmount, method, cleanTrx);
       if (ok) {
         sounds.playWin();
-        setReceiptBase64('');
-        setSuccessToast(`ငွေသွင်းလွှာ (${formatKs(depositAmount)}) တင်ပြပြီးပါပြီ။ စက္ကန့် ၃၀ အတွင်း စစ်ဆေးအတည်ပြုပေးပါမည်။`);
+        setTrxLast5('');
+        setSuccessToast(`ငွေသွင်းလွှာ (${formatKs(depositAmount)}) တင်ပြပြီးပါပြီ (ငွေလွှဲ ID: ${cleanTrx})။ မကြာမီ စစ်ဆေးအတည်ပြုပေးပါမည်။`);
         setTab('history');
+        setHistorySubTab('deposits');
         setTimeout(() => setSuccessToast(null), 6000);
       }
     } finally {
@@ -152,6 +138,12 @@ export function WalletView({
 
   const handleWithdrawSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user || user.uid === 'guest') {
+      if (onRequireAuth) onRequireAuth();
+      else alert('ငွေထုတ်ရန် အကောင့်ဝင်ပေးပါရန်။');
+      return;
+    }
 
     if (isHedgingBlocked) {
       alert('ဘေးမညီလောင်းကြေး (Hedging) သို့မဟုတ် ကန့်သတ်ချက် ရှိနေသဖြင့် ငွေထုတ်ယူမှုကို ခေတ္တရပ်ဆိုင်းထားပါသည်။');
@@ -198,6 +190,7 @@ export function WalletView({
         sounds.playWin();
         setSuccessToast(`ငွေထုတ်လွှာ (${formatKs(withdrawAmount)}) တင်ပြပြီးပါပြီ။ စက္ကန့် ၃၀ အတွင်း လွှဲပြောင်းပေးပါမည်။`);
         setTab('history');
+        setHistorySubTab('withdrawals');
         setTimeout(() => setSuccessToast(null), 6000);
       }
     } finally {
@@ -250,9 +243,8 @@ export function WalletView({
 
   return (
     <div className="w-full flex flex-col gap-4 pb-12 animate-fadeIn">
-      {/* 1. TOP VIP BALANCE & WALLET HERO (With subtle dark obsidian & gold backdrop) */}
+      {/* 1. TOP VIP BALANCE & WALLET HERO */}
       <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-950/90">
-        {/* Subtle Obsidian & Warm Gold Background Image Overlay */}
         <div
           className="absolute inset-0 bg-cover bg-center opacity-30 pointer-events-none"
           style={{ backgroundImage: `url('/assets/casino/obsidian_bg.jpg')` }}
@@ -374,7 +366,7 @@ export function WalletView({
       {/* TAB 1: DEPOSIT (ငွေသွင်း) */}
       {tab === 'deposit' && (
         <form onSubmit={handleDepositSubmit} className="flex flex-col gap-4">
-          {/* Method Selector with Real Logo Badges */}
+          {/* Method Selector */}
           <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl flex flex-col gap-3">
             <span className="text-xs font-black text-white flex items-center gap-1.5">
               <CreditCard className="w-4 h-4 text-amber-400" />
@@ -470,7 +462,7 @@ export function WalletView({
             </div>
 
             <p className="text-[11px] text-zinc-400 leading-relaxed">
-              💡 အထက်ပါဖုန်းနံပါတ်သို့ ငွေလွှဲပြီးပါက ငွေလွှဲပြေစာ (Screenshot) ကို အောက်တွင် ထည့်သွင်းပေးပါရန်။
+              💡 အထက်ပါဖုန်းနံပါတ်သို့ ငွေလွှဲပြီးပါက ရရှိလာသော ငွေလွှဲ ID ၏ နောက်ဆုံး ၅ လုံးကို အောက်တွင် ထည့်သွင်းပေးပါရန် (ပုံတင်ရန် မလိုပါ)။
             </p>
           </div>
 
@@ -514,57 +506,45 @@ export function WalletView({
             </div>
           </div>
 
-          {/* Transaction Slip Screenshot Upload */}
+          {/* Transaction ID Last 5 Digits Input (Replacing Image Upload completely) */}
           <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl flex flex-col gap-3">
-            <span className="text-xs font-black text-white flex items-center gap-1.5">
-              <Upload className="w-4 h-4 text-amber-400" />
-              <span>ငွေလွှဲပြေစာ (Screenshot) တင်ရန်</span>
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black text-white flex items-center gap-1.5">
+                <Hash className="w-4 h-4 text-amber-400" />
+                <span>ငွေလွှဲ ID (နောက်ဆုံး ၅ လုံး)</span>
+              </span>
+              <span className="text-[10px] text-amber-400 font-bold bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/20">
+                ပုံတင်ရန်မလိုပါ
+              </span>
+            </div>
 
-            {receiptBase64 ? (
-              <div className="relative rounded-2xl overflow-hidden border border-white/20 p-2 bg-black/70 flex flex-col items-center">
-                <img
-                  src={receiptBase64}
-                  alt="Receipt Preview"
-                  className="max-h-60 rounded-xl object-contain shadow-lg"
-                />
-                <button
-                  type="button"
-                  onClick={() => setReceiptBase64('')}
-                  className="mt-2 px-3 py-1.5 rounded-lg bg-red-600/80 hover:bg-red-600 text-white text-xs font-bold flex items-center gap-1"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>ပုံဖျက်ပြီး အသစ်ပြန်တင်မည်</span>
-                </button>
-              </div>
-            ) : (
-              <label className="border-2 border-dashed border-white/20 hover:border-amber-400/60 rounded-2xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer bg-black/40 transition-all group">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 group-hover:text-amber-400 transition-colors">
-                  <Upload className="w-6 h-6 stroke-[1.8]" />
-                </div>
-                <div className="text-center">
-                  <span className="text-xs font-bold text-white block">
-                    {compressing ? 'ဓါတ်ပုံ အရွယ်အစား ညှိနေပါသည်...' : 'ငွေလွှဲ Screenshot ရွေးချယ်ပါ'}
-                  </span>
-                  <span className="text-[10px] text-zinc-400 mt-0.5 block">
-                    JPG သို့မဟုတ် PNG (အလိုအလျောက် အကောင်းဆုံးချုံ့ပေးပါသည်)
-                  </span>
-                </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-[11px] text-zinc-300 leading-relaxed">
+                {method === 'kpay' ? 'KBZPay' : 'Wave Money'} ဖြင့် ငွေလွှဲပြီးပါက ပြေစာတွင် ဖော်ပြထားသော <strong>Transaction ID / ငွေလွှဲနံပါတ် ၏ နောက်ဆုံး ၅ လုံး</strong> ကို အောက်တွင် ရိုက်ထည့်ပေးပါ:
+              </p>
+
+              <div className="relative mt-1">
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  disabled={compressing}
-                  className="hidden"
+                  type="text"
+                  maxLength={6}
+                  value={trxLast5}
+                  onChange={(e) => setTrxLast5(e.target.value.replace(/\s+/g, ''))}
+                  placeholder="ဥပမာ: 89012"
+                  className="w-full py-3.5 px-4 rounded-xl bg-black/70 border-2 border-amber-400/60 text-white font-mono font-black text-xl tracking-widest text-center focus:outline-none focus:border-amber-400 placeholder:text-zinc-600 placeholder:tracking-normal placeholder:font-normal placeholder:text-sm shadow-inner"
+                  required
                 />
-              </label>
-            )}
+              </div>
+
+              <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-[10px] text-zinc-400 text-center">
+                💡 ဓာတ်ပုံရိုက်ပြီး တင်ရန်မလိုတော့ပါ။ ငွေလွှဲပြေစာမှ နံပါတ်နောက်ဆုံး ၅ လုံးဖြင့် စက္ကန့် ၃၀ အတွင်း အတည်ပြုပေးပါမည်။
+              </div>
+            </div>
           </div>
 
           {/* Submit Deposit Button */}
           <button
             type="submit"
-            disabled={loading || compressing}
+            disabled={loading || !trxLast5.trim()}
             className="w-full py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm transition-all active:scale-95 shadow-xl shadow-amber-500/10 flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? (
@@ -748,14 +728,14 @@ export function WalletView({
                 step={500}
                 value={withdrawAmount || ''}
                 onChange={(e) => setWithdrawAmount(Number(e.target.value))}
-                placeholder={`ထုတ်မည့်ပမာဏ (အနည်းဆုံး ${settings.MINIMUM_WITHDRAW || 3000} Ks)`}
+                placeholder={`ထုတ်ယူမည့်ပမာဏ (အနည်းဆုံး ${settings.MINIMUM_WITHDRAW || 3000} Ks)`}
                 className="w-full py-3 px-4 rounded-xl bg-black/60 border border-white/15 text-white font-mono font-bold text-sm focus:outline-none focus:border-amber-400/80"
               />
               <span className="absolute right-4 top-3.5 text-xs text-zinc-400 font-bold">Ks</span>
             </div>
           </div>
 
-          {/* Submit Withdrawal Button */}
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={loading}
@@ -766,81 +746,177 @@ export function WalletView({
             ) : (
               <ArrowUpRight className="w-5 h-5 stroke-[2.5]" />
             )}
-            <span>{loading ? 'ထုတ်ယူနေပါသည်...' : `ငွေထုတ်မည် (${formatKs(withdrawAmount)})`}</span>
+            <span>{loading ? 'တင်ပြနေပါသည်...' : `ငွေထုတ်လွှာ တင်မည် (${formatKs(withdrawAmount)})`}</span>
           </button>
         </form>
       )}
 
-      {/* TAB 3: TRANSACTION HISTORY (မှတ်တမ်း) */}
+      {/* TAB 3: HISTORY (ငွေသွင်းနှင့် ငွေထုတ် မှတ်တမ်းများ) */}
       {tab === 'history' && (
-        <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl flex flex-col gap-3">
-          <div className="flex items-center justify-between pb-2 border-b border-white/10">
-            <span className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
-              <History className="w-4 h-4 text-amber-400" />
-              <span>ငွေထုတ်ယူမှု မှတ်တမ်းများ ({userWithdrawals.length})</span>
-            </span>
+        <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl flex flex-col gap-4">
+          {/* History Sub-Tabs */}
+          <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+            <button
+              onClick={() => {
+                sounds.playChip();
+                setHistorySubTab('deposits');
+              }}
+              className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
+                historySubTab === 'deposits'
+                  ? 'bg-amber-400 text-black font-black shadow-md'
+                  : 'bg-white/5 text-zinc-400 hover:text-white'
+              }`}
+            >
+              <ArrowDownLeft className="w-3.5 h-3.5" />
+              <span>ငွေသွင်းမှတ်တမ်း ({userDeposits.length})</span>
+            </button>
+
+            <button
+              onClick={() => {
+                sounds.playChip();
+                setHistorySubTab('withdrawals');
+              }}
+              className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all ${
+                historySubTab === 'withdrawals'
+                  ? 'bg-amber-400 text-black font-black shadow-md'
+                  : 'bg-white/5 text-zinc-400 hover:text-white'
+              }`}
+            >
+              <ArrowUpRight className="w-3.5 h-3.5" />
+              <span>ငွေထုတ်မှတ်တမ်း ({userWithdrawals.length})</span>
+            </button>
           </div>
 
-          <div className="flex flex-col gap-2 max-h-[420px] overflow-y-auto pr-1">
-            {userWithdrawals.length === 0 ? (
-              <div className="py-12 text-center text-xs text-zinc-500 flex flex-col items-center justify-center gap-2">
-                <Clock className="w-8 h-8 text-zinc-600 stroke-[1.5]" />
-                <span>ငွေထုတ်ယူထားသော မှတ်တမ်း မရှိသေးပါ။</span>
-              </div>
-            ) : (
-              userWithdrawals.map((w, idx) => (
-                <div
-                  key={w.id || idx}
-                  className="p-3.5 rounded-2xl bg-zinc-900/60 border border-white/10 flex items-center justify-between gap-3 text-xs"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-white/10 bg-zinc-800">
-                      <img
-                        src={w.method === 'kpay' ? '/assets/casino/kpay_badge.jpg' : '/assets/casino/wave_badge.jpg'}
-                        alt={w.method}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-black text-white text-sm">
-                          {formatKs(w.amount)}
+          {/* Sub-View: Deposits List */}
+          {historySubTab === 'deposits' && (
+            <div className="flex flex-col gap-2 max-h-[440px] overflow-y-auto pr-1">
+              {userDeposits.length === 0 ? (
+                <div className="py-12 text-center text-xs text-zinc-500 flex flex-col items-center justify-center gap-2">
+                  <Clock className="w-8 h-8 text-zinc-600 stroke-[1.5]" />
+                  <span>ငွေသွင်းထားသော မှတ်တမ်း မရှိသေးပါ။</span>
+                </div>
+              ) : (
+                userDeposits.map((d, idx) => (
+                  <div
+                    key={d.id || d.depositId || idx}
+                    className="p-3.5 rounded-2xl bg-zinc-900/60 border border-white/10 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-white/10 bg-zinc-800">
+                        <img
+                          src={d.method === 'kpay' ? '/assets/casino/kpay_badge.jpg' : '/assets/casino/wave_badge.jpg'}
+                          alt={d.method}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-white text-sm">
+                            {formatKs(d.amount)}
+                          </span>
+                          <span className="text-[10px] text-zinc-400 font-mono uppercase">
+                            {d.method}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-amber-300 font-mono mt-0.5 font-bold">
+                          ငွေလွှဲ ID: <span className="bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded">{d.trxLast5 || d.receiptImage || '-'}</span>
                         </span>
-                        <span className="text-[10px] text-zinc-400 font-mono uppercase">
-                          {w.method}
+                        <span className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                          {new Date(d.createdAt).toLocaleString()}
                         </span>
                       </div>
-                      <span className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                        {new Date(w.createdAt).toLocaleString()} · {w.phone} ({w.accountName})
-                      </span>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div>
+                      {d.status === 'approved' && (
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          အတည်ပြုပြီး
+                        </span>
+                      )}
+                      {d.status === 'pending' && (
+                        <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          စစ်ဆေးဆဲ
+                        </span>
+                      )}
+                      {d.status === 'declined' && (
+                        <span className="px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/30 text-[10px] font-bold flex items-center gap-1">
+                          <XCircle className="w-3 h-3" />
+                          ပယ်ချခဲ့သည်
+                        </span>
+                      )}
                     </div>
                   </div>
+                ))
+              )}
+            </div>
+          )}
 
-                  {/* Status Badge */}
-                  <div>
-                    {w.status === 'approved' && (
-                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        ခွင့်ပြုပြီး
-                      </span>
-                    )}
-                    {w.status === 'pending' && (
-                      <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1 animate-pulse">
-                        <Clock className="w-3 h-3" />
-                        စစ်ဆေးဆဲ
-                      </span>
-                    )}
-                    {w.status === 'declined' && (
-                      <span className="px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/30 text-[10px] font-bold flex items-center gap-1">
-                        <XCircle className="w-3 h-3" />
-                        ပယ်ချခဲ့သည်
-                      </span>
-                    )}
-                  </div>
+          {/* Sub-View: Withdrawals List */}
+          {historySubTab === 'withdrawals' && (
+            <div className="flex flex-col gap-2 max-h-[440px] overflow-y-auto pr-1">
+              {userWithdrawals.length === 0 ? (
+                <div className="py-12 text-center text-xs text-zinc-500 flex flex-col items-center justify-center gap-2">
+                  <Clock className="w-8 h-8 text-zinc-600 stroke-[1.5]" />
+                  <span>ငွေထုတ်ယူထားသော မှတ်တမ်း မရှိသေးပါ။</span>
                 </div>
-              ))
-            )}
-          </div>
+              ) : (
+                userWithdrawals.map((w, idx) => (
+                  <div
+                    key={w.id || w.withdrawalId || idx}
+                    className="p-3.5 rounded-2xl bg-zinc-900/60 border border-white/10 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 border border-white/10 bg-zinc-800">
+                        <img
+                          src={w.method === 'kpay' ? '/assets/casino/kpay_badge.jpg' : '/assets/casino/wave_badge.jpg'}
+                          alt={w.method}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-white text-sm">
+                            {formatKs(w.amount)}
+                          </span>
+                          <span className="text-[10px] text-zinc-400 font-mono uppercase">
+                            {w.method}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-zinc-500 font-mono mt-0.5">
+                          {new Date(w.createdAt).toLocaleString()} · {w.phone} ({w.accountName})
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div>
+                      {w.status === 'approved' && (
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          ခွင့်ပြုပြီး
+                        </span>
+                      )}
+                      {w.status === 'pending' && (
+                        <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          စစ်ဆေးဆဲ
+                        </span>
+                      )}
+                      {w.status === 'declined' && (
+                        <span className="px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/30 text-[10px] font-bold flex items-center gap-1">
+                          <XCircle className="w-3 h-3" />
+                          ပယ်ချခဲ့သည်
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       )}
 

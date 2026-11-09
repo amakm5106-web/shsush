@@ -48,6 +48,8 @@ import {
   ChevronLeft,
   Trophy,
   Headphones,
+  ArrowDownLeft,
+  ArrowUpRight,
 } from 'lucide-react';
 
 import { auth, db, googleProvider, testConnection, handleFirestoreError, OperationType } from '@/lib/firebase';
@@ -265,6 +267,7 @@ export default function Home() {
   const [pendingDeposits, setPendingDeposits] = useState<DepositRequest[]>([]);
   const [pendingWithdrawals, setPendingWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [userWithdrawals, setUserWithdrawals] = useState<WithdrawalRequest[]>([]);
+  const [userDeposits, setUserDeposits] = useState<DepositRequest[]>([]);
 
   // Page View Routing State
   const [activeTab, setActiveTab] = useState<'home' | 'referral' | 'wallet' | 'profile'>('home');
@@ -1169,6 +1172,27 @@ export default function Home() {
     return () => unsub();
   }, [currentUser]);
 
+  // 14. Realtime User's Own Deposits Listener (for tracking deposit approvals & status)
+  useEffect(() => {
+    if (!currentUser) return;
+    const q = query(
+      collection(db, 'deposits'),
+      where('userId', '==', currentUser.uid),
+      orderBy('createdAt', 'desc'),
+      limit(25)
+    );
+    const unsub = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: DepositRequest[] = [];
+        snapshot.forEach((d) => list.push({ ...(d.data() as DepositRequest), id: d.id }));
+        setUserDeposits(list);
+      },
+      (err) => console.warn('User deposits listener note:', err?.message || err)
+    );
+    return () => unsub();
+  }, [currentUser]);
+
   // Place Bet Handler with Anti-Hedging Enforcement
   const handlePlaceBet = async (
     betKind: 'size' | 'number' | 'color',
@@ -1313,9 +1337,13 @@ export default function Home() {
   const handleSubmitDeposit = async (
     amount: number,
     method: 'kpay' | 'wave',
-    receiptImage: string
+    trxLast5: string
   ): Promise<boolean> => {
-    if (!currentUser || !userProfile) return false;
+    if (!currentUser || !userProfile) {
+      sounds.playChip();
+      setIsAuthModalOpen(true);
+      return false;
+    }
 
     // 0. Anti-Bot & Automation Detection
     const botCheck = detectBotOrAutomation();
@@ -1343,11 +1371,7 @@ export default function Home() {
     await enforceFreshAuthToken();
     await consumeSecurityToken(securityToken);
 
-    if (receiptImage && receiptImage.length > 800_000) {
-      alert('ငွေလွှဲပြေစာ ဓာတ်ပုံ ဖိုင်ဆိုဒ် ကြီးလွန်းနေပါသည်။ ကျေးဇူးပြု၍ ဓာတ်ပုံကို ပြန်လည်ရွေးချယ်ပေးပါ။');
-      return false;
-    }
-
+    const cleanTrx = trxLast5.trim();
     const depId = `dep_${Date.now()}`;
     const newDep: DepositRequest = {
       depositId: depId,
@@ -1355,7 +1379,8 @@ export default function Home() {
       userName: userProfile.fullName,
       amount,
       method,
-      receiptImage,
+      trxLast5: cleanTrx,
+      receiptImage: cleanTrx, // backward compat
       status: 'pending',
       isFirstDeposit: !userProfile.hasSuccessfulDeposit,
       createdAt: Date.now(),
@@ -1364,12 +1389,21 @@ export default function Home() {
     try {
       await setDoc(doc(db, 'deposits', depId), newDep);
       syncToTurso('deposit', newDep);
+      setUserDeposits((prev) => [newDep, ...prev.filter((d) => d.depositId !== depId)]);
       sounds.playWin();
       return true;
     } catch (err) {
       console.error('Deposit error:', err);
-      alert('ငွေသွင်းတောင်းဆိုမှု မအောင်မြင်ပါ။ ပြန်လည်ကြိုးစားပေးပါ။');
-      return false;
+      // Fallback: sync to Turso directly even if Firestore quota exceeded!
+      try {
+        syncToTurso('deposit', newDep);
+        setUserDeposits((prev) => [newDep, ...prev.filter((d) => d.depositId !== depId)]);
+        sounds.playWin();
+        return true;
+      } catch {
+        alert('ငွေသွင်းတောင်းဆိုမှု မအောင်မြင်ပါ။ ပြန်လည်ကြိုးစားပေးပါ။');
+        return false;
+      }
     }
   };
 
@@ -2098,7 +2132,7 @@ export default function Home() {
       {/* Global In-Game Toast Banner (Zero blocking alerts) */}
       {globalToast && (
         <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-[#141822]/95 border border-amber-400/50 shadow-2xl shadow-black/80 rounded-2xl px-5 py-2.5 text-white text-xs sm:text-sm font-bold flex items-center gap-2.5 backdrop-blur-md pointer-events-none animate-fadeIn">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${globalToast.type === 'error' ? 'bg-red-400 animate-ping' : globalToast.type === 'success' ? 'bg-emerald-400 animate-ping' : 'bg-amber-400 animate-ping'}`} />
+          <span className={`w-2 h-2 rounded-full shrink-0 ${globalToast.type === 'error' ? 'bg-red-400' : globalToast.type === 'success' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
           <span>{globalToast.message}</span>
         </div>
       )}
@@ -2190,7 +2224,6 @@ export default function Home() {
                     >
                       <Headphones className="w-3.5 h-3.5 text-amber-400 stroke-[2.2]" />
                       <span className="hidden xs:inline sm:inline">CS Bot</span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     </button>
 
                     {/* Audio Toggle */}
@@ -2327,6 +2360,33 @@ export default function Home() {
                       />
                     ))}
                   </div>
+                </div>
+
+                {/* 2.5 PROMINENT QUICK DEPOSIT & WITHDRAW BAR */}
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <button
+                    onClick={() => {
+                      sounds.playChip();
+                      setSelectedGame('lobby');
+                      setActiveTab('wallet');
+                    }}
+                    className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/25 via-amber-600/20 to-amber-700/25 border border-amber-400/40 hover:border-amber-400 text-amber-300 font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-amber-500/10 group"
+                  >
+                    <ArrowDownLeft className="w-4 h-4 text-amber-400 stroke-[2.8] group-hover:scale-110 transition-transform" />
+                    <span>ငွေသွင်းရန် (Deposit)</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      sounds.playChip();
+                      setSelectedGame('lobby');
+                      setActiveTab('wallet');
+                    }}
+                    className="p-3 sm:p-3.5 rounded-2xl bg-zinc-900/90 border border-white/15 hover:border-white/30 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg group"
+                  >
+                    <ArrowUpRight className="w-4 h-4 text-emerald-400 stroke-[2.8] group-hover:scale-110 transition-transform" />
+                    <span>ငွေထုတ်ရန် (Withdraw)</span>
+                  </button>
                 </div>
 
                 {/* 3. CATEGORY FILTER TABS */}
@@ -2549,7 +2609,6 @@ export default function Home() {
                   {/* Center Dynamic Island Pill */}
                   <div className="flex flex-col items-center">
                     <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/90 border border-white/25 shadow-[0_8px_25px_rgba(0,0,0,0.8)] backdrop-blur-2xl">
-                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                       <span className="text-xs font-black text-white font-mono tracking-wide">
                         {formatKs(userProfile?.balance || 0)}
                       </span>
@@ -2697,6 +2756,7 @@ export default function Home() {
             user={userProfile || createFallbackUser(currentUser?.uid || 'guest', currentUser?.email || 'guest@gmail.com', currentUser?.displayName || 'မန်ဘာ')}
             settings={settings}
             userWithdrawals={userWithdrawals}
+            userDeposits={userDeposits}
             onSubmitDeposit={handleSubmitDeposit}
             onSubmitWithdrawal={handleSubmitWithdrawal}
             onTransferReferral={handleTransferReferral}
@@ -2706,6 +2766,10 @@ export default function Home() {
                 const snap = await getDoc(doc(db, 'users', currentUser.uid));
                 if (snap.exists()) setUserProfile(snap.data() as UserProfile);
               }
+            }}
+            onRequireAuth={() => {
+              sounds.playChip();
+              setIsAuthModalOpen(true);
             }}
           />
         )}
@@ -2767,11 +2831,8 @@ export default function Home() {
           <button
             onClick={() => {
               sounds.playChip();
-              if (!userProfile) {
-                setIsAuthModalOpen(true);
-              } else {
-                setActiveTab('wallet');
-              }
+              setSelectedGame('lobby');
+              setActiveTab('wallet');
             }}
             className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-2xl transition-all ${
               activeTab === 'wallet'
@@ -2889,8 +2950,6 @@ export default function Home() {
           >
             <div className="relative">
               <Headphones className="w-4 h-4 text-amber-400 stroke-[2.3]" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-black animate-ping" />
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-black" />
             </div>
             <span className="text-xs font-black text-amber-300 tracking-wide font-sans flex items-center gap-1">
               CS Bot

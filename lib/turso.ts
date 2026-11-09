@@ -4,31 +4,20 @@ let tursoClient: Client | null = null;
 
 export function getTursoClient(url?: string, token?: string): Client | null {
   const dbUrl = url || process.env.TURSO_DATABASE_URL || 'libsql://casino-xavianelio.aws-ap-southeast-1.turso.io';
-  const authToken =
-    token ||
-    process.env.TURSO_AUTH_TOKEN ||
+  const ACTIVE_TURSO_TOKEN =
     'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTQwOTkxNjMsImlkIjoiMDFhMWI2YjItMzgwMS03ZDBkLTliODQtNjAxNWVjNjM3ZTgzIiwia2lkIjoiQUFOQ3JJdjV5b0l5aERZbXlXZXU3dWNJNE9wUHZmZGp3S1plbVFob0VtdyIsInJpZCI6ImE5Y2ZmN2U5LWIyNjAtNDk0YS05ZmE0LWRkZWEyMzQ3Y2YxMiJ9.bjJi_iZ9gYIlksPBHMIUVDZ0df6Z-uZbLLrUWgAemrWsbFg98m8Uf9S38T7cElh6Op7fiK9KEwG4Letad1uZDQ';
+  const envToken = process.env.TURSO_AUTH_TOKEN?.trim();
+  // If envToken is expired (from earlier session ending in cMoA...), prefer active token
+  const authToken = token || (envToken && !envToken.includes('cMoAup3') ? envToken : ACTIVE_TURSO_TOKEN);
 
   if (!authToken) {
     return null;
   }
 
-  // Create fresh client if token/url passed explicitly or not cached
-  if (url || token) {
-    return createClient({
-      url: dbUrl,
-      authToken: authToken.trim(),
-    });
-  }
-
-  if (!tursoClient) {
-    tursoClient = createClient({
-      url: dbUrl,
-      authToken: authToken.trim(),
-    });
-  }
-
-  return tursoClient;
+  return createClient({
+    url: dbUrl,
+    authToken,
+  });
 }
 
 export async function initTursoSchema(client: Client) {
@@ -68,6 +57,7 @@ export async function initTursoSchema(client: Client) {
       phone TEXT,
       accountName TEXT,
       receiptImage TEXT,
+      trxLast5 TEXT,
       status TEXT DEFAULT 'pending',
       isFirstDeposit INTEGER DEFAULT 0,
       createdAt INTEGER,

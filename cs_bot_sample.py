@@ -163,6 +163,9 @@ def handle_pending(message):
     if not data.get("success"):
         return bot.reply_to(message, f"❌ မအောင်မြင်ပါ: {data.get('error')}")
     
+    if data.get("formattedText"):
+        return bot.reply_to(message, data.get("formattedText"))
+    
     deps = data.get("deposits", [])
     withs = data.get("withdrawals", [])
     
@@ -175,16 +178,17 @@ def handle_pending(message):
     
     if deps:
         res_text += "<b>[ငွေသွင်းတောင်းဆိုမှုများ]</b>\n"
-        for d in deps[:5]:
+        for d in deps[:8]:
             dep_id = d.get('depositId') or d.get('id')
             amt = d.get('amount', 0)
             phone = d.get('phone') or '-'
-            res_text += f"• <code>{dep_id}</code> | {phone} | <b>{amt:,} Ks</b>\n  👉 အတည်ပြုရန်: <code>/approve {dep_id}</code>\n"
+            trx = d.get('trxLast5') or d.get('receiptImage') or '-'
+            res_text += f"• <code>{dep_id}</code> | {phone} | <b>{amt:,} Ks</b>\n  💳 ငွေလွှဲ ID (နောက်ဆုံး ၅ လုံး): <code>{trx}</code>\n  👉 အတည်ပြုရန်: <code>/approve {dep_id}</code>\n"
         res_text += "\n"
     
     if withs:
         res_text += "<b>[ငွေထုတ်တောင်းဆိုမှုများ]</b>\n"
-        for w in withs[:5]:
+        for w in withs[:8]:
             w_id = w.get('withdrawalId') or w.get('id')
             amt = w.get('amount', 0)
             name = w.get('accountName') or '-'

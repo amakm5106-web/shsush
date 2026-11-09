@@ -3,6 +3,8 @@ import { validateBotAuth } from '@/lib/botApi';
 import { getTursoClient } from '@/lib/turso';
 import { formatKs } from '@/lib/constants';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const authCheck = validateBotAuth(req);
   if (!authCheck.authorized) {

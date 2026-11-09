@@ -81,8 +81,8 @@ export async function POST(req: NextRequest) {
       await turso.execute({
         sql: `INSERT OR REPLACE INTO deposits (
           id, depositId, userId, userName, amount, method, phone, accountName,
-          receiptImage, status, isFirstDeposit, createdAt, reviewedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          receiptImage, trxLast5, status, isFirstDeposit, createdAt, reviewedAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         args: [
           data.id || data.depositId,
           data.depositId,
@@ -92,7 +92,8 @@ export async function POST(req: NextRequest) {
           data.method || 'kpay',
           data.phone || '',
           data.accountName || '',
-          data.receiptImage || '',
+          data.receiptImage || data.trxLast5 || '',
+          data.trxLast5 || data.receiptImage || '',
           data.status || 'pending',
           data.isFirstDeposit ? 1 : 0,
           Number(data.createdAt) || Date.now(),

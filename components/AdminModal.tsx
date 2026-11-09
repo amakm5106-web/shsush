@@ -465,8 +465,16 @@ export function AdminModal({
                     </div>
                   </div>
 
-                  {dep.receiptImage && (
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(dep.trxLast5 || (!dep.receiptImage?.startsWith('data:image') && dep.receiptImage)) && (
+                      <div className="px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-mono font-bold flex items-center gap-2">
+                        <span>💳 ငွေလွှဲ ID (နောက်ဆုံး ၅ လုံး):</span>
+                        <span className="text-white text-sm font-black bg-black/60 px-2 py-0.5 rounded border border-white/20">
+                          {dep.trxLast5 || dep.receiptImage}
+                        </span>
+                      </div>
+                    )}
+                    {dep.receiptImage && dep.receiptImage.startsWith('data:image') && (
                       <button
                         type="button"
                         onClick={() => setSelectedReceipt(dep.receiptImage || null)}
@@ -475,8 +483,8 @@ export function AdminModal({
                         <Search className="w-3.5 h-3.5 stroke-[2.4]" />
                         ပြေစာ Screenshot ကြည့်ရန်
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
                     <button

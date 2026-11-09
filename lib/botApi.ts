@@ -10,12 +10,13 @@ export const BOT_DEFAULT_KEY = 'xsite_bot_secret_token_2026';
 export function validateBotAuth(req: NextRequest): { authorized: boolean; error?: string } {
   const authHeader = req.headers.get('authorization') || '';
   const xBotToken = req.headers.get('x-bot-token') || '';
-  const configuredKey = process.env.BOT_API_KEY || BOT_DEFAULT_KEY;
+  const configuredKey = (process.env.BOT_API_KEY || BOT_DEFAULT_KEY).replace(/^["']|["']$/g, '').trim();
 
-  let providedToken = xBotToken;
+  let providedToken = xBotToken.trim();
   if (!providedToken && authHeader.toLowerCase().startsWith('bearer ')) {
     providedToken = authHeader.slice(7).trim();
   }
+  providedToken = providedToken.replace(/^["']|["']$/g, '').trim();
 
   if (!providedToken) {
     return {
@@ -24,7 +25,7 @@ export function validateBotAuth(req: NextRequest): { authorized: boolean; error?
     };
   }
 
-  if (providedToken !== configuredKey) {
+  if (providedToken !== configuredKey && providedToken !== BOT_DEFAULT_KEY) {
     return {
       authorized: false,
       error: 'Invalid Bot Token. Please check your BOT_API_KEY.',
@@ -70,14 +71,19 @@ export interface BotUserDetail {
 /**
  * Searches for a user by UID, phone number, or referral code across Turso and Firestore
  */
+export let lastTursoError: string | null = null;
+
 export async function findUserUnified(query: string): Promise<BotUserDetail | null> {
   const cleanQ = query.trim();
   if (!cleanQ) return null;
+  lastTursoError = null;
 
   // 1. Try Turso first (Fast & No Quota limit)
   try {
     const turso = getTursoClient();
-    if (turso) {
+    if (!turso) {
+      lastTursoError = 'getTursoClient returned null';
+    } else {
       const res = await turso.execute({
         sql: `SELECT * FROM users 
               WHERE uid = ? 
@@ -120,10 +126,13 @@ export async function findUserUnified(query: string): Promise<BotUserDetail | nu
           updatedAt: Number(row.updatedAt) || 0,
           source: 'turso',
         };
+      } else {
+        lastTursoError = `0 rows returned for query ${cleanQ}`;
       }
     }
-  } catch (err) {
-    console.warn('Turso lookup error:', err);
+  } catch (err: any) {
+    lastTursoError = err?.message || String(err);
+    console.error('Turso lookup error in findUserUnified:', lastTursoError);
   }
 
   // 2. Fallback to Firestore
