@@ -20,7 +20,7 @@ export default function AdminDashboard() {
   const [notice, setNotice] = useState('');
 
   const load = async (q = query) => {
-    const response = await fetch(`/api/admin/overview${q ? `?q=${encodeURIComponent(q)}` : ''}`, { cache: 'no-store' });
+    const response = await fetch(`/api/admin/overview${q ? `?q=${encodeURIComponent(q)}` : ''}`, { cache: 'no-store', credentials: 'include' });
     if (response.status === 401) { setAuthenticated(false); return; }
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Data မဖတ်နိုင်ပါ');
@@ -28,7 +28,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    fetch('/api/admin/session').then((r) => r.json()).then(async (r) => {
+    fetch('/api/admin/session', { credentials: 'include', cache: 'no-store' }).then((r) => r.json()).then(async (r) => {
       setAuthenticated(r.authenticated);
       if (r.authenticated) await load();
     }).catch(() => setAuthenticated(false));
@@ -36,23 +36,25 @@ export default function AdminDashboard() {
 
   const login = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setError('');
-    const response = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
-    const result = await response.json();
-    if (!response.ok) setError(result.error || 'Login မအောင်မြင်ပါ');
-    else { setAuthenticated(true); setPassword(''); await load(); }
-    setBusy(false);
+    try {
+      const response = await fetch('/api/admin/login', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: username.trim(), password }) });
+      const result = await response.json();
+      if (!response.ok) setError(result.error || 'Login မအောင်မြင်ပါ');
+      else { setAuthenticated(true); setPassword(''); await load(); }
+    } catch { setError('Server ချိတ်ဆက်မှု မအောင်မြင်ပါ။ ပြန်လည်ကြိုးစားပါ'); }
+    finally { setBusy(false); }
   };
 
   const action = async (url: string, body: Row) => {
     setBusy(true); setNotice('');
-    const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const response = await fetch(url, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const result = await response.json();
     if (!response.ok) setNotice(result.error || 'လုပ်ဆောင်မှု မအောင်မြင်ပါ');
     else { setNotice('လုပ်ဆောင်ပြီးပါပြီ'); await load(); }
     setBusy(false);
   };
 
-  const logout = async () => { await fetch('/api/admin/session', { method: 'DELETE' }); setAuthenticated(false); };
+  const logout = async () => { await fetch('/api/admin/session', { method: 'DELETE', credentials: 'include' }); setAuthenticated(false); };
 
   if (authenticated === null) return <main className="min-h-screen bg-[#070a12] text-white grid place-items-center">Loading...</main>;
   if (!authenticated) return (

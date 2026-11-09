@@ -184,6 +184,7 @@ export function AuthModal({
               <input
                 type="text"
                 required
+                autoComplete="name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="ဥပမာ - ကိုကျော်ဇင်"
@@ -200,6 +201,8 @@ export function AuthModal({
             <input
               type="tel"
               required
+              autoComplete="tel"
+              inputMode="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="09xxxxxxxxx"
@@ -216,6 +219,8 @@ export function AuthModal({
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
+                minLength={tab === 'login' ? 6 : 8}
+                autoComplete={tab === 'login' ? 'current-password' : 'new-password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="အနည်းဆုံး ၈ လုံး"
