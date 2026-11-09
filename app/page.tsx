@@ -1867,7 +1867,7 @@ export default function Home() {
   const timerPercent = Math.max(0, Math.min(100, (timeLeft / (settings.ROUND_DURATION_SECONDS || 60)) * 100));
 
   return (
-    <main className="w-full min-h-screen bg-[#060a14] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(255,255,255,0.06),rgba(0,0,0,0))] text-white flex flex-col items-center justify-between pb-24 selection:bg-white/20 selection:text-white">
+    <main className="app-shell w-full min-h-screen text-white flex flex-col items-center justify-between pb-24 selection:bg-white/20 selection:text-white">
       {/* Global In-Game Toast Banner (Zero blocking alerts) */}
       {globalToast && (
         <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-[#141822]/95 border border-amber-400/50 shadow-2xl shadow-black/80 rounded-2xl px-5 py-2.5 text-white text-xs sm:text-sm font-bold flex items-center gap-2.5 backdrop-blur-md pointer-events-none animate-fadeIn">
@@ -1885,7 +1885,7 @@ export default function Home() {
             {selectedGame === 'lobby' && (
               <div className="flex flex-col gap-3.5">
                 {/* 1. TOP LUXURY VIP APP BAR */}
-                <header className="w-full flex items-center justify-between py-2 px-3 sm:px-4 rounded-2xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl shadow-xl">
+                <header className="ledger-header relative w-full flex items-center justify-between py-2.5 px-3 sm:px-4 backdrop-blur-2xl">
                   {/* Brand Wordmark */}
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-black shadow-md shrink-0">
@@ -1980,7 +1980,7 @@ export default function Home() {
                 </header>
 
                 {/* 2. PROMOTIONAL SHOWCASE CAROUSEL */}
-                <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-950 aspect-[16/8] sm:aspect-[16/7] md:aspect-[16/6]">
+                <div className="ledger-panel relative w-full overflow-hidden shadow-2xl bg-zinc-950 aspect-[16/8] sm:aspect-[16/7] md:aspect-[16/6]">
                   {/* Slide 1: Welcome Deposit Bonus */}
                   {promoIndex === 0 && (
                     <div className="relative w-full h-full flex flex-col justify-end p-4 sm:p-6 animate-fadeIn">
@@ -2542,7 +2542,7 @@ export default function Home() {
 
       {/* 3. Persistent Bottom Main Navigation Menu (Hidden inside Buffalo Slot for full-screen immersive landscape) */}
       {selectedGame !== 'buffalo' && (
-        <nav className="fixed bottom-0 inset-x-0 z-40 dark-glass border-t border-white/15 px-2 py-2 flex items-center justify-around max-w-md mx-auto shadow-2xl backdrop-blur-2xl">
+        <nav className="ledger-nav fixed bottom-0 inset-x-0 z-40 px-2 py-2 flex items-center justify-around max-w-md mx-auto backdrop-blur-2xl">
           <button
             onClick={() => {
               sounds.playChip();
