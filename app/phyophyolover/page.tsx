@@ -45,13 +45,15 @@ export default function AdminDashboard() {
     finally { setBusy(false); }
   };
 
-  const action = async (url: string, body: Row) => {
+  const action = async (url: string, body: Row): Promise<boolean> => {
     setBusy(true); setNotice('');
-    const response = await fetch(url, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    const result = await response.json();
-    if (!response.ok) setNotice(result.error || 'လုပ်ဆောင်မှု မအောင်မြင်ပါ');
-    else { setNotice('လုပ်ဆောင်ပြီးပါပြီ'); await load(); }
-    setBusy(false);
+    try {
+      const response = await fetch(url, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const result = await response.json();
+      if (!response.ok) { setNotice(result.error || 'လုပ်ဆောင်မှု မအောင်မြင်ပါ'); return false; }
+      setNotice('လုပ်ဆောင်ပြီးပါပြီ'); await load(); return true;
+    } catch { setNotice('Server ချိတ်ဆက်မှု မအောင်မြင်ပါ'); return false; }
+    finally { setBusy(false); }
   };
 
   const logout = async () => { await fetch('/api/admin/session', { method: 'DELETE', credentials: 'include' }); setAuthenticated(false); };
@@ -85,10 +87,24 @@ export default function AdminDashboard() {
   );
 }
 
-function Queue({ title, rows, type, onAction, busy }: { title: string; rows: Row[]; type: 'deposit' | 'withdrawal'; onAction: (url: string, body: Row) => void; busy: boolean }) {
-  return <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><h2 className="mb-4 font-black">{title} <span className="text-xs text-white/40">({rows.length})</span></h2><div className="space-y-3">{rows.length === 0 && <p className="text-sm text-white/40">စာရင်းမရှိပါ</p>}{rows.map((row) => <div key={String(row.id)} className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="flex flex-wrap justify-between gap-2"><div><p className="text-sm font-bold">{String(row.userName || row.userId || '-')}</p><p className="text-[11px] text-white/50">{String(row.id)} · {date(row.createdAt)}</p></div><p className="font-black text-amber-300">{money(row.amount)}</p></div><p className="mt-2 text-xs text-white/60">{String(row.method || '')} {String(row.phone || '')} {String(row.accountName || '')}</p><div className="mt-3 flex gap-2"><button disabled={busy} onClick={() => onAction('/api/admin/review', { type, id: row.id, decision: 'approve' })} className="rounded-lg bg-emerald-400 px-3 py-2 text-xs font-black text-black">Approve</button><button disabled={busy} onClick={() => onAction('/api/admin/review', { type, id: row.id, decision: 'reject' })} className="rounded-lg bg-red-500/20 px-3 py-2 text-xs font-bold text-red-200">Reject</button></div></div>)}</div></section>;
+function Queue({ title, rows, type, onAction, busy }: { title: string; rows: Row[]; type: 'deposit' | 'withdrawal'; onAction: (url: string, body: Row) => Promise<boolean>; busy: boolean }) {
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const visibleRows = rows.filter((row) => !dismissed.has(String(row.id || row.depositId || row.withdrawalId)));
+  const review = async (row: Row, decision: 'approve' | 'reject') => {
+    const id = String(row.id || row.depositId || row.withdrawalId);
+    if (!id) return;
+    setDismissed((previous) => new Set(previous).add(id));
+    const ok = await onAction('/api/admin/review', { type, id, decision });
+    if (!ok) setDismissed((previous) => { const next = new Set(previous); next.delete(id); return next; });
+  };
+  return <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-4"><h2 className="mb-4 font-black">{title} <span className="text-xs text-white/40">({visibleRows.length})</span></h2><div className="space-y-3">{visibleRows.length === 0 && <p className="text-sm text-white/40">စာရင်းမရှိပါ</p>}{visibleRows.map((row) => {
+    const id = String(row.id || row.depositId || row.withdrawalId);
+    const boundBank = typeof row.accountBoundBank === 'string' ? (() => { try { return JSON.parse(String(row.accountBoundBank)); } catch { return null; } })() : row.accountBoundBank as Row | null;
+    const trx = row.trxLast5 || (!String(row.receiptImage || '').startsWith('data:image') ? row.receiptImage : '');
+    return <div key={id} className="rounded-xl border border-white/10 bg-black/20 p-3"><div className="flex flex-wrap justify-between gap-2"><div><p className="text-sm font-bold">{String(row.userName || row.userId || '-')}</p><p className="text-[11px] text-white/50">{id} · {date(row.createdAt)}</p></div><p className="font-black text-amber-300">{money(row.amount)}</p></div><p className="mt-2 text-xs text-white/60">{String(row.method || '')} {String(row.phone || '')} {String(row.accountName || '')}</p>{type === 'deposit' && <div className="mt-2 flex flex-wrap items-center gap-2"><span className="rounded-lg border border-amber-400/30 bg-amber-400/10 px-2.5 py-1.5 text-xs font-bold text-amber-200">💳 Transaction ID နောက်ဆုံး ၅လုံး: <b className="ml-1 tracking-widest text-white">{String(trx || 'မပါရှိပါ')}</b></span><button onClick={() => setExpanded(expanded === id ? null : id)} className="rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1.5 text-xs font-bold text-cyan-200">{expanded === id ? 'Information ပိတ်မည်' : 'Account Information ကြည့်မည်'}</button></div>}{expanded === id && type === 'deposit' && <div className="mt-3 grid gap-x-4 gap-y-1.5 rounded-lg border border-cyan-400/20 bg-black/30 p-3 text-[11px] text-white/80 sm:grid-cols-2"><div>အမည်: <b>{String(row.userName || '-')}</b></div><div>UID: <span className="font-mono">{String(row.userId || '-')}</span></div><div>ချိတ်ထားသောဖုန်း: {String(row.accountPhone || row.phone || '-')}</div><div>Email: {String(row.accountEmail || '-')}</div><div>လက်ရှိ Balance: <b className="text-emerald-300">{money(row.accountBalance)}</b></div><div>Deposit မတင်မီ Balance: <b>{money(row.accountInitialBalance)}</b></div><div>Referral Balance: {money(row.accountReferralBalance)}</div><div>ဖိတ်ခေါ်သူ: {String(row.accountReferrerId || 'မရှိပါ')}</div><div>Referral Code: {String(row.accountReferralCode || '-')}</div><div>ဖိတ်ခေါ်အရေအတွက်: {String(row.accountReferralsCount || 0)} ယောက်</div><div>စုစုပေါင်း Deposit: {money(row.accountTotalSuccessfulDeposit)}</div><div>စုစုပေါင်း Bet: {money(row.accountTotalBetCumulative)}</div><div>Withdrawal အကြိမ်: {String(row.accountWithdrawalCount || 0)} ကြိမ်</div><div>First Deposit Bonus: {row.accountFirstDepositBonusClaimed ? 'Claimed' : 'မယူရသေးပါ'}</div><div>Account ဖွင့်ချိန်: {date(row.accountCreatedAt)}</div><div className="sm:col-span-2">ချိတ်ထားသော ငွေလွှဲအကောင့်: {boundBank ? `${String(boundBank.method || '')} ${String(boundBank.accountName || '')} ${String(boundBank.phone || '')}` : `${String(row.accountName || '-') } ${String(row.phone || '')}`}</div></div>}<div className="mt-3 flex gap-2"><button disabled={busy} onClick={() => void review(row, 'approve')} className="rounded-lg bg-emerald-400 px-3 py-2 text-xs font-black text-black disabled:opacity-50">Approve</button><button disabled={busy} onClick={() => void review(row, 'reject')} className="rounded-lg bg-red-500/20 px-3 py-2 text-xs font-bold text-red-200 disabled:opacity-50">Reject</button></div></div>;
+  })}</div></section>;
 }
-
 function UserTable({ rows, onAction, busy }: { rows: Row[]; onAction: (url: string, body: Row) => void; busy: boolean }) {
   const [amount, setAmount] = useState<Record<string, string>>({});
   return <section className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]"><div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead className="bg-white/5 text-white/50"><tr><th className="p-3">User</th><th className="p-3">Phone</th><th className="p-3">Balance</th><th className="p-3">Action</th></tr></thead><tbody>{rows.map((row) => <tr key={String(row.uid)} className="border-t border-white/10"><td className="p-3"><b>{String(row.fullName || '-')}</b><br /><span className="text-white/40">{String(row.uid)}</span></td><td className="p-3">{String(row.phoneNumber || '-')}</td><td className="p-3 font-bold text-amber-300">{money(row.balance)}</td><td className="p-3"><div className="flex min-w-56 gap-2"><input value={amount[String(row.uid)] || ''} onChange={(e) => setAmount({ ...amount, [String(row.uid)]: e.target.value })} placeholder="Amount" className="w-24 rounded-lg border border-white/10 bg-black/30 px-2 py-2" /><button disabled={busy} onClick={() => onAction('/api/admin/balance', { uid: row.uid, amount: amount[String(row.uid)], action: 'topup', note: 'Admin dashboard topup' })} className="rounded-lg bg-emerald-400 px-2 py-2 font-bold text-black">+</button><button disabled={busy} onClick={() => onAction('/api/admin/balance', { uid: row.uid, amount: amount[String(row.uid)], action: 'deduct', note: 'Admin dashboard deduction' })} className="rounded-lg bg-red-400/20 px-2 py-2 font-bold text-red-200">−</button></div></td></tr>)}</tbody></table></div></section>;
