@@ -25,6 +25,7 @@ export default function AdminDashboard() {
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || 'Data မဖတ်နိုင်ပါ');
     setData(result); setAuthenticated(true);
+    if (q.trim()) setTab('users');
   };
 
   useEffect(() => {
