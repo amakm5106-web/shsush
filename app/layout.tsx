@@ -2,16 +2,16 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Xin Aiii Dice Lottery - Telegram WebApp',
+  title: 'Xsite Casinos - Telegram WebApp',
   description: 'မြန်မာ့ အံစာတုံး ထီနှင့် ကာစီနို Telegram WebApp (Real 3D Rolling Dice, KPay/Wave ငွေသွင်းငွေထုတ် & Referral Commission System)',
   openGraph: {
-    title: 'Xin Aiii Dice Lottery - Telegram WebApp',
+    title: 'Xsite Casinos - Telegram WebApp',
     description: 'မြန်မာ့ အံစာတုံး ထီနှင့် ကာစီနို Telegram WebApp (Real 3D Rolling Dice, KPay/Wave ငွေသွင်းငွေထုတ် & Referral Commission System)',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Xin Aiii Dice Lottery - Telegram WebApp',
+    title: 'Xsite Casinos - Telegram WebApp',
     description: 'မြန်မာ့ အံစာတုံး ထီနှင့် ကာစီနို Telegram WebApp (Real 3D Rolling Dice, KPay/Wave ငွေသွင်းငွေထုတ် & Referral Commission System)',
   },
 };

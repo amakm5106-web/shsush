@@ -45,6 +45,7 @@ import {
   Headphones,
   ArrowDownLeft,
   ArrowUpRight,
+  Fish,
 } from 'lucide-react';
 
 import { db, testConnection, handleFirestoreError, OperationType } from '@/lib/firebase';
@@ -97,6 +98,7 @@ import { ReferralView } from '@/components/views/ReferralView';
 import { WalletView } from '@/components/views/WalletView';
 import { ProfileView } from '@/components/views/ProfileView';
 import { BuffaloSlotGame } from '@/components/BuffaloSlotGame';
+import { FishingGame } from '@/components/FishingGame';
 import { AuthModal } from '@/components/AuthModal';
 import { RoundResultModal } from '@/components/RoundResultModal';
 import { tickRoundSystem, calculateAutoWinRoll } from '@/lib/roundEngine';
@@ -287,7 +289,7 @@ export default function Home() {
 
   // Page View Routing State
   const [activeTab, setActiveTab] = useState<'home' | 'referral' | 'wallet' | 'profile'>('home');
-  const [selectedGame, setSelectedGame] = useState<'lobby' | 'dice' | 'buffalo'>('lobby');
+  const [selectedGame, setSelectedGame] = useState<'lobby' | 'dice' | 'buffalo' | 'fishing'>('lobby');
   const [lobbyCategory, setLobbyCategory] = useState<'all' | 'slots' | 'dice' | 'hot'>('all');
   const [promoIndex, setPromoIndex] = useState<number>(0);
 
@@ -1877,7 +1879,7 @@ export default function Home() {
       )}
 
       {/* 2. Full-Screen Page View Router (ပင်မ, ဖိတ်ခေါ်မှု, ငွေသွင်း/ထုတ်, ပရိုဖိုင်) */}
-      <div className={`w-full flex flex-col flex-1 mt-2 transition-all ${(selectedGame === 'lobby' || activeTab === 'referral' || activeTab === 'wallet' || activeTab === 'profile') ? 'max-w-4xl px-2 sm:px-4' : selectedGame === 'dice' ? 'max-w-xl px-2 sm:px-3' : 'max-w-md'}`}>
+      <div className={`w-full flex flex-col flex-1 mt-2 transition-all ${(selectedGame === 'lobby' || activeTab === 'referral' || activeTab === 'wallet' || activeTab === 'profile') ? 'max-w-4xl px-2 sm:px-4' : selectedGame === 'dice' ? 'max-w-xl px-2 sm:px-3' : selectedGame === 'fishing' ? 'max-w-3xl px-2 sm:px-3' : 'max-w-md'}`}>
         {/* VIEW 1: ပင်မ (Games Lobby or Full-Screen Game Arenas) */}
         {activeTab === 'home' && (
           <div className="w-full flex flex-col gap-3.5 animate-fadeIn pb-6">
@@ -1893,10 +1895,10 @@ export default function Home() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-sm font-black tracking-wider text-white uppercase font-sans leading-none">
-                        X-SITE
+                        XSITE
                       </span>
                       <span className="text-[9px] font-bold tracking-widest text-amber-400 uppercase mt-0.5">
-                        CASINO
+                        CASINOS
                       </span>
                     </div>
                   </div>
@@ -2288,6 +2290,24 @@ export default function Home() {
                       </div>
                     </div>
                   )}
+
+                  {/* GAME CARD 3: Deep Sea Catch Fishing */}
+                  {(lobbyCategory === 'all' || lobbyCategory === 'hot') && (
+                    <div
+                      onClick={() => {
+                        sounds.playChip();
+                        setSelectedGame('fishing');
+                      }}
+                      className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/20 bg-zinc-950 shadow-2xl transition-all duration-300 hover:border-white/60 active:scale-[0.98] sm:rounded-3xl"
+                    >
+                      <img src="/assets/casino/fishing_card.jpg" alt="Deep Sea Catch" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/5" />
+                      <div className="relative z-10 flex aspect-[3/4] flex-col justify-between p-2.5 sm:p-3">
+                        <div className="flex items-center justify-between"><span className="rounded-md bg-white px-2 py-0.5 text-[9px] font-black uppercase text-black">NEW</span><span className="rounded-md border border-white/25 bg-black/60 px-2 py-0.5 text-[9px] font-black text-white/85">ARCADE</span></div>
+                        <div><div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-white text-black shadow-xl transition-transform group-hover:scale-105"><Fish className="h-5 w-5 fill-black stroke-black" /></div><span className="block truncate text-xs font-black tracking-tight text-white sm:text-sm">Deep Sea Catch</span><div className="mt-0.5 flex items-center justify-between text-[10px] font-medium text-white/65"><span>ငါးပစ်ဂိမ်း</span><span className="font-bold text-white">ကစားမည်</span></div></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* 5. LIVE RECENT WINS TICKER (SOCIAL PROOF) */}
@@ -2327,6 +2347,14 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* FULL-SCREEN ARENA: FISHING MINI-GAME */}
+            {selectedGame === 'fishing' && (
+              <FishingGame onBack={() => {
+                sounds.playChip();
+                setSelectedGame('lobby');
+              }} />
             )}
 
             {/* FULL-SCREEN ARENA: GAME 1 - အံစာဂိမ်း (Dice Game) */}
@@ -2541,7 +2569,7 @@ export default function Home() {
       </div>
 
       {/* 3. Persistent Bottom Main Navigation Menu (Hidden inside Buffalo Slot for full-screen immersive landscape) */}
-      {selectedGame !== 'buffalo' && (
+      {selectedGame !== 'buffalo' && selectedGame !== 'fishing' && (
         <nav className="ledger-nav fixed bottom-0 inset-x-0 z-40 px-2 py-2 flex items-center justify-around max-w-md mx-auto backdrop-blur-2xl">
           <button
             onClick={() => {
