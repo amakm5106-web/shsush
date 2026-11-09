@@ -93,9 +93,9 @@ export function AdminModal({
   const [rejectionNote, setRejectionNote] = useState<string>('');
 
   // Turso Database Migration States
-  const [tursoDbUrl, setTursoDbUrl] = useState<string>('libsql://casino-xavianelio.aws-ap-southeast-1.turso.io');
+  const [tursoDbUrl, setTursoDbUrl] = useState<string>('');
   const [tursoAuthToken, setTursoAuthToken] = useState<string>(
-    'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTQwOTkxNjMsImlkIjoiMDFhMWI2YjItMzgwMS03ZDBkLTliODQtNjAxNWVjNjM3ZTgzIiwia2lkIjoiQUFOQ3JJdjV5b0l5aERZbXlXZXU3dWNJNE9wUHZmZGp3S1plbVFob0VtdyIsInJpZCI6ImE5Y2ZmN2U5LWIyNjAtNDk0YS05ZmE0LWRkZWEyMzQ3Y2YxMiJ9.bjJi_iZ9gYIlksPBHMIUVDZ0df6Z-uZbLLrUWgAemrWsbFg98m8Uf9S38T7cElh6Op7fiK9KEwG4Letad1uZDQ'
+    ''
   );
   const [tursoChecking, setTursoChecking] = useState<boolean>(false);
   const [tursoStatus, setTursoStatus] = useState<{ success: boolean; msg: string; detail?: string } | null>({

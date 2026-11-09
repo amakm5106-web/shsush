@@ -13,11 +13,12 @@ Configuration:
 
 import telebot
 import requests
+import os
 
 # 1. BOT & SERVER SETTINGS
 BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN_FROM_BOTFATHER"
 WEBAPP_API_URL = "https://xsite-casino.vercel.app"  # သို့မဟုတ် မိမိ App URL
-BOT_API_KEY = "xsite_bot_secret_token_2026"         # Webapp ဘက်ရှိ Secret Token
+BOT_API_KEY = os.environ.get("BOT_API_KEY", "")    # Set the same secret as the web app
 
 # လုံခြုံရေးအတွက် Bot ကို အသုံးပြုခွင့်ရှိသော Admin Telegram ID များ (မိမိ Telegram ID ထည့်ပါ)
 ADMIN_TELEGRAM_IDS = [
@@ -45,7 +46,7 @@ def api_request(method, endpoint, params=None, json_data=None):
 # Admin Check Filter
 def is_admin(message):
     if not ADMIN_TELEGRAM_IDS:
-        return True  # If empty, allow for initial testing
+        return False  # Fail closed until real admin IDs are configured
     return message.from_user.id in ADMIN_TELEGRAM_IDS
 
 # /start command

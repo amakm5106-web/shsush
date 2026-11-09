@@ -347,7 +347,6 @@ export function BuffaloSlotGame({
   ]);
   const [isBetModalOpen, setIsBetModalOpen] = useState<boolean>(false);
   const [isBuyBonusModalOpen, setIsBuyBonusModalOpen] = useState<boolean>(false);
-  const [guestBalance, setGuestBalance] = useState<number>(50000);
   const [gameToast, setGameToast] = useState<string | null>(null);
 
   const showGameToast = useCallback((msg: string) => {
@@ -498,7 +497,13 @@ export function BuffaloSlotGame({
     async (isFreeSpin = false) => {
       if (isSpinning) return;
 
-      const availableBalance = user ? user.balance : guestBalance;
+      if (!user && !isFreeSpin) {
+        setIsAutoSpinning(false);
+        showGameToast('ကစားရန် အကောင့်ဝင်ပါ သို့မဟုတ် အကောင့်သစ်ဖွင့်ပါ။');
+        return;
+      }
+
+      const availableBalance = user?.balance || 0;
       if (!isFreeSpin && availableBalance < betAmount) {
         setIsAutoSpinning(false);
         showGameToast('လက်ကျန်ငွေ မလုံလောက်ပါ။ ကျေးဇူးပြု၍ ငွေအရင်ဖြည့်သွင်းပါ။');
@@ -525,8 +530,6 @@ export function BuffaloSlotGame({
             wagerSinceLastWithdrawal: (user.wagerSinceLastWithdrawal || 0) + betAmount,
             updatedAt: Date.now(),
           }).catch((e) => console.error('Balance update error:', e));
-        } else {
-          setGuestBalance(currentBalance);
         }
       }
 
@@ -782,8 +785,6 @@ export function BuffaloSlotGame({
             } catch (betErr) {
               console.error('Win bet record error:', betErr);
             }
-          } else {
-            setGuestBalance(finalBal);
           }
         } else {
           setIsSubBetCelebration(false);
@@ -918,7 +919,12 @@ export function BuffaloSlotGame({
 
   // Buy Bonus Action (100x Bet for 10 Free Spins)
   const handleConfirmBuyBonus = async () => {
-    const availableBalance = user ? user.balance : guestBalance;
+    if (!user) {
+      showGameToast('Bonus ဝယ်ရန် အကောင့်ဝင်ပါ။');
+      setIsBuyBonusModalOpen(false);
+      return;
+    }
+    const availableBalance = user.balance;
     const cost = betAmount * 100;
     if (availableBalance < cost) {
       showGameToast(`လက်ကျန်ငွေ မလုံလောက်ပါ။ Buy Bonus ဝယ်ယူရန် Ks ${cost.toLocaleString()} လိုအပ်ပါသည်။`);
@@ -941,8 +947,6 @@ export function BuffaloSlotGame({
       } catch (e) {
         console.error('Buy bonus update error:', e);
       }
-    } else {
-      setGuestBalance(newBal);
     }
 
     // Award 10 Free Spins
@@ -1096,8 +1100,7 @@ export function BuffaloSlotGame({
           <div className="flex items-center gap-1 px-2 py-0.5 rounded-xl bg-black/60 border border-white/15 shadow-inner">
             <span className="text-[9px] text-white/50 font-bold hidden sm:inline">လက်ကျန်:</span>
             <span className="text-xs font-black font-mono text-white flex items-center gap-1">
-              <span>{formatKs(user ? user.balance : guestBalance)}</span>
-              {!user && <span className="text-[9px] text-amber-400 font-sans font-bold">(Demo)</span>}
+              <span>{formatKs(user?.balance || 0)}</span>
             </span>
             <button
               onClick={() => {

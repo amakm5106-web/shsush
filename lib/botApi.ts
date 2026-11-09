@@ -5,12 +5,10 @@ import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
 import firebaseConfig from '@/firebase-applet-config.json';
 import { UserProfile } from '@/lib/types';
 
-export const BOT_DEFAULT_KEY = 'xsite_bot_secret_token_2026';
-
 export function validateBotAuth(req: NextRequest): { authorized: boolean; error?: string } {
   const authHeader = req.headers.get('authorization') || '';
   const xBotToken = req.headers.get('x-bot-token') || '';
-  const configuredKey = (process.env.BOT_API_KEY || BOT_DEFAULT_KEY).replace(/^["']|["']$/g, '').trim();
+  const configuredKey = (process.env.BOT_API_KEY || '').replace(/^['"]|['"]$/g, '').trim();
 
   let providedToken = xBotToken.trim();
   if (!providedToken && authHeader.toLowerCase().startsWith('bearer ')) {
@@ -25,7 +23,7 @@ export function validateBotAuth(req: NextRequest): { authorized: boolean; error?
     };
   }
 
-  if (providedToken !== configuredKey && providedToken !== BOT_DEFAULT_KEY) {
+  if (!configuredKey || providedToken !== configuredKey) {
     return {
       authorized: false,
       error: 'Invalid Bot Token. Please check your BOT_API_KEY.',

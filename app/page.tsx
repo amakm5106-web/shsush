@@ -2,14 +2,6 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
-  signInWithPopup,
-  signOut,
-  onAuthStateChanged,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  User as FirebaseUser,
-} from 'firebase/auth';
-import {
   doc,
   getDoc,
   setDoc,
@@ -52,7 +44,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 
-import { auth, db, googleProvider, testConnection, handleFirestoreError, OperationType } from '@/lib/firebase';
+import { db, testConnection, handleFirestoreError, OperationType } from '@/lib/firebase';
 import {
   detectBotOrAutomation,
   verifyActionVelocity,
@@ -104,6 +96,8 @@ import { BuffaloSlotGame } from '@/components/BuffaloSlotGame';
 import { AuthModal } from '@/components/AuthModal';
 import { RoundResultModal } from '@/components/RoundResultModal';
 import { tickRoundSystem, calculateAutoWinRoll } from '@/lib/roundEngine';
+
+type AppSessionUser = { uid: string; email: string | null; displayName: string | null; phoneNumber: string | null };
 
 const createFallbackUser = (uid: string, email: string, name: string): UserProfile => ({
   uid,
@@ -227,7 +221,7 @@ const getCachedUserProfile = (uid: string): UserProfile | null => {
 
 export default function Home() {
   // Auth & User Profile State
-  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<AppSessionUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
 
@@ -346,213 +340,25 @@ export default function Home() {
     }
   }, []);
 
-  // 2. Auth State Observer
+  // 2. Restore the real Turso session from the httpOnly cookie.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        const isUserAdmin = isAdminEmail(user.email);
-        const cleanPhone = user.phoneNumber
-          ? user.phoneNumber.replace(/[^0-9]/g, '')
-          : user.email?.includes('@phone.casino')
-          ? user.email.split('@')[0]
-          : '';
-
-        // 1. Check authoritative profile from Turso Cloud Database first
-        try {
-          let tursoProfile = await fetchTursoUserProfile(user.uid);
-          if (!tursoProfile && cleanPhone) {
-            tursoProfile = await fetchTursoUserProfile(cleanPhone);
-          }
-          if (tursoProfile) {
-            if (isUserAdmin) tursoProfile.role = 'admin';
-            setUserProfile(tursoProfile);
-            cacheUserProfile(tursoProfile);
-            setAuthLoading(false);
-            return;
-          }
-        } catch (tErr) {
-          console.warn('Initial Turso profile check note:', tErr);
+    fetch('/api/auth/session', { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((result) => {
+        if (result.success && result.user) {
+          const profile = result.user as UserProfile;
+          setUserProfile(profile);
+          setCurrentUser({
+            uid: profile.uid,
+            email: profile.email || null,
+            displayName: profile.fullName || null,
+            phoneNumber: profile.phoneNumber || null,
+          });
         }
-
-        // 2. Fallback to Firestore / local cache
-        try {
-          const userDocRef = doc(db, 'users', user.uid);
-          let snap;
-          try {
-            snap = await getDoc(userDocRef);
-          } catch (e) {
-            console.warn('User profile initial fetch offline/reconnecting note:', e);
-            const cachedProfile = getCachedUserProfile(user.uid);
-            if (cachedProfile) {
-              if (isUserAdmin) cachedProfile.role = 'admin';
-              setUserProfile(cachedProfile);
-            } else {
-              const fallbackProfile = createFallbackUser(user.uid, user.email || '', user.displayName || 'မန်ဘာ');
-              if (isUserAdmin) fallbackProfile.role = 'admin';
-              setUserProfile(fallbackProfile);
-              // Do not cache a blank zero profile over any existing session
-            }
-            setAuthLoading(false);
-            return;
-          }
-
-          if (!snap.exists()) {
-            const cachedProfile = getCachedUserProfile(user.uid);
-            if (cachedProfile) {
-              setUserProfile(cachedProfile);
-              setAuthLoading(false);
-              return;
-            }
-
-            let referrerUid: string | null = null;
-            if (typeof window !== 'undefined') {
-              const urlParams = new URLSearchParams(window.location.search);
-              referrerUid = urlParams.get('ref');
-            }
-
-            const isUserAdmin = isAdminEmail(user.email);
-            const newProfile: UserProfile = {
-              uid: user.uid,
-              email: user.email || '',
-              fullName: user.displayName || `Player ${user.uid.slice(0, 5)}`,
-              role: isUserAdmin ? 'admin' : 'user',
-              balance: 0, // No registration bonus per admin instructions
-              referralBalance: 0,
-              referralsCount: 0,
-              referrerId: referrerUid,
-              totalBetCumulative: 0,
-              totalSuccessfulDeposit: 0,
-              withdrawalCount: 0,
-              wagerSinceLastWithdrawal: 0,
-              hasSuccessfulDeposit: false,
-              isHedgingFlagged: false,
-              cleanTurnoverRequired: 0,
-              firstDepositBonusClaimed: false,
-              promoClaimedReferrals: [],
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-            };
-
-            await setDoc(userDocRef, newProfile);
-            setUserProfile(newProfile);
-            cacheUserProfile(newProfile);
-
-            if (isUserAdmin) {
-              try {
-                await setDoc(doc(db, 'admins', user.uid), {
-                  email: user.email,
-                  role: 'admin',
-                  updatedAt: Date.now(),
-                }, { merge: true });
-              } catch (admErr) {
-                console.warn('Admin record sync note:', admErr);
-              }
-            }
-
-            if (referrerUid && referrerUid !== user.uid) {
-              try {
-                const refDocRef = doc(db, 'users', referrerUid);
-                const refSnap = await getDoc(refDocRef);
-                if (refSnap.exists()) {
-                  const refData = refSnap.data() as UserProfile;
-                  await updateDoc(refDocRef, {
-                    referralsCount: (refData.referralsCount || 0) + 1,
-                    updatedAt: Date.now(),
-                  });
-                }
-              } catch (e) {
-                console.error('Failed to credit referrer:', e);
-              }
-            }
-          } else {
-            const data = snap.data() as UserProfile;
-            const isUserAdmin = isAdminEmail(user.email);
-            if (isUserAdmin) {
-              if (data.role !== 'admin') {
-                data.role = 'admin';
-                await updateDoc(userDocRef, { role: 'admin' });
-              }
-              try {
-                await setDoc(doc(db, 'admins', user.uid), {
-                  email: user.email,
-                  role: 'admin',
-                  updatedAt: Date.now(),
-                }, { merge: true });
-              } catch (admErr) {
-                console.warn('Admin record sync note:', admErr);
-              }
-              try {
-                const settingsRef = doc(db, 'settings', 'config');
-                const setSnap = await getDoc(settingsRef);
-                if (!setSnap.exists() || setSnap.data()?.KPAY_NAME !== 'Aung Khant Min') {
-                  await setDoc(settingsRef, {
-                    ...DEFAULT_SETTINGS,
-                    ...(setSnap.exists() ? setSnap.data() : {}),
-                    KPAY_PHONE: '09753499023',
-                    KPAY_NAME: 'Aung Khant Min',
-                    WAVE_PHONE: '09680327601',
-                    WAVE_NAME: 'Phyo ko Ko',
-                  }, { merge: true });
-                }
-              } catch (cfgErr) {
-                console.warn('Config sync note:', cfgErr);
-              }
-            }
-            setUserProfile(data);
-            cacheUserProfile(data);
-          }
-        } catch (error) {
-          console.warn('Error fetching user profile:', error);
-          const cachedProfile = getCachedUserProfile(user.uid);
-          if (cachedProfile) {
-            setUserProfile(cachedProfile);
-          }
-        }
-      } else {
-        // If not logged in via Firebase Auth, check if user is logged in via phone & password in localStorage
-        try {
-          const stored = typeof window !== 'undefined' ? localStorage.getItem('xai_phone_user') : null;
-          if (stored) {
-            const { uid } = JSON.parse(stored);
-            if (uid) {
-              try {
-                const snap = await getDoc(doc(db, 'users', uid));
-                if (snap.exists()) {
-                  const p = snap.data() as UserProfile;
-                  setUserProfile(p);
-                  cacheUserProfile(p);
-                } else {
-                  const cached = getCachedUserProfile(uid);
-                  if (cached) setUserProfile(cached);
-                }
-              } catch {
-                const cached = getCachedUserProfile(uid);
-                if (cached) setUserProfile(cached);
-              }
-            }
-          } else {
-            setUserProfile(null);
-          }
-        } catch (phoneErr) {
-          console.warn('Phone auth session restore note:', phoneErr);
-          const stored = typeof window !== 'undefined' ? localStorage.getItem('xai_phone_user') : null;
-          if (stored) {
-            try {
-              const { uid } = JSON.parse(stored);
-              const cached = getCachedUserProfile(uid);
-              if (cached) setUserProfile(cached);
-            } catch {
-              setUserProfile(null);
-            }
-          }
-        }
-      }
-      setAuthLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [settings.WELCOME_BONUS]);
+      })
+      .catch((error) => console.warn('Turso session restore failed:', error))
+      .finally(() => setAuthLoading(false));
+  }, []);
 
   // 3. Realtime User Profile Listener (Firestore mirror)
   useEffect(() => {
@@ -2120,13 +1926,19 @@ export default function Home() {
   };
 
   const handleGoogleSignIn = async () => {
-    sounds.playChip();
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error('Google Sign In Error:', error);
-      alert('Google Sign In မအောင်မြင်ပါ။ ပြန်လည်ကြိုးစားပါ။');
-    }
+    throw new Error('Turso authentication uses phone number and password.');
+  };
+
+  const applyTursoSessionUser = (profile: UserProfile) => {
+    setUserProfile(profile);
+    cacheUserProfile(profile);
+    const sessionUser = {
+      uid: profile.uid,
+      email: profile.email,
+      displayName: profile.fullName,
+      phoneNumber: profile.phoneNumber || null,
+    };
+    setCurrentUser(sessionUser);
   };
 
   const handlePhoneSignIn = async (
@@ -2134,102 +1946,20 @@ export default function Home() {
     psw: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
-      if (!cleanPhone || cleanPhone.length < 7) {
-        return { success: false, error: 'ဖုန်းနံပါတ် အပြည့်အစုံ မှန်ကန်စွာ ထည့်သွင်းပေးပါ' };
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, password: psw }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.user) {
+        return { success: false, error: result.error || 'ဖုန်းနံပါတ် သို့မဟုတ် password မှားယွင်းနေပါသည်' };
       }
-
-      const syntheticEmail = `${cleanPhone}@phone.casino`;
-
-      // 1. Authenticate with Firebase Auth directly (works on all domains including Vercel)
-      const userCredential = await signInWithEmailAndPassword(auth, syntheticEmail, psw);
-      const user = userCredential.user;
-
-      // 1b. Fetch authoritative User Profile from Turso Cloud Database
-      let tursoUser = await fetchTursoUserProfile(cleanPhone);
-      if (!tursoUser) {
-        tursoUser = await fetchTursoUserProfile(user.uid);
-      }
-
-      if (tursoUser) {
-        setUserProfile(tursoUser);
-        cacheUserProfile(tursoUser);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('xai_phone_user', JSON.stringify({ uid: user.uid, phone: cleanPhone }));
-        }
-        return { success: true };
-      }
-
-      // 2. Fallback: Fetch or initialize User Profile in Firestore
-      const userDocRef = doc(db, 'users', user.uid);
-      try {
-        const snap = await getDoc(userDocRef);
-        if (snap.exists()) {
-          const p = snap.data() as UserProfile;
-          setUserProfile(p);
-          cacheUserProfile(p);
-        } else {
-          const cached = getCachedUserProfile(user.uid);
-          if (cached) {
-            setUserProfile(cached);
-          } else {
-            const newProfile: UserProfile = {
-              uid: user.uid,
-              email: syntheticEmail,
-              phoneNumber: cleanPhone,
-              fullName: `Player ${cleanPhone.slice(-4)}`,
-              role: 'user',
-              balance: 0,
-              referralBalance: 0,
-              referralsCount: 0,
-              totalBetCumulative: 0,
-              totalSuccessfulDeposit: 0,
-              withdrawalCount: 0,
-              wagerSinceLastWithdrawal: 0,
-              hasSuccessfulDeposit: false,
-              isHedgingFlagged: false,
-              cleanTurnoverRequired: 0,
-              firstDepositBonusClaimed: false,
-              promoClaimedReferrals: [],
-              claimedMilestones: [],
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-            };
-            await setDoc(userDocRef, newProfile);
-            setUserProfile(newProfile);
-            cacheUserProfile(newProfile);
-          }
-        }
-      } catch (docErr) {
-        console.warn('Profile read note during sign in:', docErr);
-        const cached = getCachedUserProfile(user.uid);
-        if (cached) {
-          setUserProfile(cached);
-        }
-      }
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('xai_phone_user', JSON.stringify({ uid: user.uid, phone: cleanPhone }));
-      }
+      applyTursoSessionUser(result.user as UserProfile);
       return { success: true };
-    } catch (err: unknown) {
-      console.error('Phone Sign In Error:', err);
-      const errCode = (err as { code?: string })?.code;
-      if (
-        errCode === 'auth/user-not-found' ||
-        errCode === 'auth/invalid-credential' ||
-        errCode === 'auth/wrong-password' ||
-        errCode === 'auth/invalid-email'
-      ) {
-        return {
-          success: false,
-          error: 'ဖုန်းနံပါတ် သို့မဟုတ် စကားဝှက် မှားယွင်းနေပါသည် (အကောင့်မရှိသေးပါက Sign Up ပြုလုပ်ပါ)',
-        };
-      }
-      return {
-        success: false,
-        error: err instanceof Error ? err.message : 'အကောင့်ဝင်ရောက်မှု မအောင်မြင်ပါ',
-      };
+    } catch (error) {
+      console.error('Turso login error:', error);
+      return { success: false, error: 'Database ချိတ်ဆက်မှု မအောင်မြင်ပါ' };
     }
   };
 
@@ -2240,102 +1970,27 @@ export default function Home() {
     refCode?: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
-      if (!cleanPhone || cleanPhone.length < 7) {
-        return { success: false, error: 'ဖုန်းနံပါတ် အပြည့်အစုံ မှန်ကန်စွာ ထည့်သွင်းပေးပါ' };
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, password: psw, fullName: name, referralCode: refCode || urlReferralCode || undefined }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.user) {
+        return { success: false, error: result.error || 'အကောင့်ဖွင့်ခြင်း မအောင်မြင်ပါ' };
       }
-
-      const syntheticEmail = `${cleanPhone}@phone.casino`;
-
-      // 1. Create genuine Firebase Auth User
-      let userCredential;
-      try {
-        userCredential = await createUserWithEmailAndPassword(auth, syntheticEmail, psw);
-      } catch (authErr: unknown) {
-        const errCode = (authErr as { code?: string })?.code;
-        if (errCode === 'auth/email-already-in-use') {
-          return {
-            success: false,
-            error: 'ဤဖုန်းနံပါတ်ဖြင့် အကောင့်ဖွင့်ပြီးဖြစ်ပါသည် (Login ဝင်ရောက်ပေးပါ)',
-          };
-        } else if (errCode === 'auth/weak-password') {
-          return {
-            success: false,
-            error: 'စကားဝှက်သည် အနည်းဆုံး ၆ လုံး ရှိရပါမည်',
-          };
-        }
-        throw authErr;
-      }
-
-      const user = userCredential.user;
-      const referrerCandidate = refCode || urlReferralCode || null;
-
-      // 2. Create User Profile document in Firestore under user.uid (allowed by security rules)
-      const userDocRef = doc(db, 'users', user.uid);
-      const newProfile: UserProfile = {
-        uid: user.uid,
-        email: syntheticEmail,
-        phoneNumber: cleanPhone,
-        fullName: name.trim(),
-        role: 'user',
-        balance: 0,
-        referralBalance: 0,
-        referralsCount: 0,
-        referrerId: referrerCandidate,
-        referralCode: referrerCandidate || undefined,
-        totalBetCumulative: 0,
-        totalSuccessfulDeposit: 0,
-        withdrawalCount: 0,
-        wagerSinceLastWithdrawal: 0,
-        hasSuccessfulDeposit: false,
-        isHedgingFlagged: false,
-        cleanTurnoverRequired: 0,
-        firstDepositBonusClaimed: false,
-        promoClaimedReferrals: [],
-        claimedMilestones: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-
-      await setDoc(userDocRef, newProfile);
-      setUserProfile(newProfile);
-      cacheUserProfile(newProfile);
-
-      // 3. Credit referrer count if valid
-      if (referrerCandidate && referrerCandidate !== user.uid) {
-        try {
-          const refDocRef = doc(db, 'users', referrerCandidate);
-          const refSnap = await getDoc(refDocRef);
-          if (refSnap.exists()) {
-            const refData = refSnap.data() as UserProfile;
-            await updateDoc(refDocRef, {
-              referralsCount: (refData.referralsCount || 0) + 1,
-              updatedAt: Date.now(),
-            });
-          }
-        } catch (refErr) {
-          console.warn('Referrer credit note:', refErr);
-        }
-      }
-
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('xai_phone_user', JSON.stringify({ uid: user.uid, phone: cleanPhone }));
-      }
-
+      applyTursoSessionUser(result.user as UserProfile);
       return { success: true };
-    } catch (err: unknown) {
-      console.error('Phone Sign Up Error:', err);
-      return {
-        success: false,
-        error: err instanceof Error ? err.message : 'အကောင့်ဖွင့်ခြင်း မအောင်မြင်ပါ',
-      };
+    } catch (error) {
+      console.error('Turso signup error:', error);
+      return { success: false, error: 'Database ချိတ်ဆက်မှု မအောင်မြင်ပါ' };
     }
   };
 
   const handleSignOut = async () => {
     sounds.playChip();
     try {
-      await signOut(auth);
+      await fetch('/api/auth/logout', { method: 'POST' });
       if (typeof window !== 'undefined') {
         localStorage.removeItem('xai_phone_user');
       }
@@ -3120,7 +2775,6 @@ export default function Home() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         referralCodeFromUrl={urlReferralCode}
-        onGoogleSignIn={handleGoogleSignIn}
         onPhoneSignIn={handlePhoneSignIn}
         onPhoneSignUp={handlePhoneSignUp}
       />
