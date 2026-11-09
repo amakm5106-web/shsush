@@ -1,189 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateBotAuth, getFirebaseInstance, adjustUserBalanceUnified } from '@/lib/botApi';
+import { validateBotAuth, adjustUserBalanceUnified } from '@/lib/botApi';
 import { getTursoClient } from '@/lib/turso';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { formatKs } from '@/lib/constants';
 
 export async function POST(req: NextRequest) {
   const authCheck = validateBotAuth(req);
-  if (!authCheck.authorized) {
-    return NextResponse.json({ success: false, error: authCheck.error }, { status: 401 });
-  }
-
+  if (!authCheck.authorized) return NextResponse.json({ success: false, error: authCheck.error }, { status: 401 });
   try {
     const body = await req.json();
-    const type = body.type; // 'deposit' | 'withdrawal'
+    const type = body.type as 'deposit' | 'withdrawal';
     const id = body.id || body.depositId || body.withdrawalId;
-    const action = body.action; // 'approve' | 'decline'
-    const reason = body.reason || body.note || (action === 'approve' ? 'Approved via Telegram CS Bot' : 'Declined via Telegram CS Bot');
-
-    if (!type || !id || !action) {
-      return NextResponse.json({
-        success: false,
-        error: 'Missing required fields: type ("deposit" | "withdrawal"), id, and action ("approve" | "decline")',
-      }, { status: 400 });
-    }
-
-    const now = Date.now();
+    const action = body.action as 'approve' | 'decline';
+    const reason = String(body.reason || body.note || (action === 'approve' ? 'Approved via Telegram CS Bot' : 'Declined via Telegram CS Bot'));
+    if (!['deposit', 'withdrawal'].includes(type) || !id || !['approve', 'decline'].includes(action)) return NextResponse.json({ success: false, error: 'Invalid review request' }, { status: 400 });
     const turso = getTursoClient();
-    const { db } = getFirebaseInstance();
-
-    // 1. Handle Deposit Approval / Decline
-    if (type === 'deposit') {
-      let depData: any = null;
-
-      // Look in Turso
-      if (turso) {
-        const res = await turso.execute({
-          sql: 'SELECT * FROM deposits WHERE id = ? OR depositId = ? LIMIT 1;',
-          args: [id, id],
-        });
-        if (res.rows.length > 0) depData = res.rows[0];
-      }
-
-      // Fallback Firestore
-      if (!depData) {
-        try {
-          const snap = await getDoc(doc(db, 'deposits', id));
-          if (snap.exists()) depData = { id: snap.id, ...snap.data() };
-        } catch {}
-      }
-
-      if (!depData) {
-        return NextResponse.json({ success: false, error: `Deposit ID '${id}' not found` }, { status: 404 });
-      }
-
-      const amount = Number(depData.amount) || 0;
-      const userId = String(depData.userId);
-
-      if (action === 'approve') {
-        // Credit balance
-        await adjustUserBalanceUnified(userId, amount, `Deposit Approved: ${id}`);
-
-        // Update Turso
-        if (turso) {
-          await turso.execute({
-            sql: "UPDATE deposits SET status = 'approved', reviewedAt = ? WHERE id = ? OR depositId = ?;",
-            args: [now, id, id],
-          });
-        }
-
-        // Update Firestore
-        try {
-          await updateDoc(doc(db, 'deposits', id), {
-            status: 'approved',
-            reviewedAt: now,
-          });
-        } catch {}
-
-        return NextResponse.json({
-          success: true,
-          message: `ငွေသွင်းတောင်းဆိုမှု ${id} အတည်ပြုပြီးပါပြီ။ User လက်ကျန်ထဲသို့ +${formatKs(amount)} ထည့်သွင်းပြီးပါပြီ။`,
-          amount,
-          userId,
-        });
-      } else {
-        // Decline
-        if (turso) {
-          await turso.execute({
-            sql: "UPDATE deposits SET status = 'declined', reviewedAt = ? WHERE id = ? OR depositId = ?;",
-            args: [now, id, id],
-          });
-        }
-        try {
-          await updateDoc(doc(db, 'deposits', id), {
-            status: 'declined',
-            reviewedAt: now,
-          });
-        } catch {}
-
-        return NextResponse.json({
-          success: true,
-          message: `ငွေသွင်းတောင်းဆိုမှု ${id} ကို ပယ်ချပြီးပါပြီ (${reason})။`,
-          userId,
-        });
-      }
+    if (!turso) throw new Error('Turso is not configured');
+    const table = type === 'deposit' ? 'deposits' : 'withdrawals';
+    const key = type === 'deposit' ? 'depositId' : 'withdrawalId';
+    const found = await turso.execute({ sql: `SELECT * FROM ${table} WHERE id = ? OR ${key} = ? LIMIT 1`, args: [id, id] });
+    const item = found.rows[0] as Record<string, unknown> | undefined;
+    if (!item) return NextResponse.json({ success: false, error: `${type} '${id}' not found` }, { status: 404 });
+    if (item.status !== 'pending') return NextResponse.json({ success: false, error: 'Request has already been reviewed' }, { status: 409 });
+    const amount = Number(item.amount) || 0;
+    const userId = String(item.userId);
+    const now = Date.now();
+    if (action === 'approve' && type === 'deposit') {
+      const result = await adjustUserBalanceUnified(userId, amount, `Deposit Approved: ${id}`);
+      if (!result.success) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
-
-    // 2. Handle Withdrawal Approval / Decline
-    if (type === 'withdrawal') {
-      let withData: any = null;
-
-      if (turso) {
-        const res = await turso.execute({
-          sql: 'SELECT * FROM withdrawals WHERE id = ? OR withdrawalId = ? LIMIT 1;',
-          args: [id, id],
-        });
-        if (res.rows.length > 0) withData = res.rows[0];
-      }
-
-      if (!withData) {
-        try {
-          const snap = await getDoc(doc(db, 'withdrawals', id));
-          if (snap.exists()) withData = { id: snap.id, ...snap.data() };
-        } catch {}
-      }
-
-      if (!withData) {
-        return NextResponse.json({ success: false, error: `Withdrawal ID '${id}' not found` }, { status: 404 });
-      }
-
-      const amount = Number(withData.amount) || 0;
-      const userId = String(withData.userId);
-
-      if (action === 'approve') {
-        if (turso) {
-          await turso.execute({
-            sql: "UPDATE withdrawals SET status = 'approved', reviewedAt = ? WHERE id = ? OR withdrawalId = ?;",
-            args: [now, id, id],
-          });
-        }
-        try {
-          await updateDoc(doc(db, 'withdrawals', id), {
-            status: 'approved',
-            reviewedAt: now,
-          });
-        } catch {}
-
-        return NextResponse.json({
-          success: true,
-          message: `ငွေထုတ်တောင်းဆိုမှု ${id} အတည်ပြုပြီးပါပြီ (${formatKs(amount)})။`,
-          userId,
-          amount,
-        });
-      } else {
-        // Decline: Refund balance back to user
-        await adjustUserBalanceUnified(userId, amount, `Withdrawal Refunded (${id}): ${reason}`);
-
-        if (turso) {
-          await turso.execute({
-            sql: "UPDATE withdrawals SET status = 'declined', rejectionReason = ?, reviewedAt = ? WHERE id = ? OR withdrawalId = ?;",
-            args: [reason, now, id, id],
-          });
-        }
-        try {
-          await updateDoc(doc(db, 'withdrawals', id), {
-            status: 'declined',
-            rejectionReason: reason,
-            reviewedAt: now,
-          });
-        } catch {}
-
-        return NextResponse.json({
-          success: true,
-          message: `ငွေထုတ်တောင်းဆိုမှု ${id} ကို ပယ်ချပြီး User ထံသို့ +${formatKs(amount)} ပြန်လည်အမ်းငွေ ထည့်သွင်းပြီးပါပြီ။`,
-          userId,
-          amount,
-          refunded: true,
-        });
-      }
+    if (action === 'approve' && type === 'withdrawal') {
+      const result = await adjustUserBalanceUnified(userId, -amount, `Withdrawal Approved: ${id}`);
+      if (!result.success) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
-
-    return NextResponse.json({ success: false, error: 'Invalid type' }, { status: 400 });
-  } catch (error: any) {
-    return NextResponse.json({
-      success: false,
-      error: error.message || String(error),
-    }, { status: 500 });
+    if (action === 'decline' && type === 'withdrawal') {
+      const result = await adjustUserBalanceUnified(userId, amount, `Withdrawal Refunded: ${id}`);
+      if (!result.success) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+    }
+    const status = action === 'approve' ? 'completed' : 'declined';
+    const result = await turso.execute({ sql: `UPDATE ${table} SET status = ?, reviewedAt = ?, reviewedBy = ?, reviewNote = ?, completedAt = ?${type === 'withdrawal' ? ', rejectionReason = ?' : ''} WHERE id = ? AND status = 'pending'`, args: type === 'withdrawal' ? [status, now, 'Telegram CS Bot', reason, action === 'approve' ? now : null, action === 'decline' ? reason : '', String(item.id)] : [status, now, 'Telegram CS Bot', reason, action === 'approve' ? now : null, String(item.id)] });
+    if (!result.rowsAffected) return NextResponse.json({ success: false, error: 'Request was reviewed concurrently' }, { status: 409 });
+    await turso.execute({ sql: 'INSERT INTO admin_audit_logs (id, action, targetUid, amount, note, createdAt) VALUES (?, ?, ?, ?, ?, ?)', args: [`audit_${now}_${Math.random().toString(36).slice(2, 8)}`, `${type}_${action}`, userId, amount, reason, now] });
+    return NextResponse.json({ success: true, amount, userId, message: `${type === 'deposit' ? 'ငွေသွင်း' : 'ငွေထုတ်'} ${id} ${action === 'approve' ? 'အတည်ပြုပြီး' : 'ပယ်ချပြီး'}ပါပြီ။ ${formatKs(amount)}` });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

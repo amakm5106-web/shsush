@@ -1032,101 +1032,46 @@ export default function Home() {
     };
   }, [currentUser]);
 
-  // 12. Realtime Pending Deposits & Withdrawals for Admin (Only active when Admin Panel is open to conserve reads)
+  // 12. Realtime Pending Deposits & Withdrawals for Admin (Turso is the only source of truth)
   useEffect(() => {
     const isUserAdmin = userProfile?.role === 'admin' || isAdminEmail(currentUser?.email);
     if (!isUserAdmin || !currentUser || !isAdminOpen) return;
-
-    const unsubDep = onSnapshot(
-      collection(db, 'deposits'),
-      (snapshot) => {
-        const deps: DepositRequest[] = [];
-        snapshot.forEach((d) => {
-          const item = d.data() as DepositRequest;
-          if (item.status === 'pending') {
-            deps.push({ ...item, id: d.id });
-          }
-        });
-        setPendingDeposits(deps);
-      },
-      (err) => console.warn('Deposits listener note:', err?.message || err)
-    );
-
-    const unsubWith = onSnapshot(
-      collection(db, 'withdrawals'),
-      (snapshot) => {
-        const withs: WithdrawalRequest[] = [];
-        snapshot.forEach((d) => {
-          const item = d.data() as WithdrawalRequest;
-          if (item.status === 'pending') {
-            withs.push({ ...item, id: d.id });
-          }
-        });
-        setPendingWithdrawals(withs);
-      },
-      (err) => console.warn('Withdrawals listener note:', err?.message || err)
-    );
-
-    const betsQuery = query(collection(db, 'bets'), orderBy('createdAt', 'desc'), limit(30));
-    const unsubBets = onSnapshot(
-      betsQuery,
-      (snapshot) => {
-        const bets: PlayerBet[] = [];
-        snapshot.forEach((d) => bets.push(d.data() as PlayerBet));
-        setAllBets(bets);
-      },
-      (err) => console.warn('Bets listener note:', err?.message || err)
-    );
-
-    return () => {
-      unsubDep();
-      unsubWith();
-      unsubBets();
+    let active = true;
+    const loadAdminOverview = async () => {
+      try {
+        const response = await fetch(`/api/admin/overview?t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
+        const result = await response.json();
+        if (!active || !response.ok || !result.success) return;
+        setPendingDeposits((result.deposits || []).map((row: DepositRequest) => ({ ...row, id: row.id || row.depositId })));
+        setPendingWithdrawals((result.withdrawals || []).map((row: WithdrawalRequest) => ({ ...row, id: row.id || row.withdrawalId })));
+        setAllBets((result.bets || []) as PlayerBet[]);
+      } catch (error) {
+        console.warn('Turso admin overview polling note:', error);
+      }
     };
+    loadAdminOverview();
+    const interval = window.setInterval(loadAdminOverview, 3000);
+    return () => { active = false; window.clearInterval(interval); };
   }, [currentUser, userProfile, isAdminOpen]);
-
-  // 13. Realtime User's Own Withdrawals Listener (for rejection notes & daily limit)
+  // 13-14. User transaction history polling from Turso
   useEffect(() => {
     if (!currentUser) return;
-    const q = query(
-      collection(db, 'withdrawals'),
-      where('userId', '==', currentUser.uid),
-      orderBy('createdAt', 'desc'),
-      limit(25)
-    );
-    const unsub = onSnapshot(
-      q,
-      (snapshot) => {
-        const list: WithdrawalRequest[] = [];
-        snapshot.forEach((d) => list.push({ ...(d.data() as WithdrawalRequest), id: d.id }));
-        setUserWithdrawals(list);
-      },
-      (err) => console.warn('User withdrawals listener note:', err?.message || err)
-    );
-    return () => unsub();
-  }, [currentUser]);
-
-  // 14. Realtime User's Own Deposits Listener (for tracking deposit approvals & status)
-  useEffect(() => {
-    if (!currentUser) return;
-    const q = query(
-      collection(db, 'deposits'),
-      where('userId', '==', currentUser.uid),
-      orderBy('createdAt', 'desc'),
-      limit(25)
-    );
-    const unsub = onSnapshot(
-      q,
-      (snapshot) => {
-        const list: DepositRequest[] = [];
-        snapshot.forEach((d) => list.push({ ...(d.data() as DepositRequest), id: d.id }));
-        setUserDeposits(list);
-      },
-      (err) => console.warn('User deposits listener note:', err?.message || err)
-    );
-    return () => unsub();
-  }, [currentUser]);
-
+    let active = true;
+    const loadActivity = async () => {
+      try {
+        const response = await fetch(`/api/turso/activity?uid=${encodeURIComponent(currentUser.uid)}&t=${Date.now()}`, { cache: 'no-store' });
+        const result = await response.json();
+        if (!active || !response.ok || !result.success) return;
+        setUserWithdrawals((result.withdrawals || []).map((row: WithdrawalRequest) => ({ ...row, id: row.id || row.withdrawalId })));
+        setUserDeposits((result.deposits || []).map((row: DepositRequest) => ({ ...row, id: row.id || row.depositId })));
+      } catch (error) {
+        console.warn('Turso transaction polling note:', error);
+      }
+    };
+    loadActivity();
+    const interval = window.setInterval(loadActivity, 3000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [currentUser?.uid]);
   // Place Bet Handler with Anti-Hedging Enforcement
   const handlePlaceBet = async (
     betKind: 'size' | 'number' | 'color',
@@ -1333,12 +1278,6 @@ export default function Home() {
       }
 
       const savedDeposit = result.deposit as DepositRequest;
-      try {
-        await setDoc(doc(db, 'deposits', savedDeposit.depositId), savedDeposit);
-      } catch (mirrorError) {
-        // Turso is the source used by the live admin dashboard; Firestore is a legacy mirror.
-        console.warn('Deposit saved to Turso; Firestore mirror unavailable:', mirrorError);
-      }
       setUserDeposits((prev) => [savedDeposit, ...prev.filter((d) => d.depositId !== savedDeposit.depositId)]);
       sounds.playWin();
       return true;
@@ -1613,273 +1552,65 @@ export default function Home() {
     }
   };
 
-  const handleApproveDeposit = async (
-    depositId: string,
-    userId: string,
-    amount: number
-  ): Promise<boolean> => {
+  const handleApproveDeposit = async (depositId: string, userId: string, amount: number): Promise<boolean> => {
     try {
-      const now = Date.now();
-      const result = await runTransaction(db, async (txn) => {
-        const depositRef = doc(db, 'deposits', depositId);
-        const depositSnap = await txn.get(depositRef);
-        if (!depositSnap.exists()) throw new Error('Deposit request not found');
-
-        const deposit = { ...depositSnap.data(), id: depositSnap.id } as DepositRequest;
-        const storedAmount = Number(deposit.amount);
-        if (deposit.status !== 'pending') throw new Error('Deposit has already been reviewed');
-        if (!deposit.userId || deposit.userId !== userId || !Number.isSafeInteger(storedAmount) || storedAmount <= 0 || storedAmount !== amount) {
-          throw new Error('Deposit UID or amount verification failed');
-        }
-
-        const userRef = doc(db, 'users', deposit.userId);
-        const userSnap = await txn.get(userRef);
-        if (!userSnap.exists()) throw new Error('Deposit owner account not found');
-
-        const user = { ...userSnap.data(), uid: userSnap.id } as UserProfile;
-        const isFirstDeposit = !user.hasSuccessfulDeposit && (Number(user.totalSuccessfulDeposit) || 0) <= 0;
-        const firstDepositBonus = isFirstDeposit && storedAmount >= 5000 && !user.firstDepositBonusClaimed ? 2000 : 0;
-        const updatedUser: UserProfile = {
-          ...user,
-          balance: (Number(user.balance) || 0) + storedAmount + firstDepositBonus,
-          totalSuccessfulDeposit: (Number(user.totalSuccessfulDeposit) || 0) + storedAmount,
-          hasSuccessfulDeposit: true,
-          firstDepositBonusClaimed: (isFirstDeposit && storedAmount >= 5000) || !!user.firstDepositBonusClaimed,
-          updatedAt: now,
-        };
-
-        const referrerRef = user.referrerId && user.referrerId !== user.uid
-          ? doc(db, 'users', user.referrerId)
-          : null;
-        const referrerSnap = referrerRef ? await txn.get(referrerRef) : null;
-        const referrer = referrerSnap?.exists() ? referrerSnap.data() as UserProfile : null;
-
-        // All reads happen before writes; deposit status and balance credit commit together.
-        txn.update(depositRef, { status: 'approved', reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', completedAt: now, balanceMutationId: `deposit_${deposit.depositId}_${now}` });
-        txn.update(userRef, {
-          balance: updatedUser.balance,
-          totalSuccessfulDeposit: updatedUser.totalSuccessfulDeposit,
-          hasSuccessfulDeposit: true,
-          firstDepositBonusClaimed: updatedUser.firstDepositBonusClaimed,
-          updatedAt: now,
-        });
-
-        if (referrerRef && referrer) {
-          txn.update(referrerRef, {
-            depositedReferralsCount: (Number(referrer.depositedReferralsCount) || 0) + (isFirstDeposit ? 1 : 0),
-            referralTotalDeposits: (Number(referrer.referralTotalDeposits) || 0) + storedAmount,
-            updatedAt: now,
-          });
-        }
-
-        return {
-          deposit: { ...deposit, status: 'approved' as const, reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', completedAt: now },
-          updatedUser,
-        };
-      });
-
-      // Firestore is the source of truth; the mirror is updated only after the atomic commit.
-      syncToTurso('user', result.updatedUser);
-      syncToTurso('deposit', result.deposit);
-      if (currentUser && currentUser.uid === result.updatedUser.uid) {
-        setUserProfile(result.updatedUser);
-        cacheUserProfile(result.updatedUser);
+      const response = await fetch('/api/admin/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'deposit', id: depositId, decision: 'approve', note: `Approved by ${currentUser?.email || currentUser?.uid || 'admin'}` }) });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Deposit approval failed');
+      setPendingDeposits((items) => items.filter((item) => (item.id || item.depositId) !== depositId));
+      if (currentUser?.uid === userId) {
+        const refreshed = await fetch(`/api/turso/user?uid=${encodeURIComponent(userId)}&t=${Date.now()}`, { cache: 'no-store' });
+        const data = await refreshed.json();
+        if (data.success && data.user) setUserProfile(data.user as UserProfile);
       }
       return true;
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error('Deposit approval error:', error);
       return false;
     }
   };
-
   const handleDeclineDeposit = async (depositId: string): Promise<boolean> => {
     try {
-      const now = Date.now();
-      const declinedDeposit = await runTransaction(db, async (txn) => {
-        const depositRef = doc(db, 'deposits', depositId);
-        const depositSnap = await txn.get(depositRef);
-        if (!depositSnap.exists()) throw new Error('Deposit request not found');
-        const deposit = { ...depositSnap.data(), id: depositSnap.id } as DepositRequest;
-        if (deposit.status !== 'pending') throw new Error('Deposit has already been reviewed');
-        const reviewNote = 'ငွေလွှဲအထောက်အထား သို့မဟုတ် ပမာဏကို အတည်မပြုနိုင်ပါ';
-        const updated = { ...deposit, status: 'declined' as const, reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', reviewNote };
-        txn.update(depositRef, { status: 'declined', reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', reviewNote });
-        return updated;
-      });
-      syncToTurso('deposit', declinedDeposit);
+      const response = await fetch('/api/admin/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'deposit', id: depositId, decision: 'reject', note: 'ငွေလွှဲအထောက်အထား သို့မဟုတ် ပမာဏကို အတည်မပြုနိုင်ပါ' }) });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Deposit decline failed');
+      setPendingDeposits((items) => items.filter((item) => (item.id || item.depositId) !== depositId));
       return true;
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error('Deposit decline error:', error);
       return false;
     }
   };
-
-  const handleApproveWithdrawal = async (
-    withdrawalId: string,
-    userId: string,
-    amount: number
-  ): Promise<boolean> => {
+  const reviewWithdrawal = async (withdrawalId: string, decision: 'approve' | 'reject', note?: string): Promise<boolean> => {
     try {
-      const now = Date.now();
-      const result = await runTransaction(db, async (txn) => {
-        const withdrawalRef = doc(db, 'withdrawals', withdrawalId);
-        const withdrawalSnap = await txn.get(withdrawalRef);
-        if (!withdrawalSnap.exists()) throw new Error('Withdrawal request not found');
-        const withdrawal = { ...withdrawalSnap.data(), id: withdrawalSnap.id } as WithdrawalRequest;
-        const storedAmount = Number(withdrawal.amount);
-        if (withdrawal.status !== 'pending') throw new Error('Withdrawal has already been reviewed');
-        if (!withdrawal.userId || withdrawal.userId !== userId || !Number.isSafeInteger(storedAmount) || storedAmount <= 0 || storedAmount !== amount) {
-          throw new Error('Withdrawal UID or amount verification failed');
-        }
-
-        const userRef = doc(db, 'users', withdrawal.userId);
-        const userSnap = await txn.get(userRef);
-        if (!userSnap.exists()) throw new Error('Withdrawal owner account not found');
-        const user = { ...userSnap.data(), uid: userSnap.id } as UserProfile;
-        const updatedUser: UserProfile = {
-          ...user,
-          withdrawalCount: (Number(user.withdrawalCount) || 0) + 1,
-          wagerSinceLastWithdrawal: 0,
-          updatedAt: now,
-        };
-
-        txn.update(withdrawalRef, { status: 'approved', reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', completedAt: now, balanceMutationId: `withdrawal_${withdrawal.withdrawalId}_${now}` });
-        txn.update(userRef, {
-          withdrawalCount: updatedUser.withdrawalCount,
-          wagerSinceLastWithdrawal: 0,
-          updatedAt: now,
-        });
-        return {
-          withdrawal: { ...withdrawal, status: 'approved' as const, reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', completedAt: now },
-          updatedUser,
-        };
-      });
-
-      syncToTurso('withdrawal', result.withdrawal);
-      syncToTurso('user', result.updatedUser);
+      const response = await fetch('/api/admin/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'withdrawal', id: withdrawalId, decision, note: note || '' }) });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Withdrawal review failed');
+      setPendingWithdrawals((items) => items.filter((item) => (item.id || item.withdrawalId) !== withdrawalId));
       return true;
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error('Withdrawal review error:', error);
       return false;
     }
   };
-
-  const handleDeclineWithdrawal = async (
-    withdrawalId: string,
-    userId: string,
-    amount: number,
-    reason?: string
-  ): Promise<boolean> => {
-    try {
-      const now = Date.now();
-      const rejectionReason = reason || 'အကြောင်းပြချက် မဖော်ပြထားပါ';
-      const result = await runTransaction(db, async (txn) => {
-        const withdrawalRef = doc(db, 'withdrawals', withdrawalId);
-        const withdrawalSnap = await txn.get(withdrawalRef);
-        if (!withdrawalSnap.exists()) throw new Error('Withdrawal request not found');
-        const withdrawal = { ...withdrawalSnap.data(), id: withdrawalSnap.id } as WithdrawalRequest;
-        const storedAmount = Number(withdrawal.amount);
-        if (withdrawal.status !== 'pending') throw new Error('Withdrawal has already been reviewed');
-        if (!withdrawal.userId || withdrawal.userId !== userId || !Number.isSafeInteger(storedAmount) || storedAmount <= 0 || storedAmount !== amount) {
-          throw new Error('Withdrawal UID or amount verification failed');
-        }
-
-        const userRef = doc(db, 'users', withdrawal.userId);
-        const userSnap = await txn.get(userRef);
-        if (!userSnap.exists()) throw new Error('Withdrawal owner account not found');
-        const user = { ...userSnap.data(), uid: userSnap.id } as UserProfile;
-        const updatedUser: UserProfile = {
-          ...user,
-          balance: (Number(user.balance) || 0) + storedAmount,
-          updatedAt: now,
-        };
-
-        txn.update(withdrawalRef, { status: 'declined', rejectionReason, reviewNote: rejectionReason, reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', balanceMutationId: `refund_${withdrawal.withdrawalId}_${now}` });
-        txn.update(userRef, { balance: updatedUser.balance, updatedAt: now });
-        return {
-          withdrawal: { ...withdrawal, status: 'declined' as const, rejectionReason, reviewNote: rejectionReason, reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin' },
-          updatedUser,
-        };
-      });
-
-      syncToTurso('withdrawal', result.withdrawal);
-      syncToTurso('user', result.updatedUser);
-      if (currentUser?.uid === result.updatedUser.uid) {
-        setUserProfile(result.updatedUser);
-        cacheUserProfile(result.updatedUser);
-      }
-      return true;
-    } catch (e) {
-      console.error(e);
-      return false;
+  const handleApproveWithdrawal = async (withdrawalId: string): Promise<boolean> => reviewWithdrawal(withdrawalId, 'approve');
+  const handleDeclineWithdrawal = async (withdrawalId: string, _userId: string, _amount: number, reason?: string): Promise<boolean> => reviewWithdrawal(withdrawalId, 'reject', reason);
+  const handleAdjustUserBalance = async (userId: string, amount: number, isDeduct: boolean, note: string) => {
+    const response = await fetch('/api/admin/balance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: userId, amount, action: isDeduct ? 'deduct' : 'topup', note }) });
+    const result = await response.json();
+    if (result.success) {
+      setUserProfile((prev) => prev && prev.uid === userId ? { ...prev, balance: Number(result.newBalance) || prev.balance, updatedAt: Date.now() } : prev);
     }
+    return result;
   };
-
   const handleUpdateSettings = async (newSettings: GameSettings): Promise<boolean> => {
     try {
-      await setDoc(doc(db, 'settings', 'config'), newSettings);
-      setSettings(newSettings);
-      return true;
-    } catch (e) {
-      console.error(e);
+      const response = await fetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings: newSettings }) });
+      const result = await response.json();
+      if (response.ok && result.success) { setSettings({ ...DEFAULT_SETTINGS, ...newSettings }); return true; }
       return false;
-    }
+    } catch { return false; }
   };
-
-  // Admin User Balance Adjustment (Direct ID / Phone Topup or Deduct)
-  const handleAdjustUserBalance = async (
-    targetIdOrPhone: string,
-    amount: number,
-    isDeduct: boolean,
-    note: string
-  ): Promise<{ success: boolean; newBalance?: number; error?: string; user?: UserProfile }> => {
-    try {
-      const cleanTarget = targetIdOrPhone.trim();
-      let targetDocRef = doc(db, 'users', cleanTarget);
-      let targetSnap = await getDoc(targetDocRef);
-
-      // If not found by direct UID, attempt lookup by phone
-      if (!targetSnap.exists()) {
-        const phoneClean = cleanTarget.replace(/[^0-9]/g, '');
-        if (phoneClean) {
-          const q = query(collection(db, 'users'), where('phoneNumber', '==', phoneClean), limit(1));
-          const qSnap = await getDocs(q);
-          if (!qSnap.empty) {
-            targetDocRef = doc(db, 'users', qSnap.docs[0].id);
-            targetSnap = qSnap.docs[0];
-          }
-        }
-      }
-
-      if (!targetSnap.exists()) {
-        return { success: false, error: 'ဤ User ID သို့မဟုတ် ဖုန်းနံပါတ်ဖြင့် မန်ဘာမတွေ့ရှိပါ' };
-      }
-
-      const u = targetSnap.data() as UserProfile;
-      const currentBal = u.balance || 0;
-      const newBal = isDeduct ? Math.max(0, currentBal - amount) : currentBal + amount;
-
-      await updateDoc(targetDocRef, {
-        balance: newBal,
-        updatedAt: Date.now(),
-      });
-
-      const updatedUser: UserProfile = { ...u, balance: newBal, updatedAt: Date.now() };
-      syncToTurso('user', updatedUser);
-
-      // If target happens to be currently logged-in user, sync local state and cache
-      if (currentUser && (targetSnap.id === currentUser.uid || u.uid === currentUser.uid)) {
-        setUserProfile(updatedUser);
-        cacheUserProfile(updatedUser);
-      }
-
-      return { success: true, newBalance: newBal, user: updatedUser };
-    } catch (err: unknown) {
-      console.error('Error adjusting balance:', err);
-      return { success: false, error: err instanceof Error ? err.message : 'Balance ပြင်ဆင်မှု မအောင်မြင်ပါ' };
-    }
-  };
-
   // Admin User Explorer: exact UID lookup plus indexed prefix lookups, not first-page filtering.
   const handleSearchUsers = async (searchQuery: string): Promise<UserProfile[]> => {
     try {

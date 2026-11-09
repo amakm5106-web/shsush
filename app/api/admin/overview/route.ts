@@ -9,13 +9,17 @@ export async function GET(req: NextRequest) {
     await requireAdmin();
     const client = await db();
     const q = new URL(req.url).searchParams.get('q')?.trim() || '';
-    const [users, deposits, withdrawals, stats] = await Promise.all([
+    const [users, deposits, withdrawals, bets, stats] = await Promise.all([
       client.execute({ sql: q ? 'SELECT uid, fullName, email, phoneNumber, role, balance, referralBalance, hasSuccessfulDeposit, createdAt, updatedAt FROM users WHERE uid LIKE ? OR fullName LIKE ? OR phoneNumber LIKE ? ORDER BY updatedAt DESC LIMIT 100' : 'SELECT uid, fullName, email, phoneNumber, role, balance, referralBalance, hasSuccessfulDeposit, createdAt, updatedAt FROM users ORDER BY updatedAt DESC LIMIT 100', args: q ? [`%${q}%`, `%${q}%`, `%${q}%`] : [] }),
       client.execute("SELECT * FROM deposits WHERE status = 'pending' ORDER BY createdAt DESC LIMIT 100"),
       client.execute("SELECT * FROM withdrawals WHERE status = 'pending' ORDER BY createdAt DESC LIMIT 100"),
+      client.execute('SELECT * FROM bets ORDER BY createdAt DESC LIMIT 30'),
       client.execute('SELECT (SELECT COUNT(*) FROM users) AS users, (SELECT COALESCE(SUM(balance),0) FROM users) AS balance, (SELECT COUNT(*) FROM deposits WHERE status = \'pending\') AS pendingDeposits, (SELECT COUNT(*) FROM withdrawals WHERE status = \'pending\') AS pendingWithdrawals'),
     ]);
-    return NextResponse.json({ success: true, users: users.rows, deposits: deposits.rows, withdrawals: withdrawals.rows, stats: stats.rows[0] });
+    return NextResponse.json(
+      { success: true, users: users.rows, deposits: deposits.rows, withdrawals: withdrawals.rows, bets: bets.rows, stats: stats.rows[0] },
+      { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
+    );
   } catch (error) {
     const status = error instanceof Error && error.message === 'ADMIN_UNAUTHORIZED' ? 401 : 500;
     return NextResponse.json({ success: false, error: status === 401 ? 'Unauthorized' : 'Admin data မဖတ်နိုင်ပါ' }, { status });
