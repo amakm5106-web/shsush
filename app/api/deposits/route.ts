@@ -28,8 +28,8 @@ export async function POST(req: NextRequest) {
     if (method !== 'kpay' && method !== 'wave') {
       return NextResponse.json({ success: false, error: 'ငွေပေးချေမှုနည်းလမ်း မမှန်ကန်ပါ။' }, { status: 400 });
     }
-    if (trxLast5.length < 5 || trxLast5.length > 64) {
-      return NextResponse.json({ success: false, error: 'ငွေလွှဲ ID နောက်ဆုံးဂဏန်း ၅ လုံးကို မှန်ကန်စွာ ထည့်ပါ။' }, { status: 400 });
+    if (!/^\d{5}$/.test(trxLast5)) {
+      return NextResponse.json({ success: false, error: 'ငွေလွှဲ ID ၏ နောက်ဆုံးဂဏန်း ၅ လုံးကို နံပါတ်ဖြင့်သာ ထည့်ပါ။' }, { status: 400 });
     }
 
     await ensureAuthSchema();
