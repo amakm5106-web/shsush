@@ -26,7 +26,13 @@ export async function GET(req: NextRequest) {
         WHERE d.status = 'pending' ORDER BY d.createdAt DESC LIMIT 100`),
       client.execute("SELECT * FROM withdrawals WHERE status = 'pending' ORDER BY createdAt DESC LIMIT 100"),
       client.execute('SELECT * FROM bets ORDER BY createdAt DESC LIMIT 30'),
-      client.execute('SELECT (SELECT COUNT(*) FROM users) AS users, (SELECT COALESCE(SUM(balance),0) FROM users) AS balance, (SELECT COUNT(*) FROM deposits WHERE status = \'pending\') AS pendingDeposits, (SELECT COUNT(*) FROM withdrawals WHERE status = \'pending\') AS pendingWithdrawals'),
+      client.execute(`SELECT
+        (SELECT COUNT(*) FROM users) AS users,
+        (SELECT COALESCE(SUM(balance),0) FROM users) AS balance,
+        (SELECT COUNT(*) FROM deposits WHERE status = 'pending') AS pendingDeposits,
+        (SELECT COUNT(*) FROM withdrawals WHERE status = 'pending') AS pendingWithdrawals,
+        (SELECT COUNT(DISTINCT userId) FROM deposits) AS totalDepositors,
+        (SELECT COUNT(DISTINCT userId) FROM deposits WHERE status = 'completed') AS successfulDepositors`),
     ]);
     const depositRows = deposits.rows.map((row) => {
       const normalized = { ...row } as Record<string, unknown>;
