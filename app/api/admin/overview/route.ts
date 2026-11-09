@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
         (SELECT COUNT(*) FROM deposits WHERE status = 'pending') AS pendingDeposits,
         (SELECT COUNT(*) FROM withdrawals WHERE status = 'pending') AS pendingWithdrawals,
         (SELECT COUNT(DISTINCT userId) FROM deposits) AS totalDepositors,
-        (SELECT COUNT(DISTINCT userId) FROM deposits WHERE status = 'completed') AS successfulDepositors`),
+        (SELECT COUNT(DISTINCT userId) FROM deposits WHERE status = 'completed') AS successfulDepositors,
+        (SELECT COALESCE(SUM(amount),0) FROM deposits WHERE status = 'completed') AS successfulDepositAmount`),
     ]);
     const depositRows = deposits.rows.map((row) => {
       const normalized = { ...row } as Record<string, unknown>;

@@ -77,11 +77,12 @@ export default function AdminDashboard() {
       <div className="mx-auto max-w-7xl p-4 sm:p-8">
         <div className="mb-6 flex flex-wrap gap-2">{(['overview', 'users', 'deposits', 'withdrawals'] as const).map((item) => <button key={item} onClick={() => setTab(item)} className={`rounded-xl px-4 py-2 text-xs font-bold ${tab === item ? 'bg-amber-400 text-black' : 'bg-white/5 text-white/70 hover:bg-white/10'}`}>{item === 'overview' ? 'Overview' : item === 'users' ? 'Users' : item === 'deposits' ? 'ငွေသွင်း' : 'ငွေထုတ်'}</button>)}<div className="ml-auto flex gap-2"><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} placeholder="UID / phone / name ရှာရန်" className="w-52 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs outline-none focus:border-amber-400" /><button onClick={() => load()} className="rounded-xl bg-white/10 px-3 py-2 text-xs">Search</button></div></div>
         {notice && <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-200">{notice}</div>}
-        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">{[
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">{[
           ['Users', data.stats?.users],
           ['Total Balance', money(data.stats?.balance)],
           ['ငွေသွင်းသူ စုစုပေါင်း', data.stats?.totalDepositors],
           ['ငွေသွင်းအောင်မြင်သူ', data.stats?.successfulDepositors],
+          ['အောင်မြင်ငွေသွင်းငွေ', money(data.stats?.successfulDepositAmount)],
           ['Pending Deposits', data.stats?.pendingDeposits],
           ['Pending Withdrawals', data.stats?.pendingWithdrawals],
         ].map(([label, value]) => <div key={String(label)} className="ledger-panel rounded-2xl p-4"><p className="text-xs text-white/50">{String(label)}</p><p className="mt-2 text-xl font-black text-amber-300">{String(value ?? '-')}</p></div>)}</div>
