@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   try {
     const { phone, password } = await req.json();
     const cleanPhone = String(phone || '').replace(/\D/g, '');
-    if (cleanPhone.length < 7 || typeof password !== 'string' || password.length < 1) {
+    if (cleanPhone.length < 7 || typeof password !== 'string' || password.length < 6) {
       return NextResponse.json({ success: false, error: 'ဖုန်းနံပါတ်နှင့် password မှန်ကန်စွာ ထည့်ပါ' }, { status: 400 });
     }
     await ensureAuthSchema();

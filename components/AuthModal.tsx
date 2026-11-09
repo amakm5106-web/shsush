@@ -58,8 +58,9 @@ export function AuthModal({
       return;
     }
 
-    if (!password || password.length < 8) {
-      setErrorMessage('စကားဝှက် (Password) အနည်းဆုံး ၈ လုံး ထားရှိပေးပါ');
+    const minimumPasswordLength = tab === 'login' ? 6 : 8;
+    if (!password || password.length < minimumPasswordLength) {
+      setErrorMessage(`စကားဝှက် (Password) အနည်းဆုံး ${minimumPasswordLength} လုံး ထားရှိပေးပါ`);
       return;
     }
 
