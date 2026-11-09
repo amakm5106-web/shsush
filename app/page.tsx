@@ -142,6 +142,24 @@ const syncToTurso = (type: 'user' | 'bet' | 'deposit' | 'withdrawal', data: any)
   } catch {}
 };
 
+const fetchTursoUserProfile = async (query: string): Promise<UserProfile | null> => {
+  if (typeof window === 'undefined' || !query) return null;
+  try {
+    const res = await fetch(`/api/turso/user?query=${encodeURIComponent(query)}&t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-store' },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json.success && json.user) {
+      return json.user as UserProfile;
+    }
+  } catch (err) {
+    console.warn('Failed to fetch user from Turso:', err);
+  }
+  return null;
+};
+
 const cacheUserProfile = (profile: UserProfile | null) => {
   if (typeof window === 'undefined' || !profile) return;
   try {
@@ -333,6 +351,31 @@ export default function Home() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
+        const isUserAdmin = isAdminEmail(user.email);
+        const cleanPhone = user.phoneNumber
+          ? user.phoneNumber.replace(/[^0-9]/g, '')
+          : user.email?.includes('@phone.casino')
+          ? user.email.split('@')[0]
+          : '';
+
+        // 1. Check authoritative profile from Turso Cloud Database first
+        try {
+          let tursoProfile = await fetchTursoUserProfile(user.uid);
+          if (!tursoProfile && cleanPhone) {
+            tursoProfile = await fetchTursoUserProfile(cleanPhone);
+          }
+          if (tursoProfile) {
+            if (isUserAdmin) tursoProfile.role = 'admin';
+            setUserProfile(tursoProfile);
+            cacheUserProfile(tursoProfile);
+            setAuthLoading(false);
+            return;
+          }
+        } catch (tErr) {
+          console.warn('Initial Turso profile check note:', tErr);
+        }
+
+        // 2. Fallback to Firestore / local cache
         try {
           const userDocRef = doc(db, 'users', user.uid);
           let snap;
@@ -340,7 +383,6 @@ export default function Home() {
             snap = await getDoc(userDocRef);
           } catch (e) {
             console.warn('User profile initial fetch offline/reconnecting note:', e);
-            const isUserAdmin = isAdminEmail(user.email);
             const cachedProfile = getCachedUserProfile(user.uid);
             if (cachedProfile) {
               if (isUserAdmin) cachedProfile.role = 'admin';
@@ -512,7 +554,7 @@ export default function Home() {
     return () => unsubscribe();
   }, [settings.WELCOME_BONUS]);
 
-  // 3. Realtime User Profile Listener
+  // 3. Realtime User Profile Listener (Firestore mirror)
   useEffect(() => {
     if (!currentUser) return;
     const userDocRef = doc(db, 'users', currentUser.uid);
@@ -521,7 +563,12 @@ export default function Home() {
       (docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data() as UserProfile;
-          setUserProfile(data);
+          setUserProfile((prev) => {
+            if (prev && prev.balance > 0 && Number(data.balance || 0) === 0) {
+              return { ...data, balance: prev.balance };
+            }
+            return data;
+          });
           cacheUserProfile(data);
         }
       },
@@ -535,6 +582,73 @@ export default function Home() {
     );
     return () => unsub();
   }, [currentUser]);
+
+  // 3b. Active Real-Time Turso Poller (Every 3 seconds for instant Bot / Admin sync)
+  useEffect(() => {
+    const targetUid = currentUser?.uid || userProfile?.uid;
+    const targetPhone = userProfile?.phoneNumber;
+    if (!targetUid && !targetPhone) return;
+
+    let isSubscribed = true;
+
+    const pollTursoBalance = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
+      try {
+        const queryTarget = targetUid || targetPhone || '';
+        const res = await fetch(`/api/turso/user?query=${encodeURIComponent(queryTarget)}&t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-store' },
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.success && json.user && isSubscribed) {
+          const tUser = json.user as UserProfile;
+          setUserProfile((prev) => {
+            if (!prev) return tUser;
+            // Detect balance, referral, or bank changes
+            if (
+              prev.balance !== tUser.balance ||
+              prev.referralBalance !== tUser.referralBalance ||
+              prev.referralsCount !== tUser.referralsCount ||
+              (!prev.boundBank && tUser.boundBank) ||
+              (tUser.updatedAt && (!prev.updatedAt || tUser.updatedAt > prev.updatedAt))
+            ) {
+              const updated: UserProfile = {
+                ...prev,
+                ...tUser,
+                role: prev.role === 'admin' ? 'admin' : tUser.role,
+              };
+              try {
+                localStorage.setItem(`xai_user_profile_${updated.uid}`, JSON.stringify(updated));
+              } catch {}
+              return updated;
+            }
+            return prev;
+          });
+        }
+      } catch {
+        // silent retry on next interval
+      }
+    };
+
+    pollTursoBalance();
+    const interval = setInterval(pollTursoBalance, 3000);
+
+    const handleVisChange = () => {
+      if (document.visibilityState === 'visible') {
+        pollTursoBalance();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisChange);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisChange);
+    };
+  }, [currentUser?.uid, userProfile?.uid, userProfile?.phoneNumber]);
 
   // 4. Realtime Settings Listener
   useEffect(() => {
@@ -1938,7 +2052,22 @@ export default function Home() {
       const userCredential = await signInWithEmailAndPassword(auth, syntheticEmail, psw);
       const user = userCredential.user;
 
-      // 2. Fetch or initialize User Profile in Firestore
+      // 1b. Fetch authoritative User Profile from Turso Cloud Database
+      let tursoUser = await fetchTursoUserProfile(cleanPhone);
+      if (!tursoUser) {
+        tursoUser = await fetchTursoUserProfile(user.uid);
+      }
+
+      if (tursoUser) {
+        setUserProfile(tursoUser);
+        cacheUserProfile(tursoUser);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('xai_phone_user', JSON.stringify({ uid: user.uid, phone: cleanPhone }));
+        }
+        return { success: true };
+      }
+
+      // 2. Fallback: Fetch or initialize User Profile in Firestore
       const userDocRef = doc(db, 'users', user.uid);
       try {
         const snap = await getDoc(userDocRef);

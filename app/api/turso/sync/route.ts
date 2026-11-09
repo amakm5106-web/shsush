@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTursoClient } from '@/lib/turso';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -13,6 +15,41 @@ export async function POST(req: NextRequest) {
     const { type, data } = body;
 
     if (type === 'user' && data?.uid) {
+      // Protect existing balance, referral stats, and bound bank in Turso from being overwritten by 0
+      const existingRes = await turso.execute({
+        sql: 'SELECT balance, referralBalance, referralsCount, boundBank, role FROM users WHERE uid = ? LIMIT 1;',
+        args: [data.uid],
+      });
+
+      let finalBalance = Number(data.balance) || 0;
+      let finalReferralBalance = Number(data.referralBalance) || 0;
+      let finalReferralsCount = Number(data.referralsCount) || 0;
+      let finalBoundBank = data.boundBank
+        ? (typeof data.boundBank === 'string' ? data.boundBank : JSON.stringify(data.boundBank))
+        : '';
+      let finalRole = data.role || 'user';
+
+      if (existingRes.rows.length > 0) {
+        const existing = existingRes.rows[0];
+        const existingBal = Number(existing.balance) || 0;
+        // Never wipe out a positive database balance with 0 from a fresh or stale client session
+        if (existingBal > 0 && finalBalance === 0) {
+          finalBalance = existingBal;
+        }
+        if (Number(existing.referralBalance || 0) > 0 && finalReferralBalance === 0) {
+          finalReferralBalance = Number(existing.referralBalance);
+        }
+        if (Number(existing.referralsCount || 0) > 0 && finalReferralsCount === 0) {
+          finalReferralsCount = Number(existing.referralsCount);
+        }
+        if (!finalBoundBank && existing.boundBank) {
+          finalBoundBank = String(existing.boundBank);
+        }
+        if (existing.role === 'admin') {
+          finalRole = 'admin';
+        }
+      }
+
       await turso.execute({
         sql: `INSERT OR REPLACE INTO users (
           uid, fullName, email, phoneNumber, passwordHash, role, balance, referralBalance,
@@ -27,10 +64,10 @@ export async function POST(req: NextRequest) {
           data.email || '',
           data.phoneNumber || data.phone || '',
           data.passwordHash || '',
-          data.role || 'user',
-          Number(data.balance) || 0,
-          Number(data.referralBalance) || 0,
-          Number(data.referralsCount) || 0,
+          finalRole,
+          finalBalance,
+          finalReferralBalance,
+          finalReferralsCount,
           Number(data.depositedReferralsCount) || 0,
           Number(data.referralTotalDeposits) || 0,
           Number(data.totalBetCumulative) || 0,
@@ -41,13 +78,13 @@ export async function POST(req: NextRequest) {
           data.firstDepositBonusClaimed ? 1 : 0,
           data.referralCode || '',
           data.referrerId || '',
-          data.boundBank ? JSON.stringify(data.boundBank) : '',
+          finalBoundBank,
           data.isHedgingFlagged ? 1 : 0,
           Number(data.createdAt) || Date.now(),
           Number(data.updatedAt) || Date.now(),
         ],
       });
-      return NextResponse.json({ success: true, message: 'User synced to Turso' });
+      return NextResponse.json({ success: true, message: 'User synced to Turso', balance: finalBalance });
     }
 
     if (type === 'bet' && data?.betId) {

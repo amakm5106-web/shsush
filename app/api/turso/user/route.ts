@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTursoClient } from '@/lib/turso';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const uid = searchParams.get('uid');
+    const rawParam = searchParams.get('uid') || searchParams.get('query') || searchParams.get('phone') || '';
+    const cleanQ = rawParam.trim();
 
-    if (!uid) {
-      return NextResponse.json({ success: false, error: 'UID required' }, { status: 400 });
+    if (!cleanQ) {
+      return NextResponse.json({ success: false, error: 'UID or Phone required' }, { status: 400 });
     }
 
     const turso = getTursoClient();
@@ -16,12 +19,21 @@ export async function GET(req: NextRequest) {
     }
 
     const res = await turso.execute({
-      sql: 'SELECT * FROM users WHERE uid = ? LIMIT 1;',
-      args: [uid],
+      sql: `SELECT * FROM users 
+            WHERE uid = ? 
+               OR phoneNumber = ? 
+               OR phoneNumber LIKE ? 
+               OR referralCode = ? 
+               OR uid LIKE ? 
+            LIMIT 1;`,
+      args: [cleanQ, cleanQ, `%${cleanQ}%`, cleanQ, `${cleanQ}%`],
     });
 
     if (res.rows.length === 0) {
-      return NextResponse.json({ success: false, error: 'User not found in Turso' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: 'User not found in Turso' },
+        { status: 404, headers: { 'Cache-Control': 'no-store, max-age=0' } }
+      );
     }
 
     const row = res.rows[0];
