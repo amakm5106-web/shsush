@@ -15,40 +15,44 @@ export async function POST(req: NextRequest) {
     const { type, data } = body;
 
     if (type === 'user' && data?.uid) {
-      // Protect existing balance, referral stats, and bound bank in Turso from being overwritten by 0
+      // Query all existing user columns from Turso to merge safely
       const existingRes = await turso.execute({
-        sql: 'SELECT balance, referralBalance, referralsCount, boundBank, role FROM users WHERE uid = ? LIMIT 1;',
+        sql: 'SELECT * FROM users WHERE uid = ? LIMIT 1;',
         args: [data.uid],
       });
 
-      let finalBalance = Number(data.balance) || 0;
-      let finalReferralBalance = Number(data.referralBalance) || 0;
-      let finalReferralsCount = Number(data.referralsCount) || 0;
-      let finalBoundBank = data.boundBank
-        ? (typeof data.boundBank === 'string' ? data.boundBank : JSON.stringify(data.boundBank))
-        : '';
-      let finalRole = data.role || 'user';
+      const existing = (existingRes.rows.length > 0 ? existingRes.rows[0] : {}) as Record<string, any>;
+      const existingBal = Number(existing.balance) || 0;
 
-      if (existingRes.rows.length > 0) {
-        const existing = existingRes.rows[0];
-        const existingBal = Number(existing.balance) || 0;
-        // Never wipe out a positive database balance with 0 from a fresh or stale client session
-        if (existingBal > 0 && finalBalance === 0) {
-          finalBalance = existingBal;
-        }
-        if (Number(existing.referralBalance || 0) > 0 && finalReferralBalance === 0) {
-          finalReferralBalance = Number(existing.referralBalance);
-        }
-        if (Number(existing.referralsCount || 0) > 0 && finalReferralsCount === 0) {
-          finalReferralsCount = Number(existing.referralsCount);
-        }
-        if (!finalBoundBank && existing.boundBank) {
-          finalBoundBank = String(existing.boundBank);
-        }
-        if (existing.role === 'admin') {
-          finalRole = 'admin';
-        }
+      let finalBalance = data.balance !== undefined ? Number(data.balance) : existingBal;
+      // Never wipe out a positive database balance with 0 from an unauthenticated fresh fallback session
+      if (existingBal > 0 && finalBalance === 0 && !data.isExplicitBalanceUpdate && (!data.createdAt || data.createdAt === 0)) {
+        finalBalance = existingBal;
       }
+
+      const finalFullName = data.fullName || existing.fullName || '';
+      const finalEmail = data.email || existing.email || '';
+      const finalPhone = data.phoneNumber || data.phone || existing.phoneNumber || '';
+      const finalPasswordHash = data.passwordHash || existing.passwordHash || '';
+      const finalRole = existing.role === 'admin' ? 'admin' : (data.role || existing.role || 'user');
+      const finalReferralBalance = data.referralBalance !== undefined ? Number(data.referralBalance) : (Number(existing.referralBalance) || 0);
+      const finalReferralsCount = data.referralsCount !== undefined ? Number(data.referralsCount) : (Number(existing.referralsCount) || 0);
+      const finalDepositedCount = data.depositedReferralsCount !== undefined ? Number(data.depositedReferralsCount) : (Number(existing.depositedReferralsCount) || 0);
+      const finalRefDeposits = data.referralTotalDeposits !== undefined ? Number(data.referralTotalDeposits) : (Number(existing.referralTotalDeposits) || 0);
+      const finalBetCumulative = data.totalBetCumulative !== undefined ? Number(data.totalBetCumulative) : (Number(existing.totalBetCumulative) || 0);
+      const finalSuccessfulDeposit = data.totalSuccessfulDeposit !== undefined ? Number(data.totalSuccessfulDeposit) : (Number(existing.totalSuccessfulDeposit) || 0);
+      const finalWithdrawalCount = data.withdrawalCount !== undefined ? Number(data.withdrawalCount) : (Number(existing.withdrawalCount) || 0);
+      const finalWager = data.wagerSinceLastWithdrawal !== undefined ? Number(data.wagerSinceLastWithdrawal) : (Number(existing.wagerSinceLastWithdrawal) || 0);
+      const finalHasDeposit = data.hasSuccessfulDeposit !== undefined ? (data.hasSuccessfulDeposit ? 1 : 0) : (existing.hasSuccessfulDeposit ? 1 : 0);
+      const finalFirstDepositBonus = data.firstDepositBonusClaimed !== undefined ? (data.firstDepositBonusClaimed ? 1 : 0) : (existing.firstDepositBonusClaimed ? 1 : 0);
+      const finalReferralCode = data.referralCode || existing.referralCode || '';
+      const finalReferrerId = data.referrerId || existing.referrerId || '';
+      const finalBoundBank = data.boundBank
+        ? (typeof data.boundBank === 'string' ? data.boundBank : JSON.stringify(data.boundBank))
+        : (existing.boundBank ? String(existing.boundBank) : '');
+      const finalIsHedging = data.isHedgingFlagged !== undefined ? (data.isHedgingFlagged ? 1 : 0) : (existing.isHedgingFlagged ? 1 : 0);
+      const finalCreatedAt = Number(data.createdAt) || Number(existing.createdAt) || Date.now();
+      const finalUpdatedAt = Date.now();
 
       await turso.execute({
         sql: `INSERT OR REPLACE INTO users (
@@ -60,31 +64,37 @@ export async function POST(req: NextRequest) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         args: [
           data.uid,
-          data.fullName || '',
-          data.email || '',
-          data.phoneNumber || data.phone || '',
-          data.passwordHash || '',
+          finalFullName,
+          finalEmail,
+          finalPhone,
+          finalPasswordHash,
           finalRole,
           finalBalance,
           finalReferralBalance,
           finalReferralsCount,
-          Number(data.depositedReferralsCount) || 0,
-          Number(data.referralTotalDeposits) || 0,
-          Number(data.totalBetCumulative) || 0,
-          Number(data.totalSuccessfulDeposit) || 0,
-          Number(data.withdrawalCount) || 0,
-          Number(data.wagerSinceLastWithdrawal) || 0,
-          data.hasSuccessfulDeposit ? 1 : 0,
-          data.firstDepositBonusClaimed ? 1 : 0,
-          data.referralCode || '',
-          data.referrerId || '',
+          finalDepositedCount,
+          finalRefDeposits,
+          finalBetCumulative,
+          finalSuccessfulDeposit,
+          finalWithdrawalCount,
+          finalWager,
+          finalHasDeposit,
+          finalFirstDepositBonus,
+          finalReferralCode,
+          finalReferrerId,
           finalBoundBank,
-          data.isHedgingFlagged ? 1 : 0,
-          Number(data.createdAt) || Date.now(),
-          Number(data.updatedAt) || Date.now(),
+          finalIsHedging,
+          finalCreatedAt,
+          finalUpdatedAt,
         ],
       });
-      return NextResponse.json({ success: true, message: 'User synced to Turso', balance: finalBalance });
+      return NextResponse.json({
+        success: true,
+        message: 'User synced to Turso',
+        balance: finalBalance,
+        fullName: finalFullName,
+        phone: finalPhone,
+      });
     }
 
     if (type === 'bet' && data?.betId) {

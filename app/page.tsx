@@ -1018,14 +1018,24 @@ export default function Home() {
           });
 
           if (currentUser && userProfile) {
+            const newBal = (userProfile.balance || 0) + totalWinnings;
+            const winUser: UserProfile = {
+              ...userProfile,
+              balance: newBal,
+              updatedAt: Date.now(),
+            };
+            setUserProfile(winUser);
+            cacheUserProfile(winUser);
+            syncToTurso('user', winUser);
+
             try {
               const userDocRef = doc(db, 'users', currentUser.uid);
               await updateDoc(userDocRef, {
-                balance: (userProfile.balance || 0) + totalWinnings,
+                balance: newBal,
                 updatedAt: Date.now(),
               });
             } catch (e) {
-              console.error('Error crediting winnings:', e);
+              console.error('Error crediting winnings to firestore:', e);
             }
           }
         }
@@ -1410,6 +1420,19 @@ export default function Home() {
         updatedAt: Date.now(),
       });
 
+      const updatedUser: UserProfile = {
+        ...userProfile,
+        balance: newBalance,
+        totalBetCumulative: newCumulative,
+        wagerSinceLastWithdrawal: newWager,
+        cleanTurnoverRequired: newCleanRequired,
+        isHedgingFlagged: isStillFlagged,
+        updatedAt: Date.now(),
+      };
+      setUserProfile(updatedUser);
+      cacheUserProfile(updatedUser);
+      syncToTurso('user', updatedUser);
+
       await setDoc(doc(db, 'bets', betId), newBet);
       syncToTurso('bet', newBet);
       setCurrentRoundBets((prev) => [...prev, newBet]);
@@ -1657,6 +1680,14 @@ export default function Home() {
       await updateDoc(userDocRef, updates);
       await setDoc(doc(db, 'withdrawals', withId), newWith);
       syncToTurso('withdrawal', newWith);
+
+      const afterWithUser: UserProfile = {
+        ...userProfile,
+        ...updates,
+      };
+      setUserProfile(afterWithUser);
+      cacheUserProfile(afterWithUser);
+      syncToTurso('user', afterWithUser);
       return true;
     } catch (err) {
       console.error('Withdrawal error:', err);
@@ -1722,6 +1753,16 @@ export default function Home() {
         claimedMilestones: [...claimed, milestoneId],
         updatedAt: Date.now(),
       });
+      const updatedUser: UserProfile = {
+        ...userProfile,
+        balance: (userProfile.balance || 0) + rewardAmount,
+        claimedMilestones: [...claimed, milestoneId],
+        updatedAt: Date.now(),
+      };
+      setUserProfile(updatedUser);
+      cacheUserProfile(updatedUser);
+      syncToTurso('user', updatedUser);
+
       sounds.playWin();
       confetti({
         particleCount: 90,
@@ -1750,6 +1791,16 @@ export default function Home() {
         referralBalance: (userProfile.referralBalance || 0) - amountToTransfer,
         updatedAt: Date.now(),
       });
+
+      const updatedUser: UserProfile = {
+        ...userProfile,
+        balance: (userProfile.balance || 0) + amountToTransfer,
+        referralBalance: (userProfile.referralBalance || 0) - amountToTransfer,
+        updatedAt: Date.now(),
+      };
+      setUserProfile(updatedUser);
+      cacheUserProfile(updatedUser);
+      syncToTurso('user', updatedUser);
       return true;
     } catch (e) {
       console.error('Transfer referral error:', e);
@@ -1784,6 +1835,21 @@ export default function Home() {
           firstDepositBonusClaimed: (isFirst && amount >= 5000) ? true : !!u.firstDepositBonusClaimed,
           updatedAt: Date.now(),
         });
+
+        const updatedTarget: UserProfile = {
+          ...u,
+          balance: (u.balance || 0) + creditAmount,
+          totalSuccessfulDeposit: (u.totalSuccessfulDeposit || 0) + amount,
+          hasSuccessfulDeposit: true,
+          firstDepositBonusClaimed: (isFirst && amount >= 5000) ? true : !!u.firstDepositBonusClaimed,
+          updatedAt: Date.now(),
+        };
+        syncToTurso('user', updatedTarget);
+        syncToTurso('deposit', { id: depositId, depositId, status: 'approved', reviewedAt: Date.now() });
+        if (currentUser && (userId === currentUser.uid || u.uid === currentUser.uid)) {
+          setUserProfile(updatedTarget);
+          cacheUserProfile(updatedTarget);
+        }
 
         // Update Referrer Stats in Realtime
         if (u.referrerId) {
@@ -1821,6 +1887,7 @@ export default function Home() {
         status: 'declined',
         reviewedAt: Date.now(),
       });
+      syncToTurso('deposit', { id: depositId, depositId, status: 'declined', reviewedAt: Date.now() });
       return true;
     } catch (e) {
       console.error(e);
@@ -1838,16 +1905,24 @@ export default function Home() {
         status: 'approved',
         reviewedAt: Date.now(),
       });
+      syncToTurso('withdrawal', { id: withdrawalId, withdrawalId, status: 'approved', reviewedAt: Date.now() });
 
       const userDocRef = doc(db, 'users', userId);
       const userSnap = await getDoc(userDocRef);
       if (userSnap.exists()) {
         const u = userSnap.data() as UserProfile;
+        const updatedUser: UserProfile = {
+          ...u,
+          withdrawalCount: (u.withdrawalCount || 0) + 1,
+          wagerSinceLastWithdrawal: 0,
+          updatedAt: Date.now(),
+        };
         await updateDoc(userDocRef, {
           withdrawalCount: (u.withdrawalCount || 0) + 1,
           wagerSinceLastWithdrawal: 0,
           updatedAt: Date.now(),
         });
+        syncToTurso('user', updatedUser);
       }
       return true;
     } catch (e) {
@@ -1868,15 +1943,32 @@ export default function Home() {
         rejectionReason: reason || 'အကြောင်းပြချက် မဖော်ပြထားပါ',
         reviewedAt: Date.now(),
       });
+      syncToTurso('withdrawal', {
+        id: withdrawalId,
+        withdrawalId,
+        status: 'declined',
+        rejectionReason: reason || 'အကြောင်းပြချက် မဖော်ပြထားပါ',
+        reviewedAt: Date.now(),
+      });
 
       const userDocRef = doc(db, 'users', userId);
       const userSnap = await getDoc(userDocRef);
       if (userSnap.exists()) {
         const u = userSnap.data() as UserProfile;
+        const refundedUser: UserProfile = {
+          ...u,
+          balance: (u.balance || 0) + amount,
+          updatedAt: Date.now(),
+        };
         await updateDoc(userDocRef, {
           balance: (u.balance || 0) + amount,
           updatedAt: Date.now(),
         });
+        syncToTurso('user', refundedUser);
+        if (currentUser && (userId === currentUser.uid || u.uid === currentUser.uid)) {
+          setUserProfile(refundedUser);
+          cacheUserProfile(refundedUser);
+        }
       }
       return true;
     } catch (e) {
@@ -1935,6 +2027,7 @@ export default function Home() {
       });
 
       const updatedUser: UserProfile = { ...u, balance: newBal, updatedAt: Date.now() };
+      syncToTurso('user', updatedUser);
 
       // If target happens to be currently logged-in user, sync local state and cache
       if (currentUser && (targetSnap.id === currentUser.uid || u.uid === currentUser.uid)) {
@@ -2860,7 +2953,13 @@ export default function Home() {
                   sounds.enabled = next;
                 }}
                 onUpdateUserBalance={(newBal) => {
-                  setUserProfile((prev) => (prev ? { ...prev, balance: newBal } : null));
+                  setUserProfile((prev) => {
+                    if (!prev) return null;
+                    const updated = { ...prev, balance: newBal, updatedAt: Date.now() };
+                    cacheUserProfile(updated);
+                    syncToTurso('user', updated);
+                    return updated;
+                  });
                 }}
               />
             )}
