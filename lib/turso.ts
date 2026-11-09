@@ -109,6 +109,27 @@ export async function initTursoSchema(client: Client) {
       updatedAt INTEGER
     );`
   ], 'write');
+
+  // CREATE TABLE IF NOT EXISTS does not add columns to an existing table.
+  // Upgrade older users tables in place before signup/login queries run.
+  const existingUsersColumns = new Set(
+    (await client.execute('PRAGMA table_info(users);')).rows.map((row) => String(row.name))
+  );
+  const missingUsersColumns: Record<string, string> = {
+    passwordHash: 'TEXT', role: "TEXT DEFAULT 'user'", balance: 'INTEGER DEFAULT 0',
+    referralBalance: 'INTEGER DEFAULT 0', referralsCount: 'INTEGER DEFAULT 0',
+    depositedReferralsCount: 'INTEGER DEFAULT 0', referralTotalDeposits: 'INTEGER DEFAULT 0',
+    totalBetCumulative: 'INTEGER DEFAULT 0', totalSuccessfulDeposit: 'INTEGER DEFAULT 0',
+    withdrawalCount: 'INTEGER DEFAULT 0', wagerSinceLastWithdrawal: 'INTEGER DEFAULT 0',
+    hasSuccessfulDeposit: 'INTEGER DEFAULT 0', firstDepositBonusClaimed: 'INTEGER DEFAULT 0',
+    referralCode: 'TEXT', referrerId: 'TEXT', boundBank: 'TEXT',
+    isHedgingFlagged: 'INTEGER DEFAULT 0', createdAt: 'INTEGER', updatedAt: 'INTEGER',
+  };
+  for (const [column, definition] of Object.entries(missingUsersColumns)) {
+    if (!existingUsersColumns.has(column)) {
+      await client.execute(`ALTER TABLE users ADD COLUMN ${column} ${definition};`);
+    }
+  }
 }
 
 export async function tursoGetUser(uid: string) {

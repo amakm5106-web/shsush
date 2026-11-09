@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
     const { phone, password, fullName, referralCode } = await req.json();
     const cleanPhone = String(phone || '').replace(/\D/g, '');
     const name = String(fullName || '').trim();
-    if (cleanPhone.length < 7 || password.length < 8 || name.length < 2) {
+    if (cleanPhone.length < 7 || typeof password !== 'string' || password.length < 8 || name.length < 2) {
       return NextResponse.json({ success: false, error: 'ဖုန်းနံပါတ်၊ နာမည်နှင့် အနည်းဆုံး ၈ လုံး password ထည့်ပါ' }, { status: 400 });
     }
     await ensureAuthSchema();
