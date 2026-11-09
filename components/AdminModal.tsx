@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ShieldAlert,
   X,
@@ -26,6 +26,8 @@ import {
   Building2,
   CheckCircle2,
   Database,
+  Activity,
+  Clock3,
 } from 'lucide-react';
 import {
   DepositRequest,
@@ -34,6 +36,7 @@ import {
   WithdrawalRequest,
   UserProfile,
   CurrentRoundData,
+  UserActivitySnapshot,
 } from '@/lib/types';
 import { formatKs, classifyDiceTotal, classifyDiceColor } from '@/lib/constants';
 import { sounds } from '@/lib/audio';
@@ -59,6 +62,7 @@ interface AdminModalProps {
     note: string
   ) => Promise<{ success: boolean; newBalance?: number; error?: string; user?: UserProfile }>;
   onSearchUsers?: (query: string) => Promise<UserProfile[]>;
+  onLoadUserActivity?: (uid: string) => Promise<UserActivitySnapshot>;
   onToggleUserFlag?: (userId: string, isFlagged: boolean) => Promise<boolean>;
   onToggleUserRole?: (userId: string, newRole: 'admin' | 'user') => Promise<boolean>;
   onForceDiceRoll?: (dice1: number, dice2: number) => Promise<boolean>;
@@ -80,6 +84,7 @@ export function AdminModal({
   onTriggerRoll,
   onAdjustUserBalance,
   onSearchUsers,
+  onLoadUserActivity,
   onToggleUserFlag,
   onToggleUserRole,
   onForceDiceRoll,
@@ -91,6 +96,11 @@ export function AdminModal({
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const [rejectionTarget, setRejectionTarget] = useState<WithdrawalRequest | null>(null);
   const [rejectionNote, setRejectionNote] = useState<string>('');
+  const [reviewingDepositIds, setReviewingDepositIds] = useState<Set<string>>(new Set());
+  const reviewingDepositIdsRef = useRef(new Set<string>());
+  const [reviewingWithdrawalIds, setReviewingWithdrawalIds] = useState<Set<string>>(new Set());
+  const reviewingWithdrawalIdsRef = useRef(new Set<string>());
+  const [reviewFeedback, setReviewFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
   // Turso Database Migration States
   const [tursoDbUrl, setTursoDbUrl] = useState<string>('');
@@ -128,6 +138,10 @@ export function AdminModal({
   const [userList, setUserList] = useState<UserProfile[]>([]);
   const [searchingUsers, setSearchingUsers] = useState<boolean>(false);
   const [userFilter, setUserFilter] = useState<'all' | 'users' | 'admins' | 'deposited' | 'flagged'>('all');
+  const [selectedActivityUid, setSelectedActivityUid] = useState<string | null>(null);
+  const [userActivity, setUserActivity] = useState<UserActivitySnapshot | null>(null);
+  const [loadingUserActivity, setLoadingUserActivity] = useState<boolean>(false);
+  const [userActivityError, setUserActivityError] = useState<string | null>(null);
   
   // Direct Balance Adjuster State
   const [targetUserId, setTargetUserId] = useState<string>('');
@@ -197,6 +211,79 @@ export function AdminModal({
       setUserList(res || []);
     } finally {
       setSearchingUsers(false);
+    }
+  };
+
+  const handleDepositReview = async (deposit: DepositRequest, decision: 'approve' | 'decline') => {
+    const id = deposit.id || deposit.depositId || '';
+    if (!id || reviewingDepositIdsRef.current.has(id)) return;
+    reviewingDepositIdsRef.current.add(id);
+    setReviewingDepositIds((previous) => new Set(previous).add(id));
+    setReviewFeedback(null);
+    try {
+      const ok = decision === 'approve'
+        ? await onApproveDeposit(id, deposit.userId, deposit.amount)
+        : await onDeclineDeposit(id);
+      setReviewFeedback(ok
+        ? { type: 'success', msg: decision === 'approve' ? `UID ${deposit.userId} အတွက် ငွေသွင်းကို တစ်ကြိမ်သာ အတည်ပြုပြီးပါပြီ။` : 'ငွေသွင်းတောင်းဆိုမှုကို ပယ်ချပြီးပါပြီ။' }
+        : { type: 'error', msg: 'မအောင်မြင်ပါ—တောင်းဆိုမှုကို စစ်ပြီးသားဖြစ်နိုင်သည်။ စာရင်းကို refresh လုပ်ပြီး status ကိုပြန်စစ်ပါ။' });
+    } catch {
+      setReviewFeedback({ type: 'error', msg: 'လုပ်ဆောင်မှု မအောင်မြင်ပါ။ Status ကိုပြန်စစ်ပြီးမှ ထပ်ကြိုးစားပါ။' });
+    } finally {
+      reviewingDepositIdsRef.current.delete(id);
+      setReviewingDepositIds((previous) => {
+        const next = new Set(previous);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
+  const handleWithdrawalReview = async (withdrawal: WithdrawalRequest, decision: 'approve' | 'decline', reason?: string) => {
+    const id = withdrawal.id || withdrawal.withdrawalId || '';
+    if (!id || reviewingWithdrawalIdsRef.current.has(id)) return false;
+    reviewingWithdrawalIdsRef.current.add(id);
+    setReviewingWithdrawalIds((previous) => new Set(previous).add(id));
+    setReviewFeedback(null);
+    try {
+      const ok = decision === 'approve'
+        ? await onApproveWithdrawal(id, withdrawal.userId, withdrawal.amount)
+        : await onDeclineWithdrawal(id, withdrawal.userId, withdrawal.amount, reason);
+      setReviewFeedback(ok
+        ? { type: 'success', msg: decision === 'approve' ? `UID ${withdrawal.userId} ၏ ငွေထုတ်ကို တစ်ကြိမ်သာ အတည်ပြုပြီးပါပြီ။` : 'ငွေထုတ်တောင်းဆိုမှုကို ပယ်ချပြီး ပြန်အမ်းပြီးပါပြီ။' }
+        : { type: 'error', msg: 'မအောင်မြင်ပါ—တောင်းဆိုမှုကို စစ်ပြီးသားဖြစ်နိုင်သည်။ စာရင်းကို refresh လုပ်ပြီး status ကိုပြန်စစ်ပါ။' });
+      return ok;
+    } catch {
+      setReviewFeedback({ type: 'error', msg: 'လုပ်ဆောင်မှု မအောင်မြင်ပါ။ Status ကိုပြန်စစ်ပြီးမှ ထပ်ကြိုးစားပါ။' });
+      return false;
+    } finally {
+      reviewingWithdrawalIdsRef.current.delete(id);
+      setReviewingWithdrawalIds((previous) => {
+        const next = new Set(previous);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
+  const handleToggleUserActivity = async (uid: string) => {
+    if (selectedActivityUid === uid) {
+      setSelectedActivityUid(null);
+      setUserActivity(null);
+      setUserActivityError(null);
+      return;
+    }
+    setSelectedActivityUid(uid);
+    setUserActivity(null);
+    setUserActivityError(null);
+    setLoadingUserActivity(true);
+    try {
+      if (!onLoadUserActivity) throw new Error('Account activity source is unavailable');
+      setUserActivity(await onLoadUserActivity(uid));
+    } catch {
+      setUserActivityError('ဤ UID အတွက် activity မှတ်တမ်းကို မဖတ်နိုင်ပါ။ Connection နှင့် admin access ကိုစစ်ပါ။');
+    } finally {
+      setLoadingUserActivity(false);
     }
   };
 
@@ -436,6 +523,21 @@ export function AdminModal({
         {/* TAB 1: DEPOSITS */}
         {activeTab === 'deposits' && (
           <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2.5">
+            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-black text-white">စစ်ဆေးရန် ငွေသွင်း {pendingDeposits.length} ခု</div>
+                <div className="text-[10px] text-white/60 mt-0.5">Approve မလုပ်မီ UID၊ amount နှင့် ငွေလွှဲအထောက်အထားကို တိုက်စစ်ပါ။</div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="text-[10px] text-white/60">Pending amount</div>
+                <div className="text-sm font-black font-mono text-amber-300">{formatKs(pendingDeposits.reduce((sum, dep) => sum + (Number(dep.amount) || 0), 0))}</div>
+              </div>
+            </div>
+            {reviewFeedback && (
+              <div role="status" className={`px-3 py-2 rounded-xl text-xs font-bold border ${reviewFeedback.type === 'success' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' : 'bg-red-500/10 text-red-300 border-red-500/25'}`}>
+                {reviewFeedback.msg}
+              </div>
+            )}
             {pendingDeposits.length === 0 ? (
               <div className="py-16 text-center text-xs text-white/60 font-bold flex flex-col items-center gap-2">
                 <CheckCircle2 className="w-8 h-8 text-emerald-400/40" />
@@ -443,12 +545,14 @@ export function AdminModal({
               </div>
             ) : (
               pendingDeposits.map((dep) => (
-                <div key={dep.depositId} className="p-3.5 rounded-2xl dark-glass-card flex flex-col gap-2.5 border border-white/10">
+                <div key={dep.id || dep.depositId} aria-busy={reviewingDepositIds.has(dep.id || dep.depositId || '')} className="p-3.5 rounded-2xl dark-glass-card flex flex-col gap-2.5 border border-white/10">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="font-black text-white text-sm">{dep.userName}</span>
-                      <span className="text-[11px] text-white/60 font-mono block">ID: {dep.userId}</span>
+                      <span className="text-[11px] text-white/80 font-mono block">UID: {dep.userId}</span>
+                      <span className="text-[10px] text-white/45 font-mono block">Deposit ID: {dep.id || dep.depositId}</span>
                       {dep.phone && <span className="text-[11px] text-amber-400 font-mono block">ဖုန်း: {dep.phone}</span>}
+                      {dep.accountName && <span className="text-[10px] text-white/55 block">အကောင့်အမည်: {dep.accountName}</span>}
                     </div>
                     <div className="text-right">
                       <span className="font-mono text-base font-black text-emerald-400">
@@ -462,6 +566,7 @@ export function AdminModal({
                       <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded bg-white/10 text-white border border-white/15 block mt-0.5">
                         {dep.method}
                       </span>
+                      <span className="text-[10px] text-white/45 block mt-1">{dep.createdAt ? new Date(dep.createdAt).toLocaleString() : 'အချိန်မသိ'}</span>
                     </div>
                   </div>
 
@@ -489,18 +594,20 @@ export function AdminModal({
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
                     <button
                       type="button"
-                      onClick={() => onDeclineDeposit(dep.depositId)}
-                      className="px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-black transition-all active:scale-95 border border-red-500/30"
+                      onClick={() => void handleDepositReview(dep, 'decline')}
+                      disabled={reviewingDepositIds.has(dep.id || dep.depositId || '')}
+                      className="px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-black transition-all active:scale-95 border border-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      ပယ်ချမည်
+                      {reviewingDepositIds.has(dep.id || dep.depositId || '') ? 'လုပ်ဆောင်နေသည်...' : 'ပယ်ချမည်'}
                     </button>
                     <button
                       type="button"
-                      onClick={() => onApproveDeposit(dep.depositId, dep.userId, dep.amount)}
-                      className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black transition-all active:scale-95 shadow-md flex items-center gap-1.5"
+                      onClick={() => void handleDepositReview(dep, 'approve')}
+                      disabled={reviewingDepositIds.has(dep.id || dep.depositId || '')}
+                      className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black transition-all active:scale-95 shadow-md flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      အတည်ပြုမည် (ငွေသွင်းပေးမည်)
+                      {reviewingDepositIds.has(dep.id || dep.depositId || '') ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      {reviewingDepositIds.has(dep.id || dep.depositId || '') ? 'အတည်ပြုနေသည်...' : 'အတည်ပြုမည် (ငွေသွင်းပေးမည်)'}
                     </button>
                   </div>
                 </div>
@@ -512,6 +619,11 @@ export function AdminModal({
         {/* TAB 2: WITHDRAWALS */}
         {activeTab === 'withdrawals' && (
           <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2.5">
+            {reviewFeedback && (
+              <div role="status" className={`px-3 py-2 rounded-xl text-xs font-bold border ${reviewFeedback.type === 'success' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25' : 'bg-red-500/10 text-red-300 border-red-500/25'}`}>
+                {reviewFeedback.msg}
+              </div>
+            )}
             {pendingWithdrawals.length === 0 ? (
               <div className="py-16 text-center text-xs text-white/60 font-bold flex flex-col items-center gap-2">
                 <CheckCircle2 className="w-8 h-8 text-emerald-400/40" />
@@ -519,7 +631,7 @@ export function AdminModal({
               </div>
             ) : (
               pendingWithdrawals.map((w) => (
-                <div key={w.withdrawalId} className="p-3.5 rounded-2xl dark-glass-card flex flex-col gap-2.5 border border-white/10">
+                <div key={w.id || w.withdrawalId} aria-busy={reviewingWithdrawalIds.has(w.id || w.withdrawalId || '')} className="p-3.5 rounded-2xl dark-glass-card flex flex-col gap-2.5 border border-white/10">
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="font-black text-white text-sm">{w.accountName}</span>
@@ -541,21 +653,23 @@ export function AdminModal({
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
                     <button
                       type="button"
+                      disabled={reviewingWithdrawalIds.has(w.id || w.withdrawalId || '')}
                       onClick={() => {
                         setRejectionTarget(w);
                         setRejectionNote('ငွေလွှဲအကောင့်နံပါတ် သို့မဟုတ် အမည် မှားယွင်းနေပါသည်');
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-black transition-all active:scale-95 border border-red-500/30"
+                      className="px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-black transition-all active:scale-95 border border-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       ပယ်ချမည် (ပြန်အမ်းမည်)
                     </button>
                     <button
                       type="button"
-                      onClick={() => onApproveWithdrawal(w.withdrawalId, w.userId, w.amount)}
-                      className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black transition-all active:scale-95 shadow-md flex items-center gap-1.5"
+                      disabled={reviewingWithdrawalIds.has(w.id || w.withdrawalId || '')}
+                      onClick={() => void handleWithdrawalReview(w, 'approve')}
+                      className="px-4 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black transition-all active:scale-95 shadow-md flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      လွှဲပြီးပြီ (အတည်ပြုမည်)
+                      {reviewingWithdrawalIds.has(w.id || w.withdrawalId || '') ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      {reviewingWithdrawalIds.has(w.id || w.withdrawalId || '') ? 'လုပ်ဆောင်နေသည်...' : 'လွှဲပြီးပြီ (အတည်ပြုမည်)'}
                     </button>
                   </div>
                 </div>
@@ -769,10 +883,8 @@ export function AdminModal({
                   </div>
                 ) : (
                   filteredUsers.map((u) => (
-                    <div
-                      key={u.uid}
-                      className="p-3 rounded-2xl bg-zinc-950/70 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-amber-400/30 transition-all"
-                    >
+                    <div key={u.uid} className="flex flex-col gap-2">
+                      <div className="p-3 rounded-2xl bg-zinc-950/70 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-amber-400/30 transition-all">
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-black text-white">{u.fullName || 'မန်ဘာ'}</span>
@@ -787,15 +899,26 @@ export function AdminModal({
                             </span>
                           )}
                         </div>
-                        <span className="text-[11px] text-zinc-400 font-mono block">UID: {u.uid}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] text-white/80 font-mono block break-all">UID: {u.uid}</span>
+                          <button type="button" aria-label="Copy UID" title="UID ကူးယူရန်" onClick={() => { void navigator.clipboard?.writeText(u.uid).catch(() => {}); }} className="p-1 rounded text-zinc-500 hover:text-white">
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </div>
                         {u.phoneNumber && (
                           <span className="text-[11px] text-amber-400 font-mono font-bold block">
                             ဖုန်း: {u.phoneNumber}
                           </span>
                         )}
+                        {u.email && <span className="text-[10px] text-zinc-500 block">{u.email}</span>}
                         <div className="flex items-center gap-3 text-[10px] text-zinc-400 mt-1">
                           <span>ဖိတ်ခေါ်: {u.referralsCount || 0} ယောက်</span>
                           <span>လောင်းကြေးစုစုပေါင်း: {formatKs(u.totalBetCumulative || 0)}</span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-zinc-500 mt-1">
+                          <span>အတည်ပြုပြီး ငွေသွင်း: {formatKs(u.totalSuccessfulDeposit || 0)}</span>
+                          <span>အကောင့်ဖွင့်: {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'မသိ'}</span>
+                          <span>နောက်ဆုံးပြင်ဆင်: {u.updatedAt ? new Date(u.updatedAt).toLocaleString() : 'မသိ'}</span>
                         </div>
                       </div>
 
@@ -820,6 +943,15 @@ export function AdminModal({
                           Balance ပြင်မည်
                         </button>
 
+                        <button
+                          type="button"
+                          onClick={() => void handleToggleUserActivity(u.uid)}
+                          disabled={loadingUserActivity}
+                          className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-black transition-all ${selectedActivityUid === u.uid ? 'bg-cyan-400/15 border-cyan-400/30 text-cyan-200' : 'bg-white/5 border-white/10 text-zinc-300 hover:text-white'} disabled:opacity-50`}
+                        >
+                          <span className="inline-flex items-center gap-1"><Activity className="w-3.5 h-3.5" />{selectedActivityUid === u.uid ? 'Activity ဖျောက်ရန်' : 'Account Activity'}</span>
+                        </button>
+
                         {onToggleUserFlag && (
                           <button
                             type="button"
@@ -835,6 +967,49 @@ export function AdminModal({
                           </button>
                         )}
                       </div>
+                      </div>
+
+                      {selectedActivityUid === u.uid && (
+                        <div className="p-3 rounded-2xl bg-cyan-950/25 border border-cyan-400/20">
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2 text-xs font-black text-white"><Activity className="w-4 h-4 text-cyan-300" />Account Activity · UID {u.uid}</div>
+                            <button type="button" onClick={() => void handleToggleUserActivity(u.uid)} className="text-[10px] text-zinc-400 hover:text-white">ပိတ်ရန်</button>
+                          </div>
+                          {loadingUserActivity ? (
+                            <div className="py-5 flex items-center justify-center gap-2 text-xs text-zinc-400"><RefreshCw className="w-3.5 h-3.5 animate-spin" />Activity စစ်ဆေးနေပါသည်...</div>
+                          ) : userActivityError ? (
+                            <div role="alert" className="text-xs text-red-300 py-3">{userActivityError}</div>
+                          ) : userActivity ? (
+                            <>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                                <div className="p-2 rounded-xl bg-black/30"><div className="text-[9px] text-zinc-500">Approved deposits</div><div className="text-xs font-black text-emerald-300">{formatKs(userActivity.deposits.filter((d) => d.status === 'approved').reduce((sum, d) => sum + (Number(d.amount) || 0), 0))}</div></div>
+                                <div className="p-2 rounded-xl bg-black/30"><div className="text-[9px] text-zinc-500">Deposit requests</div><div className="text-xs font-black text-white">{userActivity.deposits.length}</div></div>
+                                <div className="p-2 rounded-xl bg-black/30"><div className="text-[9px] text-zinc-500">Withdrawal requests</div><div className="text-xs font-black text-white">{userActivity.withdrawals.length}</div></div>
+                                <div className="p-2 rounded-xl bg-black/30"><div className="text-[9px] text-zinc-500">Recent bets loaded</div><div className="text-xs font-black text-white">{userActivity.bets.length}</div></div>
+                              </div>
+                              <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+                                {[
+                                  { title: 'ငွေသွင်း', rows: userActivity.deposits.slice(0, 5).map((d) => ({ id: d.depositId, status: d.status, amount: d.amount, detail: `${d.method || '—'} · ${d.createdAt ? new Date(d.createdAt).toLocaleString() : '—'}` })) },
+                                  { title: 'ငွေထုတ်', rows: userActivity.withdrawals.slice(0, 5).map((w) => ({ id: w.withdrawalId, status: w.status, amount: w.amount, detail: `${w.method || '—'} · ${w.createdAt ? new Date(w.createdAt).toLocaleString() : '—'}` })) },
+                                  { title: 'လောင်းကစား activity', rows: userActivity.bets.slice(0, 5).map((b) => ({ id: b.betId, status: b.status, amount: b.amount, detail: `Round #${b.roundId} · ${b.selection} · ${b.createdAt ? new Date(b.createdAt).toLocaleString() : '—'}` })) },
+                                ].map((group) => (
+                                  <div key={group.title} className="p-2 rounded-xl bg-black/30 border border-white/5">
+                                    <div className="text-[10px] font-black text-zinc-300 mb-1">{group.title}</div>
+                                    {group.rows.length === 0 ? <div className="text-[10px] text-zinc-600 py-2">မှတ်တမ်းမရှိပါ</div> : group.rows.map((row) => (
+                                      <div key={row.id} className="py-1.5 border-t border-white/5 first:border-0">
+                                        <div className="flex items-center justify-between gap-2"><span className="text-[9px] font-mono text-zinc-500 truncate">{row.id}</span><span className={`text-[9px] font-black uppercase ${row.status === 'approved' || row.status === 'win' ? 'text-emerald-300' : row.status === 'pending' ? 'text-amber-300' : 'text-zinc-400'}`}>{row.status}</span></div>
+                                        <div className="text-[10px] text-white font-bold">{formatKs(Number(row.amount) || 0)}</div>
+                                        <div className="text-[9px] text-zinc-500">{row.detail}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="mt-2 flex items-center gap-1 text-[9px] text-zinc-500"><Clock3 className="w-3 h-3" />အကောင့်၏ ရရှိနိုင်သော မှတ်တမ်းများထဲမှ နောက်ဆုံး ၅ ခုကိုပြထားသည်။</div>
+                            </>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -1510,21 +1685,20 @@ export function AdminModal({
                 </button>
                 <button
                   type="button"
+                  disabled={reviewingWithdrawalIds.has(rejectionTarget.id || rejectionTarget.withdrawalId || '')}
                   onClick={async () => {
-                    const ok = await onDeclineWithdrawal(
-                      rejectionTarget.withdrawalId,
-                      rejectionTarget.userId,
-                      rejectionTarget.amount,
+                    const ok = await handleWithdrawalReview(
+                      rejectionTarget,
+                      'decline',
                       rejectionNote.trim() || 'အကြောင်းပြချက် မဖော်ပြထားပါ'
                     );
                     if (ok) {
                       setRejectionTarget(null);
-                      alert('ငွေထုတ်တောင်းဆိုမှုကို ပယ်ချပြီး User ထံ အကြောင်းပြချက် ပေးပို့ပြီးပါပြီ။');
                     }
                   }}
-                  className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs active:scale-95 transition-all shadow-md"
+                  className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs active:scale-95 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  ပယ်ချမည် (Confirm)
+                  {reviewingWithdrawalIds.has(rejectionTarget.id || rejectionTarget.withdrawalId || '') ? 'လုပ်ဆောင်နေသည်...' : 'ပယ်ချမည် (Confirm)'}
                 </button>
               </div>
             </div>

@@ -7,9 +7,12 @@ import {
   setDoc,
   updateDoc,
   collection,
+  documentId,
   onSnapshot,
   query,
   orderBy,
+  startAt,
+  endAt,
   limit,
   where,
   getDocs,
@@ -63,6 +66,7 @@ import {
   ReferralMember,
   BoundBank,
   CurrentRoundData,
+  UserActivitySnapshot,
 } from '@/lib/types';
 import {
   DEFAULT_SETTINGS,
@@ -1620,65 +1624,71 @@ export default function Home() {
     amount: number
   ): Promise<boolean> => {
     try {
-      await updateDoc(doc(db, 'deposits', depositId), {
-        status: 'approved',
-        reviewedAt: Date.now(),
-      });
+      const now = Date.now();
+      const result = await runTransaction(db, async (txn) => {
+        const depositRef = doc(db, 'deposits', depositId);
+        const depositSnap = await txn.get(depositRef);
+        if (!depositSnap.exists()) throw new Error('Deposit request not found');
 
-      const userDocRef = doc(db, 'users', userId);
-      const userSnap = await getDoc(userDocRef);
-      if (userSnap.exists()) {
-        const u = userSnap.data() as UserProfile;
-        const isFirst = !u.hasSuccessfulDeposit;
-        // User rule: 5000 သွင်းပြီးမှ Bonus 2000 ပေးမည်
-        const firstDepositBonus = (isFirst && amount >= 5000 && !u.firstDepositBonusClaimed) ? 2000 : 0;
-        const creditAmount = amount + firstDepositBonus;
+        const deposit = { ...depositSnap.data(), id: depositSnap.id } as DepositRequest;
+        const storedAmount = Number(deposit.amount);
+        if (deposit.status !== 'pending') throw new Error('Deposit has already been reviewed');
+        if (!deposit.userId || deposit.userId !== userId || !Number.isSafeInteger(storedAmount) || storedAmount <= 0 || storedAmount !== amount) {
+          throw new Error('Deposit UID or amount verification failed');
+        }
 
-        await updateDoc(userDocRef, {
-          balance: (u.balance || 0) + creditAmount,
-          totalSuccessfulDeposit: (u.totalSuccessfulDeposit || 0) + amount,
+        const userRef = doc(db, 'users', deposit.userId);
+        const userSnap = await txn.get(userRef);
+        if (!userSnap.exists()) throw new Error('Deposit owner account not found');
+
+        const user = { ...userSnap.data(), uid: userSnap.id } as UserProfile;
+        const isFirstDeposit = !user.hasSuccessfulDeposit && (Number(user.totalSuccessfulDeposit) || 0) <= 0;
+        const firstDepositBonus = isFirstDeposit && storedAmount >= 5000 && !user.firstDepositBonusClaimed ? 2000 : 0;
+        const updatedUser: UserProfile = {
+          ...user,
+          balance: (Number(user.balance) || 0) + storedAmount + firstDepositBonus,
+          totalSuccessfulDeposit: (Number(user.totalSuccessfulDeposit) || 0) + storedAmount,
           hasSuccessfulDeposit: true,
-          firstDepositBonusClaimed: (isFirst && amount >= 5000) ? true : !!u.firstDepositBonusClaimed,
-          updatedAt: Date.now(),
+          firstDepositBonusClaimed: (isFirstDeposit && storedAmount >= 5000) || !!user.firstDepositBonusClaimed,
+          updatedAt: now,
+        };
+
+        const referrerRef = user.referrerId && user.referrerId !== user.uid
+          ? doc(db, 'users', user.referrerId)
+          : null;
+        const referrerSnap = referrerRef ? await txn.get(referrerRef) : null;
+        const referrer = referrerSnap?.exists() ? referrerSnap.data() as UserProfile : null;
+
+        // All reads happen before writes; deposit status and balance credit commit together.
+        txn.update(depositRef, { status: 'approved', reviewedAt: now });
+        txn.update(userRef, {
+          balance: updatedUser.balance,
+          totalSuccessfulDeposit: updatedUser.totalSuccessfulDeposit,
+          hasSuccessfulDeposit: true,
+          firstDepositBonusClaimed: updatedUser.firstDepositBonusClaimed,
+          updatedAt: now,
         });
 
-        const updatedTarget: UserProfile = {
-          ...u,
-          balance: (u.balance || 0) + creditAmount,
-          totalSuccessfulDeposit: (u.totalSuccessfulDeposit || 0) + amount,
-          hasSuccessfulDeposit: true,
-          firstDepositBonusClaimed: (isFirst && amount >= 5000) ? true : !!u.firstDepositBonusClaimed,
-          updatedAt: Date.now(),
+        if (referrerRef && referrer) {
+          txn.update(referrerRef, {
+            depositedReferralsCount: (Number(referrer.depositedReferralsCount) || 0) + (isFirstDeposit ? 1 : 0),
+            referralTotalDeposits: (Number(referrer.referralTotalDeposits) || 0) + storedAmount,
+            updatedAt: now,
+          });
+        }
+
+        return {
+          deposit: { ...deposit, status: 'approved' as const, reviewedAt: now },
+          updatedUser,
         };
-        syncToTurso('user', updatedTarget);
-        syncToTurso('deposit', { id: depositId, depositId, status: 'approved', reviewedAt: Date.now() });
-        if (currentUser && (userId === currentUser.uid || u.uid === currentUser.uid)) {
-          setUserProfile(updatedTarget);
-          cacheUserProfile(updatedTarget);
-        }
+      });
 
-        // Update Referrer Stats in Realtime
-        if (u.referrerId) {
-          try {
-            const refDocRef = doc(db, 'users', u.referrerId);
-            const refSnap = await getDoc(refDocRef);
-            if (refSnap.exists()) {
-              const refData = refSnap.data() as UserProfile;
-              const newDepositedCount = isFirst
-                ? (refData.depositedReferralsCount || 0) + 1
-                : (refData.depositedReferralsCount || 0);
-              const newTotalDeposits = (refData.referralTotalDeposits || 0) + amount;
-
-              await updateDoc(refDocRef, {
-                depositedReferralsCount: newDepositedCount,
-                referralTotalDeposits: newTotalDeposits,
-                updatedAt: Date.now(),
-              });
-            }
-          } catch (err) {
-            console.error('Error updating referrer deposit stats:', err);
-          }
-        }
+      // Firestore is the source of truth; the mirror is updated only after the atomic commit.
+      syncToTurso('user', result.updatedUser);
+      syncToTurso('deposit', result.deposit);
+      if (currentUser && currentUser.uid === result.updatedUser.uid) {
+        setUserProfile(result.updatedUser);
+        cacheUserProfile(result.updatedUser);
       }
       return true;
     } catch (e) {
@@ -1689,11 +1699,18 @@ export default function Home() {
 
   const handleDeclineDeposit = async (depositId: string): Promise<boolean> => {
     try {
-      await updateDoc(doc(db, 'deposits', depositId), {
-        status: 'declined',
-        reviewedAt: Date.now(),
+      const now = Date.now();
+      const declinedDeposit = await runTransaction(db, async (txn) => {
+        const depositRef = doc(db, 'deposits', depositId);
+        const depositSnap = await txn.get(depositRef);
+        if (!depositSnap.exists()) throw new Error('Deposit request not found');
+        const deposit = { ...depositSnap.data(), id: depositSnap.id } as DepositRequest;
+        if (deposit.status !== 'pending') throw new Error('Deposit has already been reviewed');
+        const updated = { ...deposit, status: 'declined' as const, reviewedAt: now };
+        txn.update(depositRef, { status: 'declined', reviewedAt: now });
+        return updated;
       });
-      syncToTurso('deposit', { id: depositId, depositId, status: 'declined', reviewedAt: Date.now() });
+      syncToTurso('deposit', declinedDeposit);
       return true;
     } catch (e) {
       console.error(e);
@@ -1707,29 +1724,43 @@ export default function Home() {
     amount: number
   ): Promise<boolean> => {
     try {
-      await updateDoc(doc(db, 'withdrawals', withdrawalId), {
-        status: 'approved',
-        reviewedAt: Date.now(),
-      });
-      syncToTurso('withdrawal', { id: withdrawalId, withdrawalId, status: 'approved', reviewedAt: Date.now() });
+      const now = Date.now();
+      const result = await runTransaction(db, async (txn) => {
+        const withdrawalRef = doc(db, 'withdrawals', withdrawalId);
+        const withdrawalSnap = await txn.get(withdrawalRef);
+        if (!withdrawalSnap.exists()) throw new Error('Withdrawal request not found');
+        const withdrawal = { ...withdrawalSnap.data(), id: withdrawalSnap.id } as WithdrawalRequest;
+        const storedAmount = Number(withdrawal.amount);
+        if (withdrawal.status !== 'pending') throw new Error('Withdrawal has already been reviewed');
+        if (!withdrawal.userId || withdrawal.userId !== userId || !Number.isSafeInteger(storedAmount) || storedAmount <= 0 || storedAmount !== amount) {
+          throw new Error('Withdrawal UID or amount verification failed');
+        }
 
-      const userDocRef = doc(db, 'users', userId);
-      const userSnap = await getDoc(userDocRef);
-      if (userSnap.exists()) {
-        const u = userSnap.data() as UserProfile;
+        const userRef = doc(db, 'users', withdrawal.userId);
+        const userSnap = await txn.get(userRef);
+        if (!userSnap.exists()) throw new Error('Withdrawal owner account not found');
+        const user = { ...userSnap.data(), uid: userSnap.id } as UserProfile;
         const updatedUser: UserProfile = {
-          ...u,
-          withdrawalCount: (u.withdrawalCount || 0) + 1,
+          ...user,
+          withdrawalCount: (Number(user.withdrawalCount) || 0) + 1,
           wagerSinceLastWithdrawal: 0,
-          updatedAt: Date.now(),
+          updatedAt: now,
         };
-        await updateDoc(userDocRef, {
-          withdrawalCount: (u.withdrawalCount || 0) + 1,
+
+        txn.update(withdrawalRef, { status: 'approved', reviewedAt: now });
+        txn.update(userRef, {
+          withdrawalCount: updatedUser.withdrawalCount,
           wagerSinceLastWithdrawal: 0,
-          updatedAt: Date.now(),
+          updatedAt: now,
         });
-        syncToTurso('user', updatedUser);
-      }
+        return {
+          withdrawal: { ...withdrawal, status: 'approved' as const, reviewedAt: now },
+          updatedUser,
+        };
+      });
+
+      syncToTurso('withdrawal', result.withdrawal);
+      syncToTurso('user', result.updatedUser);
       return true;
     } catch (e) {
       console.error(e);
@@ -1744,37 +1775,42 @@ export default function Home() {
     reason?: string
   ): Promise<boolean> => {
     try {
-      await updateDoc(doc(db, 'withdrawals', withdrawalId), {
-        status: 'declined',
-        rejectionReason: reason || 'အကြောင်းပြချက် မဖော်ပြထားပါ',
-        reviewedAt: Date.now(),
-      });
-      syncToTurso('withdrawal', {
-        id: withdrawalId,
-        withdrawalId,
-        status: 'declined',
-        rejectionReason: reason || 'အကြောင်းပြချက် မဖော်ပြထားပါ',
-        reviewedAt: Date.now(),
+      const now = Date.now();
+      const rejectionReason = reason || 'အကြောင်းပြချက် မဖော်ပြထားပါ';
+      const result = await runTransaction(db, async (txn) => {
+        const withdrawalRef = doc(db, 'withdrawals', withdrawalId);
+        const withdrawalSnap = await txn.get(withdrawalRef);
+        if (!withdrawalSnap.exists()) throw new Error('Withdrawal request not found');
+        const withdrawal = { ...withdrawalSnap.data(), id: withdrawalSnap.id } as WithdrawalRequest;
+        const storedAmount = Number(withdrawal.amount);
+        if (withdrawal.status !== 'pending') throw new Error('Withdrawal has already been reviewed');
+        if (!withdrawal.userId || withdrawal.userId !== userId || !Number.isSafeInteger(storedAmount) || storedAmount <= 0 || storedAmount !== amount) {
+          throw new Error('Withdrawal UID or amount verification failed');
+        }
+
+        const userRef = doc(db, 'users', withdrawal.userId);
+        const userSnap = await txn.get(userRef);
+        if (!userSnap.exists()) throw new Error('Withdrawal owner account not found');
+        const user = { ...userSnap.data(), uid: userSnap.id } as UserProfile;
+        const updatedUser: UserProfile = {
+          ...user,
+          balance: (Number(user.balance) || 0) + storedAmount,
+          updatedAt: now,
+        };
+
+        txn.update(withdrawalRef, { status: 'declined', rejectionReason, reviewedAt: now });
+        txn.update(userRef, { balance: updatedUser.balance, updatedAt: now });
+        return {
+          withdrawal: { ...withdrawal, status: 'declined' as const, rejectionReason, reviewedAt: now },
+          updatedUser,
+        };
       });
 
-      const userDocRef = doc(db, 'users', userId);
-      const userSnap = await getDoc(userDocRef);
-      if (userSnap.exists()) {
-        const u = userSnap.data() as UserProfile;
-        const refundedUser: UserProfile = {
-          ...u,
-          balance: (u.balance || 0) + amount,
-          updatedAt: Date.now(),
-        };
-        await updateDoc(userDocRef, {
-          balance: (u.balance || 0) + amount,
-          updatedAt: Date.now(),
-        });
-        syncToTurso('user', refundedUser);
-        if (currentUser && (userId === currentUser.uid || u.uid === currentUser.uid)) {
-          setUserProfile(refundedUser);
-          cacheUserProfile(refundedUser);
-        }
+      syncToTurso('withdrawal', result.withdrawal);
+      syncToTurso('user', result.updatedUser);
+      if (currentUser?.uid === result.updatedUser.uid) {
+        setUserProfile(result.updatedUser);
+        cacheUserProfile(result.updatedUser);
       }
       return true;
     } catch (e) {
@@ -1848,29 +1884,115 @@ export default function Home() {
     }
   };
 
-  // Admin Search / Fetch Users Explorer (Paginated & on-demand to save quota)
+  // Admin User Explorer: exact UID lookup plus indexed prefix lookups, not first-page filtering.
   const handleSearchUsers = async (searchQuery: string): Promise<UserProfile[]> => {
     try {
-      const qText = searchQuery.trim().toLowerCase();
-      const usersQuery = query(collection(db, 'users'), limit(50));
-      const snap = await getDocs(usersQuery);
-      const list: UserProfile[] = [];
-      snap.forEach((d) => {
-        const u = d.data() as UserProfile;
-        list.push({ ...u, uid: d.id });
-      });
+      const searchTerm = searchQuery.trim();
+      const usersByUid = new Map<string, UserProfile>();
+      const add = (id: string, data: Record<string, unknown>) => {
+        usersByUid.set(id, {
+          uid: id,
+          fullName: String(data.fullName || ''),
+          email: String(data.email || ''),
+          phoneNumber: typeof data.phoneNumber === 'string' ? data.phoneNumber : undefined,
+          role: data.role === 'admin' ? 'admin' : 'user',
+          balance: Number(data.balance) || 0,
+          referralBalance: Number(data.referralBalance) || 0,
+          referralsCount: Number(data.referralsCount) || 0,
+          depositedReferralsCount: Number(data.depositedReferralsCount) || 0,
+          referralTotalDeposits: Number(data.referralTotalDeposits) || 0,
+          referrerId: typeof data.referrerId === 'string' ? data.referrerId : null,
+          referralCode: typeof data.referralCode === 'string' ? data.referralCode : undefined,
+          totalBetCumulative: Number(data.totalBetCumulative) || 0,
+          totalSuccessfulDeposit: Number(data.totalSuccessfulDeposit) || 0,
+          withdrawalCount: Number(data.withdrawalCount) || 0,
+          wagerSinceLastWithdrawal: Number(data.wagerSinceLastWithdrawal) || 0,
+          hasSuccessfulDeposit: Boolean(data.hasSuccessfulDeposit),
+          promoClaimedReferrals: Array.isArray(data.promoClaimedReferrals) ? data.promoClaimedReferrals as string[] : [],
+          claimedMilestones: Array.isArray(data.claimedMilestones) ? data.claimedMilestones as string[] : undefined,
+          boundBank: (data.boundBank as UserProfile['boundBank']) || null,
+          isHedgingFlagged: Boolean(data.isHedgingFlagged),
+          cleanTurnoverRequired: Number(data.cleanTurnoverRequired) || 0,
+          firstDepositBonusClaimed: Boolean(data.firstDepositBonusClaimed),
+          createdAt: Number(data.createdAt) || 0,
+          updatedAt: Number(data.updatedAt) || 0,
+        });
+      };
 
-      if (!qText) return list;
-      return list.filter((u) =>
+      if (!searchTerm) {
+        const usersSnap = await getDocs(query(collection(db, 'users'), orderBy('updatedAt', 'desc'), limit(100)));
+        usersSnap.forEach((d) => add(d.id, d.data()));
+        return Array.from(usersByUid.values());
+      }
+
+      const lookups: Array<() => Promise<void>> = [
+        async () => {
+          const exactUid = await getDoc(doc(db, 'users', searchTerm));
+          if (exactUid.exists()) add(exactUid.id, exactUid.data());
+        },
+        async () => {
+          const uidPrefix = await getDocs(query(
+            collection(db, 'users'), orderBy(documentId()), startAt(searchTerm), endAt(`${searchTerm}\uf8ff`), limit(50)
+          ));
+          uidPrefix.forEach((d) => add(d.id, d.data()));
+        },
+        ...(['fullName', 'email'] as const).map((field) => async () => {
+          const matches = await getDocs(query(
+            collection(db, 'users'), orderBy(field), startAt(searchTerm), endAt(`${searchTerm}\uf8ff`), limit(50)
+          ));
+          matches.forEach((d) => add(d.id, d.data()));
+        }),
+        async () => {
+          const digits = searchTerm.replace(/[^0-9]/g, '');
+          if (!digits) return;
+          const phones = await getDocs(query(
+            collection(db, 'users'), orderBy('phoneNumber'), startAt(digits), endAt(`${digits}\uf8ff`), limit(50)
+          ));
+          phones.forEach((d) => add(d.id, d.data()));
+        },
+      ];
+
+      await Promise.all(lookups.map(async (lookup) => {
+        try { await lookup(); } catch (error) { console.warn('A user search path was unavailable:', error); }
+      }));
+
+      const qText = searchTerm.toLowerCase();
+      const phoneQuery = searchTerm.replace(/[^0-9]/g, '');
+      return Array.from(usersByUid.values()).filter((u) =>
         u.uid.toLowerCase().includes(qText) ||
         (u.fullName && u.fullName.toLowerCase().includes(qText)) ||
-        (u.phoneNumber && u.phoneNumber.includes(qText)) ||
+        (phoneQuery.length > 0 && u.phoneNumber && u.phoneNumber.includes(phoneQuery)) ||
         (u.email && u.email.toLowerCase().includes(qText))
       );
     } catch (err) {
       console.warn('Search users note:', err);
       return [];
     }
+  };
+
+  const handleLoadUserActivity = async (uid: string): Promise<UserActivitySnapshot> => {
+    const [depositsSnap, withdrawalsSnap, betsSnap] = await Promise.all([
+      getDocs(query(collection(db, 'deposits'), where('userId', '==', uid))),
+      getDocs(query(collection(db, 'withdrawals'), where('userId', '==', uid))),
+      getDocs(query(collection(db, 'bets'), where('userId', '==', uid))),
+    ]);
+    const newestFirst = <T extends { createdAt: number }>(items: T[]) =>
+      items.sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+
+    return {
+      deposits: newestFirst(depositsSnap.docs.map((d) => {
+        const data = d.data();
+        return { ...data, id: d.id, depositId: String(data.depositId || d.id), createdAt: Number(data.createdAt) || 0 } as DepositRequest;
+      })),
+      withdrawals: newestFirst(withdrawalsSnap.docs.map((d) => {
+        const data = d.data();
+        return { ...data, id: d.id, withdrawalId: String(data.withdrawalId || d.id), createdAt: Number(data.createdAt) || 0 } as WithdrawalRequest;
+      })),
+      bets: newestFirst(betsSnap.docs.map((d) => {
+        const data = d.data();
+        return { ...data, id: d.id, betId: String(data.betId || d.id), createdAt: Number(data.createdAt || data.placedAt) || 0 } as PlayerBet;
+      })),
+    };
   };
 
   // Admin Toggle User Hedging / Ban Flag
@@ -2797,6 +2919,7 @@ export default function Home() {
           onTriggerRoll={() => currentRoundDoc && triggerGlobalSettlement(currentRoundDoc)}
           onAdjustUserBalance={handleAdjustUserBalance}
           onSearchUsers={handleSearchUsers}
+          onLoadUserActivity={handleLoadUserActivity}
           onToggleUserFlag={handleToggleUserFlag}
           onToggleUserRole={handleToggleUserRole}
           onForceDiceRoll={handleForceDiceRoll}

@@ -131,6 +131,12 @@ export interface WithdrawalRequest {
   reviewedAt?: number;
 }
 
+export interface UserActivitySnapshot {
+  deposits: DepositRequest[];
+  withdrawals: WithdrawalRequest[];
+  bets: PlayerBet[];
+}
+
 export interface GameSettings {
   OVER_UNDER_MULTIPLIER: number;
   SIX_MULTIPLIER: number; // Common 7 multiplier
