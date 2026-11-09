@@ -107,6 +107,14 @@ export async function initTursoSchema(client: Client) {
       key TEXT PRIMARY KEY,
       value TEXT,
       updatedAt INTEGER
+    );`,
+    `CREATE TABLE IF NOT EXISTS admin_audit_logs (
+      id TEXT PRIMARY KEY,
+      action TEXT NOT NULL,
+      targetUid TEXT,
+      amount INTEGER DEFAULT 0,
+      note TEXT,
+      createdAt INTEGER
     );`
   ], 'write');
 
