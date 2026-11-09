@@ -2351,10 +2351,15 @@ export default function Home() {
 
             {/* FULL-SCREEN ARENA: FISHING MINI-GAME */}
             {selectedGame === 'fishing' && (
-              <FishingGame onBack={() => {
-                sounds.playChip();
-                setSelectedGame('lobby');
-              }} />
+              <FishingGame
+                balance={Number(userProfile?.balance || 0)}
+                isAuthenticated={Boolean(currentUser)}
+                onRequireAuth={() => setIsAuthModalOpen(true)}
+                onBack={() => {
+                  sounds.playChip();
+                  setSelectedGame('lobby');
+                }}
+              />
             )}
 
             {/* FULL-SCREEN ARENA: GAME 1 - အံစာဂိမ်း (Dice Game) */}

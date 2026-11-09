@@ -6,6 +6,9 @@ import { sounds } from '@/lib/audio';
 
 interface FishingGameProps {
   onBack: () => void;
+  balance: number;
+  isAuthenticated: boolean;
+  onRequireAuth: () => void;
 }
 
 type Catch = { id: number; x: number; y: number; size: number; tone: 'light' | 'silver' | 'dark' };
@@ -18,10 +21,12 @@ const createCatch = (id: number): Catch => ({
   tone: Math.random() > 0.66 ? 'light' : Math.random() > 0.45 ? 'silver' : 'dark',
 });
 
-export function FishingGame({ onBack }: FishingGameProps) {
+export function FishingGame({ onBack, balance: initialBalance, isAuthenticated, onRequireAuth }: FishingGameProps) {
   const [score, setScore] = useState(0);
   const [shots, setShots] = useState(15);
   const [caught, setCaught] = useState(0);
+  const [balance, setBalance] = useState(initialBalance);
+  const [charging, setCharging] = useState(false);
   const [round, setRound] = useState(1);
   const [fish, setFish] = useState<Catch[]>(() => [1, 2, 3, 4, 5].map(createCatch));
   const [message, setMessage] = useState('ငါးကို ချိန်ပြီး ပစ်ပါ');
@@ -33,19 +38,39 @@ export function FishingGame({ onBack }: FishingGameProps) {
     setRound((value) => value + 1);
     setFish([1, 2, 3, 4, 5].map(createCatch));
     setMessage('ငါးကို ချိန်ပြီး ပစ်ပါ');
+    setBalance(initialBalance);
   }, []);
 
-  const shoot = (target: Catch) => {
-    if (shots <= 0) return;
+  const shoot = async (target: Catch) => {
+    if (shots <= 0 || charging) return;
+    if (!isAuthenticated) {
+      setMessage('ကစားရန် Login ဝင်ပေးပါ');
+      onRequireAuth();
+      return;
+    }
+    if (balance < 1) {
+      setMessage('Balance မလုံလောက်ပါ — 1 MMK လိုအပ်ပါသည်');
+      return;
+    }
+    setCharging(true);
+    const chargeResponse = await fetch('/api/fishing/shot', { method: 'POST', cache: 'no-store' });
+    const charge = await chargeResponse.json().catch(() => ({ success: false, error: 'ကျည်ဖိုးဖြတ်ရာတွင် အဆင်မပြေပါ' }));
+    setCharging(false);
+    if (!charge.success) {
+      setMessage(charge.error || 'ကျည်ဖိုးဖြတ်ရာတွင် အဆင်မပြေပါ');
+      if (typeof charge.balance === 'number') setBalance(charge.balance);
+      return;
+    }
     sounds.playChip();
     const remainingShots = shots - 1;
     setShots((value) => value - 1);
     setCaught((value) => value + 1);
     setScore((value) => value + Math.round(10 + target.size / 2));
+    setBalance(Number(charge.balance) || Math.max(0, balance - 1));
     setMessage(remainingShots === 0 ? 'အလှည့်ပြီးပါပြီ — ပြန်စကစားနိုင်ပါတယ်' : 'အောင်မြင်စွာ ဖမ်းမိပါပြီ');
     setFish((current) => [...current.filter((item) => item.id !== target.id), createCatch(Date.now())]);
   };
-  const cannonLabel = shots > 0 ? `ပစ်ခွင့် ${shots}` : 'ပစ်ခွင့်ကုန်ပါပြီ';
+  const cannonLabel = charging ? 'ကျည်ဖိုးစစ်ဆေးနေသည်...' : shots > 0 ? `ပစ်ခွင့် ${shots}` : 'ပစ်ခွင့်ကုန်ပါပြီ';
 
   return (
     <div className="fishing-arena relative min-h-[680px] overflow-hidden rounded-[26px] border border-white/15 bg-[#07141b] p-3 text-white shadow-2xl sm:p-5">
@@ -57,7 +82,8 @@ export function FishingGame({ onBack }: FishingGameProps) {
           <button onClick={reset} className="icon-action border-white/20 bg-black/35 text-white" title="Restart"><RotateCcw className="h-4 w-4" /></button>
         </header>
 
-        <div className="mb-4 grid grid-cols-3 gap-2">
+        <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="fishing-stat"><span>Balance</span><b>{balance} MMK</b></div>
           <div className="fishing-stat"><span>Score</span><b>{score}</b></div>
           <div className="fishing-stat"><span>Catches</span><b>{caught}</b></div>
           <div className="fishing-stat"><span>Round</span><b>#{round}</b></div>
@@ -69,7 +95,7 @@ export function FishingGame({ onBack }: FishingGameProps) {
             <button
               key={target.id}
               onClick={() => shoot(target)}
-              disabled={shots <= 0}
+              disabled={shots <= 0 || charging}
               aria-label="Catch fish"
               className={`fish-target fish-${target.tone} ${shots <= 0 ? 'cursor-default opacity-55' : ''}`}
               style={{ left: `${target.x}%`, top: `${target.y}%`, width: target.size, height: target.size * .62 }}
@@ -85,7 +111,7 @@ export function FishingGame({ onBack }: FishingGameProps) {
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-[10px] text-white/55 backdrop-blur-md">
-          <span>ငါးကိုနှိပ်ပြီး ဖမ်းပါ · Practice mode</span>
+          <span>ကျည်တစ်တောင့် = 1 MMK · ငါးကိုနှိပ်ပြီး ဖမ်းပါ</span>
           <span className="font-black text-white">{score} pts</span>
         </div>
       </div>
