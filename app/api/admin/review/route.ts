@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
       const balance = await client.execute({ sql: 'UPDATE users SET balance = balance + ?, totalSuccessfulDeposit = totalSuccessfulDeposit + ?, hasSuccessfulDeposit = 1, updatedAt = ? WHERE uid = ?', args: [Number(item.amount) || 0, Number(item.amount) || 0, now, String(item.userId)] });
       if (!balance.rowsAffected) return NextResponse.json({ success: false, error: 'User မတွေ့ပါ' }, { status: 400 });
     }
-    const status = decision === 'approve' ? 'approved' : 'rejected';
-    await client.execute({ sql: `UPDATE ${table} SET status = ?, reviewedAt = ?${type === 'withdrawal' ? ', rejectionReason = ?' : ''} WHERE id = ? AND status = 'pending'`, args: type === 'withdrawal' ? [status, now, decision === 'reject' ? String(note || '') : '', String(item.id)] : [status, now, String(item.id)] });
+    const status = decision === 'approve' ? 'completed' : 'declined';
+    await client.execute({ sql: `UPDATE ${table} SET status = ?, reviewedAt = ?, completedAt = ?${type === 'withdrawal' ? ', rejectionReason = ?, reviewNote = ?' : ''} WHERE id = ? AND status = 'pending'`, args: type === 'withdrawal' ? [status, now, decision === 'approve' ? now : null, decision === 'reject' ? String(note || '') : '', decision === 'reject' ? String(note || '') : '', String(item.id)] : [status, now, decision === 'approve' ? now : null, String(item.id)] });
     await client.execute({ sql: 'INSERT INTO admin_audit_logs (id, action, targetUid, amount, note, createdAt) VALUES (?, ?, ?, ?, ?, ?)', args: [`audit_${Date.now()}`, `${type}_${decision}`, String(item.userId), Number(item.amount) || 0, String(note || ''), now] });
     return NextResponse.json({ success: true });
   } catch (error) {

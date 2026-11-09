@@ -40,6 +40,7 @@ import {
 } from '@/lib/types';
 import { formatKs, classifyDiceTotal, classifyDiceColor } from '@/lib/constants';
 import { sounds } from '@/lib/audio';
+import { getTransactionStatus } from '@/lib/transactionStatus';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -381,7 +382,7 @@ export function AdminModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fadeIn">
-      <div className="relative w-full max-w-3xl dark-glass rounded-3xl p-3 sm:p-5 shadow-[0_20px_60px_rgba(0,0,0,0.85)] border border-white/20 flex flex-col max-h-[94vh] overflow-hidden">
+      <div className="relative w-full max-w-6xl dark-glass admin-console-shell rounded-3xl p-3 sm:p-5 shadow-[0_20px_60px_rgba(0,0,0,0.85)] border border-white/20 flex flex-col max-h-[94vh] overflow-hidden">
         {/* Top Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/15">
           <div className="flex items-center gap-2.5">
@@ -412,7 +413,7 @@ export function AdminModal({
           </button>
         </div>
 
-        {/* 6-Tab Navigation Bar */}
+        {/* 7-Tab Navigation Bar */}
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-1 p-1 dark-glass rounded-2xl my-2.5 border border-white/15">
           <button
             onClick={() => {
@@ -563,9 +564,8 @@ export function AdminModal({
                           +2,000 Ks First Bonus ပါဝင်မည်
                         </span>
                       )}
-                      <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded bg-white/10 text-white border border-white/15 block mt-0.5">
-                        {dep.method}
-                      </span>
+                      <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded bg-white/10 text-white border border-white/15 block mt-0.5">{dep.method}</span>
+                      <span className="status-chip status-chip-warning mt-1">စောင့်ဆိုင်းဆဲ</span>
                       <span className="text-[10px] text-white/45 block mt-1">{dep.createdAt ? new Date(dep.createdAt).toLocaleString() : 'အချိန်မသိ'}</span>
                     </div>
                   </div>
@@ -644,9 +644,8 @@ export function AdminModal({
                       <span className="font-mono text-base font-black text-amber-400">
                         -{formatKs(w.amount)}
                       </span>
-                      <span className="text-[10px] text-white/60 block mt-0.5">
-                        {new Date(w.createdAt).toLocaleTimeString()}
-                      </span>
+                      <span className="text-[10px] text-white/60 block mt-0.5">{new Date(w.createdAt).toLocaleTimeString()}</span>
+                      <span className="status-chip status-chip-warning mt-1">စောင့်ဆိုင်းဆဲ</span>
                     </div>
                   </div>
 
@@ -981,31 +980,42 @@ export function AdminModal({
                             <div role="alert" className="text-xs text-red-300 py-3">{userActivityError}</div>
                           ) : userActivity ? (
                             <>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
-                                <div className="p-2 rounded-xl bg-black/30"><div className="text-[9px] text-zinc-500">Approved deposits</div><div className="text-xs font-black text-emerald-300">{formatKs(userActivity.deposits.filter((d) => d.status === 'approved').reduce((sum, d) => sum + (Number(d.amount) || 0), 0))}</div></div>
-                                <div className="p-2 rounded-xl bg-black/30"><div className="text-[9px] text-zinc-500">Deposit requests</div><div className="text-xs font-black text-white">{userActivity.deposits.length}</div></div>
-                                <div className="p-2 rounded-xl bg-black/30"><div className="text-[9px] text-zinc-500">Withdrawal requests</div><div className="text-xs font-black text-white">{userActivity.withdrawals.length}</div></div>
-                                <div className="p-2 rounded-xl bg-black/30"><div className="text-[9px] text-zinc-500">Recent bets loaded</div><div className="text-xs font-black text-white">{userActivity.bets.length}</div></div>
+                              <div className="mb-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/5 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
+                                <div><span className="text-zinc-500 block">Account</span><b className="text-white">{u.fullName || 'မန်ဘာ'} · {u.role}</b><span className="text-zinc-600 block font-mono truncate">{u.email || u.uid}</span></div>
+                                <div><span className="text-zinc-500 block">လက်ကျန်ငွေ</span><b className="text-amber-300 font-mono">{formatKs(u.balance || 0)}</b><span className="text-zinc-600 block">Referral {formatKs(u.referralBalance || 0)}</span></div>
+                                <div><span className="text-zinc-500 block">ငွေသွင်း / ငွေထုတ်</span><b className="text-white">{formatKs(u.totalSuccessfulDeposit || 0)} / {u.withdrawalCount || 0} ကြိမ်</b><span className="text-zinc-600 block">Wager {formatKs(u.totalBetCumulative || 0)}</span></div>
+                                <div><span className="text-zinc-500 block">Bank / Risk</span><b className="text-white">{u.boundBank ? `${u.boundBank.method.toUpperCase()} · ${u.boundBank.phone}` : 'မချိတ်ရသေး'}</b><span className={u.isHedgingFlagged ? 'text-red-300 block' : 'text-emerald-300 block'}>{u.isHedgingFlagged ? 'Flagged / စစ်ဆေးရန်' : 'Risk flag မရှိ'}</span></div>
                               </div>
-                              <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+                                <div className="p-2.5 rounded-xl bg-black/30 border border-white/5"><div className="text-[9px] text-zinc-500">အတည်ပြု ငွေသွင်း</div><div className="text-xs font-black text-emerald-300">{formatKs(userActivity.summary?.depositApproved ?? userActivity.deposits.filter((d) => d.status === 'approved' || d.status === 'completed').reduce((sum, d) => sum + (Number(d.amount) || 0), 0))}</div></div>
+                                <div className="p-2.5 rounded-xl bg-black/30 border border-white/5"><div className="text-[9px] text-zinc-500">ငွေသွင်း တောင်းဆိုမှု</div><div className="text-xs font-black text-white">{userActivity.deposits.length} ခု</div></div>
+                                <div className="p-2.5 rounded-xl bg-black/30 border border-white/5"><div className="text-[9px] text-zinc-500">အတည်ပြု ငွေထုတ်</div><div className="text-xs font-black text-amber-300">{formatKs(userActivity.summary?.withdrawalApproved ?? userActivity.withdrawals.filter((w) => w.status === 'approved' || w.status === 'completed').reduce((sum, w) => sum + (Number(w.amount) || 0), 0))}</div></div>
+                                <div className="p-2.5 rounded-xl bg-black/30 border border-white/5"><div className="text-[9px] text-zinc-500">လောင်းကြေး / နိုင်-ရှုံး</div><div className="text-xs font-black text-white">{formatKs(userActivity.summary?.wagered ?? userActivity.bets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0))} · {userActivity.summary?.wins ?? userActivity.bets.filter((b) => b.status === 'win').length}W / {userActivity.summary?.losses ?? userActivity.bets.filter((b) => b.status === 'loss').length}L</div></div>
+                              </div>
+                              <div className="p-2.5 mb-2 rounded-xl bg-black/25 border border-cyan-400/10 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
+                                <div><span className="text-zinc-500 block">စုစုပေါင်း deposit</span><b className="text-white">{formatKs(userActivity.summary?.depositRequested ?? userActivity.deposits.reduce((sum, d) => sum + (Number(d.amount) || 0), 0))}</b></div>
+                                <div><span className="text-zinc-500 block">စုစုပေါင်း withdrawal</span><b className="text-white">{formatKs(userActivity.summary?.withdrawalRequested ?? userActivity.withdrawals.reduce((sum, w) => sum + (Number(w.amount) || 0), 0))}</b></div>
+                                <div><span className="text-zinc-500 block">ပေးလျော်ငွေ</span><b className="text-white">{formatKs(userActivity.summary?.payout ?? userActivity.bets.reduce((sum, b) => sum + (Number(b.payout) || 0), 0))}</b></div>
+                                <div><span className="text-zinc-500 block">မှတ်တမ်းစုစုပေါင်း</span><b className="text-cyan-200">{userActivity.deposits.length + userActivity.withdrawals.length + userActivity.bets.length}</b></div>
+                              </div>
+                              <div className="grid grid-cols-1 gap-2">
                                 {[
-                                  { title: 'ငွေသွင်း', rows: userActivity.deposits.slice(0, 5).map((d) => ({ id: d.depositId, status: d.status, amount: d.amount, detail: `${d.method || '—'} · ${d.createdAt ? new Date(d.createdAt).toLocaleString() : '—'}` })) },
-                                  { title: 'ငွေထုတ်', rows: userActivity.withdrawals.slice(0, 5).map((w) => ({ id: w.withdrawalId, status: w.status, amount: w.amount, detail: `${w.method || '—'} · ${w.createdAt ? new Date(w.createdAt).toLocaleString() : '—'}` })) },
-                                  { title: 'လောင်းကစား activity', rows: userActivity.bets.slice(0, 5).map((b) => ({ id: b.betId, status: b.status, amount: b.amount, detail: `Round #${b.roundId} · ${b.selection} · ${b.createdAt ? new Date(b.createdAt).toLocaleString() : '—'}` })) },
+                                  { title: 'ငွေသွင်းမှတ်တမ်း အပြည့်အစုံ', rows: userActivity.deposits.map((d) => ({ id: d.depositId, status: getTransactionStatus(d.status, 'deposit'), amount: d.amount, detail: `${d.method || '—'} · ${d.trxLast5 || d.externalReference || 'ID မရှိ'} · ${d.createdAt ? new Date(d.createdAt).toLocaleString() : '—'}`, review: d.reviewedAt ? `စစ်ဆေးချိန် ${new Date(d.reviewedAt).toLocaleString()}${d.reviewedBy ? ` · ${d.reviewedBy}` : ''}` : 'မစစ်ဆေးရသေး' })) },
+                                  { title: 'ငွေထုတ်မှတ်တမ်း အပြည့်အစုံ', rows: userActivity.withdrawals.map((w) => ({ id: w.withdrawalId, status: getTransactionStatus(w.status, 'withdrawal'), amount: w.amount, detail: `${w.method || '—'} · ${w.phone} · ${w.accountName} · ${w.createdAt ? new Date(w.createdAt).toLocaleString() : '—'}`, review: w.rejectionReason || w.reviewNote || (w.reviewedAt ? `စစ်ဆေးချိန် ${new Date(w.reviewedAt).toLocaleString()}` : 'မစစ်ဆေးရသေး') })) },
+                                  { title: 'လောင်းကစားမှတ်တမ်း အပြည့်အစုံ', rows: userActivity.bets.map((b) => ({ id: b.betId, status: { label: b.status === 'win' ? 'အနိုင်' : b.status === 'loss' ? 'အရှုံး' : b.status === 'refunded' ? 'ပြန်အမ်း' : 'စောင့်ဆိုင်းဆဲ', tone: b.status === 'win' ? 'success' : b.status === 'loss' ? 'danger' : 'warning' } as const, amount: b.amount, detail: `Round #${b.roundId} · ${b.selection} · ${b.createdAt ? new Date(b.createdAt).toLocaleString() : '—'}`, review: `Payout ${formatKs(b.payout || 0)} · Profit ${formatKs(b.profit || 0)}` })) },
                                 ].map((group) => (
-                                  <div key={group.title} className="p-2 rounded-xl bg-black/30 border border-white/5">
-                                    <div className="text-[10px] font-black text-zinc-300 mb-1">{group.title}</div>
-                                    {group.rows.length === 0 ? <div className="text-[10px] text-zinc-600 py-2">မှတ်တမ်းမရှိပါ</div> : group.rows.map((row) => (
-                                      <div key={row.id} className="py-1.5 border-t border-white/5 first:border-0">
-                                        <div className="flex items-center justify-between gap-2"><span className="text-[9px] font-mono text-zinc-500 truncate">{row.id}</span><span className={`text-[9px] font-black uppercase ${row.status === 'approved' || row.status === 'win' ? 'text-emerald-300' : row.status === 'pending' ? 'text-amber-300' : 'text-zinc-400'}`}>{row.status}</span></div>
-                                        <div className="text-[10px] text-white font-bold">{formatKs(Number(row.amount) || 0)}</div>
-                                        <div className="text-[9px] text-zinc-500">{row.detail}</div>
+                                  <div key={group.title} className="rounded-xl bg-black/30 border border-white/5 overflow-hidden">
+                                    <div className="px-2.5 py-2 text-[10px] font-black text-zinc-200 bg-white/[0.03] border-b border-white/5 flex items-center justify-between"><span>{group.title}</span><span className="text-zinc-500">{group.rows.length} records</span></div>
+                                    {group.rows.length === 0 ? <div className="text-[10px] text-zinc-600 py-3 px-2.5">မှတ်တမ်းမရှိပါ</div> : <div className="max-h-72 overflow-y-auto">{group.rows.map((row) => (
+                                      <div key={row.id} className="px-2.5 py-2 border-b border-white/5 last:border-0 grid grid-cols-[1fr_auto] gap-2">
+                                        <div className="min-w-0"><div className="flex items-center gap-2"><span className="text-[9px] font-mono text-zinc-400 truncate">{row.id}</span><span className={`status-chip status-chip-${row.status.tone}`}>{row.status.label}</span></div><div className="text-[10px] text-white font-bold mt-0.5">{formatKs(Number(row.amount) || 0)}</div><div className="text-[9px] text-zinc-500 truncate">{row.detail}</div><div className="text-[9px] text-zinc-600 truncate">{row.review}</div></div>
+                                        <div className="flex items-start gap-1"><button type="button" title="ID ကူးယူရန်" aria-label="ID ကူးယူရန်" onClick={() => { void navigator.clipboard?.writeText(row.id).catch(() => {}); }} className="icon-action"><Copy className="w-3 h-3" /></button></div>
                                       </div>
-                                    ))}
+                                    ))}</div>}
                                   </div>
                                 ))}
                               </div>
-                              <div className="mt-2 flex items-center gap-1 text-[9px] text-zinc-500"><Clock3 className="w-3 h-3" />အကောင့်၏ ရရှိနိုင်သော မှတ်တမ်းများထဲမှ နောက်ဆုံး ၅ ခုကိုပြထားသည်။</div>
+                              <div className="mt-2 flex items-center gap-1 text-[9px] text-zinc-500"><Clock3 className="w-3 h-3" />ဤ account အတွက် ရရှိနိုင်သမျှ မှတ်တမ်းအားလုံးကို ပြသထားသည်။</div>
                             </>
                           ) : null}
                         </div>

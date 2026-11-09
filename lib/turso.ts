@@ -57,7 +57,12 @@ export async function initTursoSchema(client: Client) {
       status TEXT DEFAULT 'pending',
       isFirstDeposit INTEGER DEFAULT 0,
       createdAt INTEGER,
-      reviewedAt INTEGER
+      reviewedAt INTEGER,
+      reviewedBy TEXT,
+      reviewNote TEXT,
+      completedAt INTEGER,
+      externalReference TEXT,
+      balanceMutationId TEXT
     );`,
     `CREATE TABLE IF NOT EXISTS withdrawals (
       id TEXT PRIMARY KEY,
@@ -72,7 +77,12 @@ export async function initTursoSchema(client: Client) {
       rejectionReason TEXT,
       adminNote TEXT,
       createdAt INTEGER,
-      reviewedAt INTEGER
+      reviewedAt INTEGER,
+      reviewedBy TEXT,
+      reviewNote TEXT,
+      completedAt INTEGER,
+      externalReference TEXT,
+      balanceMutationId TEXT
     );`,
     `CREATE TABLE IF NOT EXISTS bets (
       id TEXT PRIMARY KEY,
@@ -136,6 +146,14 @@ export async function initTursoSchema(client: Client) {
   for (const [column, definition] of Object.entries(missingUsersColumns)) {
     if (!existingUsersColumns.has(column)) {
       await client.execute(`ALTER TABLE users ADD COLUMN ${column} ${definition};`);
+    }
+  }
+
+  for (const table of ['deposits', 'withdrawals']) {
+    const columns = new Set((await client.execute(`PRAGMA table_info(${table});`)).rows.map((row) => String(row.name)));
+    const missing: Record<string, string> = { reviewedBy: 'TEXT', reviewNote: 'TEXT', completedAt: 'INTEGER', externalReference: 'TEXT', balanceMutationId: 'TEXT' };
+    for (const [column, definition] of Object.entries(missing)) {
+      if (!columns.has(column)) await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
     }
   }
 }

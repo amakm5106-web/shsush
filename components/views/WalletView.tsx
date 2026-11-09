@@ -21,6 +21,7 @@ import {
 import { GameSettings, UserProfile, DepositRequest, WithdrawalRequest } from '@/lib/types';
 import { formatKs } from '@/lib/constants';
 import { sounds } from '@/lib/audio';
+import { getTransactionStatus } from '@/lib/transactionStatus';
 
 interface WalletViewProps {
   user: UserProfile;
@@ -821,30 +822,29 @@ export function WalletView({
                         <span className="text-[11px] text-amber-300 font-mono mt-0.5 font-bold">
                           ငွေလွှဲ ID: <span className="bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded">{d.trxLast5 || d.receiptImage || '-'}</span>
                         </span>
-                        <span className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                          {new Date(d.createdAt).toLocaleString()}
-                        </span>
+                        <span className="text-[10px] text-zinc-500 font-mono mt-0.5">{new Date(d.createdAt).toLocaleString()} {d.reviewedAt ? `· စစ်ဆေးပြီး ${new Date(d.reviewedAt).toLocaleString()}` : ''}</span>
+                        {d.reviewNote && <span className="text-[10px] text-red-300/80 mt-0.5">မှတ်ချက်: {d.reviewNote}</span>}
                       </div>
                     </div>
 
                     {/* Status Badge */}
                     <div>
-                      {d.status === 'approved' && (
+                      {(d.status === 'approved' || d.status === 'completed') && (
                         <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" />
-                          အတည်ပြုပြီး
+                          {getTransactionStatus(d.status, 'deposit').label}
                         </span>
                       )}
                       {d.status === 'pending' && (
                         <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          စစ်ဆေးဆဲ
+                          {getTransactionStatus(d.status, 'deposit').label}
                         </span>
                       )}
                       {d.status === 'declined' && (
                         <span className="px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/30 text-[10px] font-bold flex items-center gap-1">
                           <XCircle className="w-3 h-3" />
-                          ပယ်ချခဲ့သည်
+                          {getTransactionStatus(d.status, 'deposit').label}
                         </span>
                       )}
                     </div>
@@ -885,30 +885,29 @@ export function WalletView({
                             {w.method}
                           </span>
                         </div>
-                        <span className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                          {new Date(w.createdAt).toLocaleString()} · {w.phone} ({w.accountName})
-                        </span>
+                        <span className="text-[10px] text-zinc-500 font-mono mt-0.5">{new Date(w.createdAt).toLocaleString()} · {w.phone} ({w.accountName}) {w.reviewedAt ? `· စစ်ဆေးပြီး ${new Date(w.reviewedAt).toLocaleString()}` : ''}</span>
+                        {(w.rejectionReason || w.reviewNote) && <span className="text-[10px] text-red-300/80 mt-0.5">မအောင်မြင်ရခြင်း: {w.rejectionReason || w.reviewNote}</span>}
                       </div>
                     </div>
 
                     {/* Status Badge */}
                     <div>
-                      {w.status === 'approved' && (
+                      {(w.status === 'approved' || w.status === 'completed') && (
                         <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" />
-                          ခွင့်ပြုပြီး
+                          {getTransactionStatus(w.status, 'withdrawal').label}
                         </span>
                       )}
                       {w.status === 'pending' && (
                         <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          စစ်ဆေးဆဲ
+                          {getTransactionStatus(w.status, 'withdrawal').label}
                         </span>
                       )}
                       {w.status === 'declined' && (
                         <span className="px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/30 text-[10px] font-bold flex items-center gap-1">
                           <XCircle className="w-3 h-3" />
-                          ပယ်ချခဲ့သည်
+                          {getTransactionStatus(w.status, 'withdrawal').label}
                         </span>
                       )}
                     </div>

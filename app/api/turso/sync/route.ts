@@ -128,8 +128,8 @@ export async function POST(req: NextRequest) {
       await turso.execute({
         sql: `INSERT OR REPLACE INTO deposits (
           id, depositId, userId, userName, amount, method, phone, accountName,
-          receiptImage, trxLast5, status, isFirstDeposit, createdAt, reviewedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          receiptImage, trxLast5, status, isFirstDeposit, createdAt, reviewedAt, reviewedBy, reviewNote, completedAt, externalReference, balanceMutationId
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         args: [
           data.id || data.depositId,
           data.depositId,
@@ -145,6 +145,7 @@ export async function POST(req: NextRequest) {
           data.isFirstDeposit ? 1 : 0,
           Number(data.createdAt) || Date.now(),
           data.reviewedAt ? Number(data.reviewedAt) : null,
+          data.reviewedBy || '', data.reviewNote || '', data.completedAt ? Number(data.completedAt) : null, data.externalReference || '', data.balanceMutationId || '',
         ],
       });
       return NextResponse.json({ success: true, message: 'Deposit synced to Turso' });
@@ -154,8 +155,8 @@ export async function POST(req: NextRequest) {
       await turso.execute({
         sql: `INSERT OR REPLACE INTO withdrawals (
           id, withdrawalId, userId, userName, amount, method, phone, accountName,
-          status, rejectionReason, adminNote, createdAt, reviewedAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          status, rejectionReason, adminNote, createdAt, reviewedAt, reviewedBy, reviewNote, completedAt, externalReference, balanceMutationId
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         args: [
           data.id || data.withdrawalId,
           data.withdrawalId,
@@ -170,6 +171,7 @@ export async function POST(req: NextRequest) {
           data.adminNote || '',
           Number(data.createdAt) || Date.now(),
           data.reviewedAt ? Number(data.reviewedAt) : null,
+          data.reviewedBy || '', data.reviewNote || '', data.completedAt ? Number(data.completedAt) : null, data.externalReference || '', data.balanceMutationId || '',
         ],
       });
       return NextResponse.json({ success: true, message: 'Withdrawal synced to Turso' });

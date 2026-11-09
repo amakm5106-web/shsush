@@ -1067,7 +1067,7 @@ export default function Home() {
       (err) => console.warn('Withdrawals listener note:', err?.message || err)
     );
 
-    const betsQuery = query(collection(db, 'bets'), orderBy('placedAt', 'desc'), limit(30));
+    const betsQuery = query(collection(db, 'bets'), orderBy('createdAt', 'desc'), limit(30));
     const unsubBets = onSnapshot(
       betsQuery,
       (snapshot) => {
@@ -1660,7 +1660,7 @@ export default function Home() {
         const referrer = referrerSnap?.exists() ? referrerSnap.data() as UserProfile : null;
 
         // All reads happen before writes; deposit status and balance credit commit together.
-        txn.update(depositRef, { status: 'approved', reviewedAt: now });
+        txn.update(depositRef, { status: 'approved', reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', completedAt: now, balanceMutationId: `deposit_${deposit.depositId}_${now}` });
         txn.update(userRef, {
           balance: updatedUser.balance,
           totalSuccessfulDeposit: updatedUser.totalSuccessfulDeposit,
@@ -1678,7 +1678,7 @@ export default function Home() {
         }
 
         return {
-          deposit: { ...deposit, status: 'approved' as const, reviewedAt: now },
+          deposit: { ...deposit, status: 'approved' as const, reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', completedAt: now },
           updatedUser,
         };
       });
@@ -1706,8 +1706,9 @@ export default function Home() {
         if (!depositSnap.exists()) throw new Error('Deposit request not found');
         const deposit = { ...depositSnap.data(), id: depositSnap.id } as DepositRequest;
         if (deposit.status !== 'pending') throw new Error('Deposit has already been reviewed');
-        const updated = { ...deposit, status: 'declined' as const, reviewedAt: now };
-        txn.update(depositRef, { status: 'declined', reviewedAt: now });
+        const reviewNote = 'ငွေလွှဲအထောက်အထား သို့မဟုတ် ပမာဏကို အတည်မပြုနိုင်ပါ';
+        const updated = { ...deposit, status: 'declined' as const, reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', reviewNote };
+        txn.update(depositRef, { status: 'declined', reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', reviewNote });
         return updated;
       });
       syncToTurso('deposit', declinedDeposit);
@@ -1747,14 +1748,14 @@ export default function Home() {
           updatedAt: now,
         };
 
-        txn.update(withdrawalRef, { status: 'approved', reviewedAt: now });
+        txn.update(withdrawalRef, { status: 'approved', reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', completedAt: now, balanceMutationId: `withdrawal_${withdrawal.withdrawalId}_${now}` });
         txn.update(userRef, {
           withdrawalCount: updatedUser.withdrawalCount,
           wagerSinceLastWithdrawal: 0,
           updatedAt: now,
         });
         return {
-          withdrawal: { ...withdrawal, status: 'approved' as const, reviewedAt: now },
+          withdrawal: { ...withdrawal, status: 'approved' as const, reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', completedAt: now },
           updatedUser,
         };
       });
@@ -1798,10 +1799,10 @@ export default function Home() {
           updatedAt: now,
         };
 
-        txn.update(withdrawalRef, { status: 'declined', rejectionReason, reviewedAt: now });
+        txn.update(withdrawalRef, { status: 'declined', rejectionReason, reviewNote: rejectionReason, reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin', balanceMutationId: `refund_${withdrawal.withdrawalId}_${now}` });
         txn.update(userRef, { balance: updatedUser.balance, updatedAt: now });
         return {
-          withdrawal: { ...withdrawal, status: 'declined' as const, rejectionReason, reviewedAt: now },
+          withdrawal: { ...withdrawal, status: 'declined' as const, rejectionReason, reviewNote: rejectionReason, reviewedAt: now, reviewedBy: currentUser?.email || currentUser?.uid || 'admin' },
           updatedUser,
         };
       });
@@ -1979,6 +1980,12 @@ export default function Home() {
     const newestFirst = <T extends { createdAt: number }>(items: T[]) =>
       items.sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
 
+    const depositApproved = depositsSnap.docs.reduce((sum, d) => sum + (d.data().status === 'approved' || d.data().status === 'completed' ? Number(d.data().amount) || 0 : 0), 0);
+    const withdrawalApproved = withdrawalsSnap.docs.reduce((sum, d) => sum + (d.data().status === 'approved' || d.data().status === 'completed' ? Number(d.data().amount) || 0 : 0), 0);
+    const bets = betsSnap.docs.map((d) => {
+      const data = d.data();
+      return { ...data, id: d.id, betId: String(data.betId || d.id), createdAt: Number(data.createdAt || data.placedAt) || 0 } as PlayerBet;
+    });
     return {
       deposits: newestFirst(depositsSnap.docs.map((d) => {
         const data = d.data();
@@ -1988,10 +1995,17 @@ export default function Home() {
         const data = d.data();
         return { ...data, id: d.id, withdrawalId: String(data.withdrawalId || d.id), createdAt: Number(data.createdAt) || 0 } as WithdrawalRequest;
       })),
-      bets: newestFirst(betsSnap.docs.map((d) => {
-        const data = d.data();
-        return { ...data, id: d.id, betId: String(data.betId || d.id), createdAt: Number(data.createdAt || data.placedAt) || 0 } as PlayerBet;
-      })),
+      bets: newestFirst(bets),
+      summary: {
+        depositRequested: depositsSnap.docs.reduce((sum, d) => sum + (Number(d.data().amount) || 0), 0),
+        depositApproved,
+        withdrawalRequested: withdrawalsSnap.docs.reduce((sum, d) => sum + (Number(d.data().amount) || 0), 0),
+        withdrawalApproved,
+        wagered: bets.reduce((sum, b) => sum + (Number(b.amount) || 0), 0),
+        payout: bets.reduce((sum, b) => sum + (Number(b.payout) || 0), 0),
+        wins: bets.filter((b) => b.status === 'win').length,
+        losses: bets.filter((b) => b.status === 'loss').length,
+      },
     };
   };
 
