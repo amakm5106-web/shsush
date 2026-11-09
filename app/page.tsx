@@ -1319,38 +1319,33 @@ export default function Home() {
     await consumeSecurityToken(securityToken);
 
     const cleanTrx = trxLast5.trim();
-    const depId = `dep_${Date.now()}`;
-    const newDep: DepositRequest = {
-      depositId: depId,
-      userId: currentUser.uid,
-      userName: userProfile.fullName,
-      amount,
-      method,
-      trxLast5: cleanTrx,
-      receiptImage: cleanTrx, // backward compat
-      status: 'pending',
-      isFirstDeposit: !userProfile.hasSuccessfulDeposit,
-      createdAt: Date.now(),
-    };
-
     try {
-      await setDoc(doc(db, 'deposits', depId), newDep);
-      syncToTurso('deposit', newDep);
-      setUserDeposits((prev) => [newDep, ...prev.filter((d) => d.depositId !== depId)]);
+      const response = await fetch('/api/deposits', {
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, method, trxLast5: cleanTrx }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.deposit) {
+        throw new Error(result.error || 'Deposit request could not be saved');
+      }
+
+      const savedDeposit = result.deposit as DepositRequest;
+      try {
+        await setDoc(doc(db, 'deposits', savedDeposit.depositId), savedDeposit);
+      } catch (mirrorError) {
+        // Turso is the source used by the live admin dashboard; Firestore is a legacy mirror.
+        console.warn('Deposit saved to Turso; Firestore mirror unavailable:', mirrorError);
+      }
+      setUserDeposits((prev) => [savedDeposit, ...prev.filter((d) => d.depositId !== savedDeposit.depositId)]);
       sounds.playWin();
       return true;
     } catch (err) {
       console.error('Deposit error:', err);
-      // Fallback: sync to Turso directly even if Firestore quota exceeded!
-      try {
-        syncToTurso('deposit', newDep);
-        setUserDeposits((prev) => [newDep, ...prev.filter((d) => d.depositId !== depId)]);
-        sounds.playWin();
-        return true;
-      } catch {
-        alert('ငွေသွင်းတောင်းဆိုမှု မအောင်မြင်ပါ။ ပြန်လည်ကြိုးစားပေးပါ။');
-        return false;
-      }
+      alert('ငွေသွင်းတောင်းဆိုမှုကို သိမ်းဆည်းမရပါ။ ခဏကြာပြီး ပြန်လည်ကြိုးစားပေးပါ။');
+      return false;
     }
   };
 
