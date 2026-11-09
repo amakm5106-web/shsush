@@ -30,6 +30,11 @@ export interface TransactionAuditFields {
 export interface DepositRequest extends TransactionAuditFields {
   id?: string; depositId: string; userId: string; userName: string; amount: number; method: 'kpay' | 'wave'; phone?: string; accountName?: string;
   receiptImage?: string; trxLast5?: string; status: TransactionStatus; isFirstDeposit: boolean; createdAt: number;
+  accountEmail?: string; accountPhone?: string; accountBalance?: number; accountInitialBalance?: number;
+  accountReferralBalance?: number; accountReferralsCount?: number; accountReferralCode?: string;
+  accountReferrerId?: string | null; accountTotalBetCumulative?: number; accountTotalSuccessfulDeposit?: number;
+  accountWithdrawalCount?: number; accountHasSuccessfulDeposit?: boolean; accountFirstDepositBonusClaimed?: boolean;
+  accountBoundBank?: BoundBank | null; accountCreatedAt?: number; accountUpdatedAt?: number;
 }
 
 export interface WithdrawalRequest extends TransactionAuditFields {

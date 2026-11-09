@@ -62,7 +62,8 @@ export async function initTursoSchema(client: Client) {
       reviewNote TEXT,
       completedAt INTEGER,
       externalReference TEXT,
-      balanceMutationId TEXT
+      balanceMutationId TEXT,
+      balanceBeforeDeposit INTEGER
     );`,
     `CREATE TABLE IF NOT EXISTS withdrawals (
       id TEXT PRIMARY KEY,
@@ -151,7 +152,7 @@ export async function initTursoSchema(client: Client) {
 
   for (const table of ['deposits', 'withdrawals']) {
     const columns = new Set((await client.execute(`PRAGMA table_info(${table});`)).rows.map((row) => String(row.name)));
-    const missing: Record<string, string> = { reviewedBy: 'TEXT', reviewNote: 'TEXT', completedAt: 'INTEGER', externalReference: 'TEXT', balanceMutationId: 'TEXT' };
+    const missing: Record<string, string> = { reviewedBy: 'TEXT', reviewNote: 'TEXT', completedAt: 'INTEGER', externalReference: 'TEXT', balanceMutationId: 'TEXT', balanceBeforeDeposit: 'INTEGER' };
     for (const [column, definition] of Object.entries(missing)) {
       if (!columns.has(column)) await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
     }

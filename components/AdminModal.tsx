@@ -28,6 +28,7 @@ import {
   Database,
   Activity,
   Clock3,
+  Info,
 } from 'lucide-react';
 import {
   DepositRequest,
@@ -99,6 +100,8 @@ export function AdminModal({
   const [rejectionNote, setRejectionNote] = useState<string>('');
   const [reviewingDepositIds, setReviewingDepositIds] = useState<Set<string>>(new Set());
   const reviewingDepositIdsRef = useRef(new Set<string>());
+  const [dismissedDepositIds, setDismissedDepositIds] = useState<Set<string>>(new Set());
+  const [selectedDepositInfo, setSelectedDepositInfo] = useState<string | null>(null);
   const [reviewingWithdrawalIds, setReviewingWithdrawalIds] = useState<Set<string>>(new Set());
   const reviewingWithdrawalIdsRef = useRef(new Set<string>());
   const [reviewFeedback, setReviewFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -188,6 +191,7 @@ export function AdminModal({
   const grossProfit = totalWager - totalPayout;
   const totalWins = allBets.filter((b) => b.status === 'win').length;
   const totalLoss = allBets.filter((b) => b.status === 'loss').length;
+  const visiblePendingDeposits = pendingDeposits.filter((deposit) => !dismissedDepositIds.has(deposit.id || deposit.depositId || ''));
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -220,6 +224,7 @@ export function AdminModal({
     if (!id || reviewingDepositIdsRef.current.has(id)) return;
     reviewingDepositIdsRef.current.add(id);
     setReviewingDepositIds((previous) => new Set(previous).add(id));
+    setDismissedDepositIds((previous) => new Set(previous).add(id));
     setReviewFeedback(null);
     try {
       const ok = decision === 'approve'
@@ -228,7 +233,17 @@ export function AdminModal({
       setReviewFeedback(ok
         ? { type: 'success', msg: decision === 'approve' ? `UID ${deposit.userId} အတွက် ငွေသွင်းကို တစ်ကြိမ်သာ အတည်ပြုပြီးပါပြီ။` : 'ငွေသွင်းတောင်းဆိုမှုကို ပယ်ချပြီးပါပြီ။' }
         : { type: 'error', msg: 'မအောင်မြင်ပါ—တောင်းဆိုမှုကို စစ်ပြီးသားဖြစ်နိုင်သည်။ စာရင်းကို refresh လုပ်ပြီး status ကိုပြန်စစ်ပါ။' });
+      if (!ok) setDismissedDepositIds((previous) => {
+        const next = new Set(previous);
+        next.delete(id);
+        return next;
+      });
     } catch {
+      setDismissedDepositIds((previous) => {
+        const next = new Set(previous);
+        next.delete(id);
+        return next;
+      });
       setReviewFeedback({ type: 'error', msg: 'လုပ်ဆောင်မှု မအောင်မြင်ပါ။ Status ကိုပြန်စစ်ပြီးမှ ထပ်ကြိုးစားပါ။' });
     } finally {
       reviewingDepositIdsRef.current.delete(id);
@@ -526,12 +541,12 @@ export function AdminModal({
           <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-2.5">
             <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between gap-3">
               <div>
-                <div className="text-xs font-black text-white">စစ်ဆေးရန် ငွေသွင်း {pendingDeposits.length} ခု</div>
+              <div className="text-xs font-black text-white">စစ်ဆေးရန် ငွေသွင်း {visiblePendingDeposits.length} ခု</div>
                 <div className="text-[10px] text-white/60 mt-0.5">Approve မလုပ်မီ UID၊ amount နှင့် ငွေလွှဲအထောက်အထားကို တိုက်စစ်ပါ။</div>
               </div>
               <div className="shrink-0 text-right">
                 <div className="text-[10px] text-white/60">Pending amount</div>
-                <div className="text-sm font-black font-mono text-amber-300">{formatKs(pendingDeposits.reduce((sum, dep) => sum + (Number(dep.amount) || 0), 0))}</div>
+                <div className="text-sm font-black font-mono text-amber-300">{formatKs(visiblePendingDeposits.reduce((sum, dep) => sum + (Number(dep.amount) || 0), 0))}</div>
               </div>
             </div>
             {reviewFeedback && (
@@ -539,13 +554,13 @@ export function AdminModal({
                 {reviewFeedback.msg}
               </div>
             )}
-            {pendingDeposits.length === 0 ? (
+            {visiblePendingDeposits.length === 0 ? (
               <div className="py-16 text-center text-xs text-white/60 font-bold flex flex-col items-center gap-2">
                 <CheckCircle2 className="w-8 h-8 text-emerald-400/40" />
                 <span>စစ်ဆေးရန်ကျန်ရှိသော ငွေသွင်းတောင်းဆိုမှု မရှိပါ။</span>
               </div>
             ) : (
-              pendingDeposits.map((dep) => (
+              visiblePendingDeposits.map((dep) => (
                 <div key={dep.id || dep.depositId} aria-busy={reviewingDepositIds.has(dep.id || dep.depositId || '')} className="p-3.5 rounded-2xl dark-glass-card flex flex-col gap-2.5 border border-white/10">
                   <div className="flex items-center justify-between">
                     <div>
@@ -571,14 +586,12 @@ export function AdminModal({
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
-                    {(dep.trxLast5 || (!dep.receiptImage?.startsWith('data:image') && dep.receiptImage)) && (
-                      <div className="px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-mono font-bold flex items-center gap-2">
-                        <span>💳 ငွေလွှဲ ID (နောက်ဆုံး ၅ လုံး):</span>
-                        <span className="text-white text-sm font-black bg-black/60 px-2 py-0.5 rounded border border-white/20">
-                          {dep.trxLast5 || dep.receiptImage}
-                        </span>
-                      </div>
-                    )}
+                    <div className="px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-mono font-bold flex items-center gap-2">
+                      <span>💳 ငွေလွှဲ ID (နောက်ဆုံး ၅ လုံး):</span>
+                      <span className="text-white text-sm font-black bg-black/60 px-2 py-0.5 rounded border border-white/20 tracking-widest">
+                        {dep.trxLast5 || (!dep.receiptImage?.startsWith('data:image') ? dep.receiptImage : null) || 'မပါရှိပါ'}
+                      </span>
+                    </div>
                     {dep.receiptImage && dep.receiptImage.startsWith('data:image') && (
                       <button
                         type="button"
@@ -589,7 +602,37 @@ export function AdminModal({
                         ပြေစာ Screenshot ကြည့်ရန်
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDepositInfo(selectedDepositInfo === (dep.id || dep.depositId) ? null : (dep.id || dep.depositId || null))}
+                      className="text-xs font-black text-cyan-300 underline flex items-center gap-1 py-1.5 px-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/25 hover:bg-cyan-500/20"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                      {selectedDepositInfo === (dep.id || dep.depositId) ? 'Information ပိတ်မည်' : 'Account Information ကြည့်မည်'}
+                    </button>
                   </div>
+
+                  {selectedDepositInfo === (dep.id || dep.depositId) && (
+                    <div className="p-3 rounded-xl bg-black/45 border border-cyan-500/20 text-[11px] text-white/80 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+                      <div><span className="text-white/45">အမည်:</span> {dep.userName || '—'}</div>
+                      <div><span className="text-white/45">UID:</span> <span className="font-mono">{dep.userId}</span></div>
+                      <div><span className="text-white/45">ချိတ်ထားသောဖုန်း:</span> {dep.accountPhone || dep.phone || '—'}</div>
+                      <div><span className="text-white/45">Email:</span> {dep.accountEmail || '—'}</div>
+                      <div><span className="text-white/45">လက်ရှိ Balance:</span> <b className="text-emerald-300">{formatKs(Number(dep.accountBalance) || 0)}</b></div>
+                      <div><span className="text-white/45">မူလ Balance:</span> <b>{formatKs(Number(dep.accountInitialBalance) || 0)}</b></div>
+                      <div><span className="text-white/45">Referral Balance:</span> {formatKs(Number(dep.accountReferralBalance) || 0)}</div>
+                      <div><span className="text-white/45">ဖိတ်ခေါ်သူ:</span> {dep.accountReferrerId || 'မရှိပါ'}</div>
+                      <div><span className="text-white/45">Referral Code:</span> {dep.accountReferralCode || '—'}</div>
+                      <div><span className="text-white/45">ဖိတ်ခေါ်အရေအတွက်:</span> {Number(dep.accountReferralsCount) || 0} ယောက်</div>
+                      <div><span className="text-white/45">စုစုပေါင်း Deposit:</span> {formatKs(Number(dep.accountTotalSuccessfulDeposit) || 0)}</div>
+                      <div><span className="text-white/45">စုစုပေါင်း Bet:</span> {formatKs(Number(dep.accountTotalBetCumulative) || 0)}</div>
+                      <div><span className="text-white/45">Withdrawal အကြိမ်:</span> {Number(dep.accountWithdrawalCount) || 0} ကြိမ်</div>
+                      <div><span className="text-white/45">First Deposit Bonus:</span> {dep.accountFirstDepositBonusClaimed ? 'Claimed' : 'မယူရသေးပါ'}</div>
+                      <div><span className="text-white/45">Account ဖွင့်သည့်အချိန်:</span> {dep.accountCreatedAt ? new Date(dep.accountCreatedAt).toLocaleString() : '—'}</div>
+                      <div><span className="text-white/45">Deposit မတင်မီ Balance:</span> {formatKs(Number(dep.accountInitialBalance) || 0)}</div>
+                      <div className="sm:col-span-2"><span className="text-white/45">ချိတ်ထားသော ငွေလွှဲအကောင့်:</span> {dep.accountBoundBank ? `${dep.accountBoundBank.method || ''} ${dep.accountBoundBank.accountName || ''} ${dep.accountBoundBank.phone || ''}` : `${dep.accountName || '—'} ${dep.phone || ''}`}</div>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
                     <button

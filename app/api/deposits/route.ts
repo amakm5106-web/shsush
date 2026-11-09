@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
     await client.execute({
       sql: `INSERT INTO deposits (
         id, depositId, userId, userName, amount, method, receiptImage, trxLast5,
-        status, isFirstDeposit, createdAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?);`,
+        status, isFirstDeposit, createdAt, balanceBeforeDeposit
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?);`,
       args: [
         depositId,
         depositId,
@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
         trxLast5,
         deposit.isFirstDeposit ? 1 : 0,
         now,
+        Number(user.balance) || 0,
       ],
     });
 
