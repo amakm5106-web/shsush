@@ -181,6 +181,9 @@ export async function ensureSakuraSchema(client: Client) {
       userId TEXT PRIMARY KEY,
       freeSpinsRemaining INTEGER NOT NULL DEFAULT 0,
       freeSpinStake INTEGER NOT NULL DEFAULT 0,
+      freeSpinWinPending INTEGER NOT NULL DEFAULT 0,
+      pendingBonusId TEXT NOT NULL DEFAULT '',
+      pendingBonusSpinId TEXT NOT NULL DEFAULT '',
       updatedAt INTEGER NOT NULL
     );`,
     `CREATE TABLE IF NOT EXISTS sakura_spins (
@@ -191,6 +194,7 @@ export async function ensureSakuraSchema(client: Client) {
       stake INTEGER NOT NULL,
       charged INTEGER NOT NULL,
       payout INTEGER NOT NULL,
+      creditedPayout INTEGER NOT NULL DEFAULT 0,
       balanceAfter INTEGER NOT NULL,
       isFreeSpin INTEGER NOT NULL DEFAULT 0,
       initialGridJson TEXT NOT NULL,
@@ -198,12 +202,56 @@ export async function ensureSakuraSchema(client: Client) {
       scatterCount INTEGER NOT NULL DEFAULT 0,
       freeSpinsAwarded INTEGER NOT NULL DEFAULT 0,
       freeSpinsRemaining INTEGER NOT NULL DEFAULT 0,
+      freeSpinWinTotal INTEGER NOT NULL DEFAULT 0,
+      freeSpinFeatureFinished INTEGER NOT NULL DEFAULT 0,
+      pendingBonusId TEXT NOT NULL DEFAULT '',
       rtpVersion TEXT NOT NULL,
       createdAt INTEGER NOT NULL,
       UNIQUE(userId, requestId)
     );`,
+    `CREATE TABLE IF NOT EXISTS sakura_bonus_collections (
+      bonusId TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      finalSpinId TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      balanceAfter INTEGER NOT NULL,
+      createdAt INTEGER NOT NULL
+    );`,
+    `CREATE TABLE IF NOT EXISTS sakura_schema_migrations (
+      version TEXT PRIMARY KEY,
+      appliedAt INTEGER NOT NULL
+    );`,
     'CREATE INDEX IF NOT EXISTS idx_sakura_spins_user_created ON sakura_spins(userId, createdAt DESC);',
   ], 'write');
+
+  const tx = await client.transaction('write');
+  try {
+    const migrationVersion = 'sakura-deferred-free-spin-credit-v1';
+    const applied = await tx.execute({ sql: 'SELECT version FROM sakura_schema_migrations WHERE version = ? LIMIT 1', args: [migrationVersion] });
+    if (!applied.rows.length) {
+      const ensureColumn = async (table: string, column: string, definition: string) => {
+        const columns = new Set((await tx.execute(`PRAGMA table_info(${table});`)).rows.map((row) => String(row.name)));
+        if (!columns.has(column)) await tx.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
+      };
+      await ensureColumn('sakura_player_state', 'freeSpinWinPending', 'INTEGER NOT NULL DEFAULT 0');
+      await ensureColumn('sakura_player_state', 'pendingBonusId', "TEXT NOT NULL DEFAULT ''");
+      await ensureColumn('sakura_player_state', 'pendingBonusSpinId', "TEXT NOT NULL DEFAULT ''");
+      await ensureColumn('sakura_spins', 'creditedPayout', 'INTEGER NOT NULL DEFAULT 0');
+      await ensureColumn('sakura_spins', 'freeSpinWinTotal', 'INTEGER NOT NULL DEFAULT 0');
+      await ensureColumn('sakura_spins', 'freeSpinFeatureFinished', 'INTEGER NOT NULL DEFAULT 0');
+      await ensureColumn('sakura_spins', 'pendingBonusId', "TEXT NOT NULL DEFAULT ''");
+      // Every existing v1 round was credited immediately, including its free spins.
+      await tx.execute(`UPDATE sakura_spins SET creditedPayout = payout
+        WHERE creditedPayout = 0 AND payout > 0 AND rtpVersion NOT LIKE 'sakura-rtp-config-v2:%';`);
+      await tx.execute({ sql: 'INSERT INTO sakura_schema_migrations (version, appliedAt) VALUES (?, ?)', args: [migrationVersion, Date.now()] });
+    }
+    await tx.commit();
+  } catch (error) {
+    try { if (!tx.closed) await tx.rollback(); } catch {}
+    throw error;
+  } finally {
+    try { tx.close(); } catch {}
+  }
 }
 
 export async function tursoAdjustBalance(uid: string, delta: number) {

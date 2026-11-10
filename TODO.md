@@ -50,6 +50,13 @@
 - [x] Keep the internal long-run RTP model at 80%, including cascade × multipliers, paid-spin cascades, free-spin winnings, whole-MMK rounding, and payout caps; treat it as an aggregate model target, not an individual-spin promise.
 - [x] Remove client-authoritative balance/outcome and local demo reset; display MMK and server-returned balance/result. The compiled API was tested against temporary local SQLite data for settlement, retries, free spins, cross-origin rejection, and insufficient funds; no production wallet was accessed.
 
+## Sakura free-spin collection, bet levels, and lobby art
+
+- [x] Accumulate free-spin winnings without adding them to the wallet after each free spin. After all free spins finish, show one BIG WIN or MEGA WIN summary, then credit the accumulated winnings once with a visible balance/coin animation. Persist the pending amount and make collection retry-safe so closing or refreshing cannot lose or duplicate the award.
+- [x] Offer only these whole-MMK bet steps, starting at 20 MMK: 20, 50, 100, 300, 500, 1,000, 3,000, 5,000. Each + or − press changes one step; the selected free-spin stake remains the stake from its triggering paid spin.
+- [x] Generate a new Sakura Fortune portrait lobby image matching the game art and use it in the main game-selection lobby instead of the generic wide header image.
+- [x] Keep server/session implementation details out of all player-facing text; verify the new collection flow and all eight stake steps against an isolated local wallet and confirm the generated image is served from the production-style output.
+
 ## Sakura player-facing copy and admin RTP controls
 
 - [x] Remove all RTP labels/percentages and any player-facing text that says a spin is being checked or confirmed by the server. Start the reel animation immediately on tap; keep the final outcome, payout, and wallet changes server-authoritative.

@@ -6,6 +6,7 @@ import {
   createSakuraOutcome,
   DEFAULT_SAKURA_RTP_PERCENT,
   isSakuraBet,
+  isSakuraRoundStake,
   isSakuraRtpPercent,
   SAKURA_RTP_VERSION,
 } from '@/lib/sakuraGame';
@@ -37,7 +38,7 @@ function isSameOrigin(req: NextRequest) {
   }
 }
 
-function storedSpin(row: DbRow) {
+function storedSpin(row: DbRow, currentBalance?: number) {
   const initialGrid = JSON.parse(String(row.initialGridJson));
   const steps = JSON.parse(String(row.stepsJson));
   return {
@@ -46,7 +47,8 @@ function storedSpin(row: DbRow) {
     stake: Number(row.stake),
     charged: Number(row.charged),
     payout: Number(row.payout),
-    balance: Number(row.balanceAfter),
+    balance: currentBalance ?? Number(row.balanceAfter),
+    creditedPayout: Number(row.creditedPayout || 0),
     isFreeSpin: Boolean(Number(row.isFreeSpin)),
     initialGrid,
     steps,
@@ -54,6 +56,9 @@ function storedSpin(row: DbRow) {
     scatterCount: Number(row.scatterCount),
     freeSpinsAwarded: Number(row.freeSpinsAwarded),
     freeSpinsRemaining: Number(row.freeSpinsRemaining),
+    freeSpinWinTotal: Number(row.freeSpinWinTotal || 0),
+    freeSpinFeatureFinished: Boolean(Number(row.freeSpinFeatureFinished || 0)),
+    pendingBonusId: String(row.pendingBonusId || ''),
   };
 }
 
@@ -65,7 +70,8 @@ async function findExisting(client: NonNullable<ReturnType<typeof getTursoClient
   const row = result.rows[0] as DbRow | undefined;
   if (!row) return null;
   if (Number(row.requestedStake) !== requestedStake) return { conflict: true as const };
-  return { conflict: false as const, spin: storedSpin(row) };
+  const wallet = await client.execute({ sql: 'SELECT balance FROM users WHERE uid = ? LIMIT 1', args: [userId] });
+  return { conflict: false as const, spin: storedSpin(row, Number(wallet.rows[0]?.balance || 0)) };
 }
 
 export async function POST(req: NextRequest) {
@@ -87,7 +93,7 @@ export async function POST(req: NextRequest) {
   if (typeof requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
     return json({ success: false, code: 'INVALID_REQUEST_ID', error: 'လှည့်မှုကို မစတင်နိုင်ပါ။ ပြန်ကြိုးစားပါ။' }, 400);
   }
-  if (!isSakuraBet(requestedStake)) return json({ success: false, code: 'INVALID_BET', error: 'လောင်းကြေးပမာဏ မမှန်ကန်ပါ။' }, 400);
+  if (!isSakuraRoundStake(requestedStake)) return json({ success: false, code: 'INVALID_BET', error: 'လောင်းကြေးပမာဏ မမှန်ကန်ပါ။' }, 400);
 
   const client = getTursoClient();
   if (!client) return json({ success: false, code: 'GAME_UNAVAILABLE', error: 'Wallet ဝန်ဆောင်မှု ယာယီမရနိုင်ပါ။' }, 503);
@@ -106,9 +112,10 @@ export async function POST(req: NextRequest) {
     });
     const duplicateRow = duplicate.rows[0] as DbRow | undefined;
     if (duplicateRow) {
+      const wallet = await tx.execute({ sql: 'SELECT balance FROM users WHERE uid = ? LIMIT 1', args: [user.uid] });
       await tx.rollback();
       if (Number(duplicateRow.requestedStake) !== requestedStake) return json({ success: false, code: 'IDEMPOTENCY_CONFLICT', error: 'လှည့်မှုကို ပြီးမြောက်စေ၍မရပါ။ ပြန်ကြိုးစားပါ။' }, 409);
-      return json({ success: true, spin: storedSpin(duplicateRow), replayed: true });
+      return json({ success: true, spin: storedSpin(duplicateRow, Number(wallet.rows[0]?.balance || 0)), replayed: true });
     }
 
     const rtpConfig = await tx.execute({
@@ -119,14 +126,23 @@ export async function POST(req: NextRequest) {
     const rtpPercent = isSakuraRtpPercent(savedRtpPercent) ? savedRtpPercent : DEFAULT_SAKURA_RTP_PERCENT;
 
     const stateResult = await tx.execute({
-      sql: 'SELECT freeSpinsRemaining, freeSpinStake FROM sakura_player_state WHERE userId = ? LIMIT 1',
+      sql: `SELECT freeSpinsRemaining, freeSpinStake, freeSpinWinPending, pendingBonusId
+        FROM sakura_player_state WHERE userId = ? LIMIT 1`,
       args: [user.uid],
     });
     const playerState = stateResult.rows[0] as DbRow | undefined;
+    if (String(playerState?.pendingBonusId || '')) {
+      await tx.rollback();
+      return json({ success: false, code: 'BONUS_PENDING', error: 'အရင်ရရှိထားသော အနိုင်ငွေကို လက်ခံပါ။' }, 409);
+    }
     const freeSpinsBefore = Number(playerState?.freeSpinsRemaining || 0);
     const isFreeSpin = freeSpinsBefore > 0;
+    if (!isFreeSpin && !isSakuraBet(requestedStake)) {
+      await tx.rollback();
+      return json({ success: false, code: 'INVALID_BET', error: 'လောင်းကြေးပမာဏ မမှန်ကန်ပါ။' }, 400);
+    }
     const stake = isFreeSpin ? Number(playerState?.freeSpinStake || 0) : requestedStake;
-    if (!isSakuraBet(stake)) {
+    if (!isSakuraRoundStake(stake)) {
       await tx.rollback();
       return json({ success: false, code: 'INVALID_SERVER_STATE', error: 'လှည့်မှုကို ယခု မစတင်နိုင်ပါ။ ပြန်ကြိုးစားပါ။' }, 409);
     }
@@ -154,39 +170,53 @@ export async function POST(req: NextRequest) {
     const freeSpinsRemaining = isFreeSpin
       ? freeSpinsBefore - 1
       : outcome.freeSpinsAwarded;
-    const freeSpinStake = freeSpinsRemaining > 0
-      ? (isFreeSpin ? Number(playerState?.freeSpinStake || stake) : stake)
+    const originalStake = isFreeSpin ? Number(playerState?.freeSpinStake || stake) : stake;
+    const freeSpinWinTotal = isFreeSpin ? Number(playerState?.freeSpinWinPending || 0) + outcome.payout : 0;
+    const freeSpinFeatureFinished = isFreeSpin && freeSpinsRemaining === 0;
+    const pendingBonusId = freeSpinFeatureFinished && freeSpinWinTotal > 0
+      ? `sakura_bonus_${randomUUID()}`
+      : '';
+    const pendingBonusSpinId = pendingBonusId ? `sakura_${randomUUID()}` : '';
+    const creditedPayout = isFreeSpin ? 0 : outcome.payout;
+    const freeSpinWinPending = isFreeSpin && (freeSpinsRemaining > 0 || Boolean(pendingBonusId))
+      ? freeSpinWinTotal
       : 0;
+    const freeSpinStake = freeSpinsRemaining > 0 || Boolean(pendingBonusId) ? originalStake : 0;
+    const spinId = pendingBonusSpinId || `sakura_${randomUUID()}`;
+    const createdAt = Date.now();
 
-    if (outcome.payout > 0) {
+    if (creditedPayout > 0) {
       const credit = await tx.execute({
         sql: 'UPDATE users SET balance = balance + ?, updatedAt = ? WHERE uid = ?',
-        args: [outcome.payout, Date.now(), user.uid],
+        args: [creditedPayout, Date.now(), user.uid],
       });
       if (credit.rowsAffected !== 1) throw new Error('Sakura wallet credit did not update a user row');
     }
     await tx.execute({
-      sql: `INSERT INTO sakura_player_state (userId, freeSpinsRemaining, freeSpinStake, updatedAt)
-        VALUES (?, ?, ?, ?)
+      sql: `INSERT INTO sakura_player_state (
+        userId, freeSpinsRemaining, freeSpinStake, freeSpinWinPending, pendingBonusId, pendingBonusSpinId, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(userId) DO UPDATE SET freeSpinsRemaining = excluded.freeSpinsRemaining,
-          freeSpinStake = excluded.freeSpinStake, updatedAt = excluded.updatedAt`,
-      args: [user.uid, freeSpinsRemaining, freeSpinStake, Date.now()],
+          freeSpinStake = excluded.freeSpinStake, freeSpinWinPending = excluded.freeSpinWinPending,
+          pendingBonusId = excluded.pendingBonusId, pendingBonusSpinId = excluded.pendingBonusSpinId,
+          updatedAt = excluded.updatedAt`,
+      args: [user.uid, freeSpinsRemaining, freeSpinStake, freeSpinWinPending, pendingBonusId, pendingBonusSpinId, createdAt],
     });
     const balanceResult = await tx.execute({ sql: 'SELECT balance FROM users WHERE uid = ? LIMIT 1', args: [user.uid] });
     const balanceAfter = Number(balanceResult.rows[0]?.balance);
     if (!Number.isSafeInteger(balanceAfter) || balanceAfter < 0) throw new Error('Sakura wallet returned an invalid balance');
 
-    const spinId = `sakura_${randomUUID()}`;
-    const createdAt = Date.now();
     const appliedRtpVersion = `${SAKURA_RTP_VERSION}:${rtpPercent}`;
     await tx.execute({
       sql: `INSERT INTO sakura_spins (
-        id, userId, requestId, requestedStake, stake, charged, payout, balanceAfter, isFreeSpin,
-        initialGridJson, stepsJson, scatterCount, freeSpinsAwarded, freeSpinsRemaining, rtpVersion, createdAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [spinId, user.uid, requestId, requestedStake, stake, charged, outcome.payout, balanceAfter,
+        id, userId, requestId, requestedStake, stake, charged, payout, creditedPayout, balanceAfter, isFreeSpin,
+        initialGridJson, stepsJson, scatterCount, freeSpinsAwarded, freeSpinsRemaining,
+        freeSpinWinTotal, freeSpinFeatureFinished, pendingBonusId, rtpVersion, createdAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [spinId, user.uid, requestId, requestedStake, stake, charged, outcome.payout, creditedPayout, balanceAfter,
         isFreeSpin ? 1 : 0, JSON.stringify(outcome.initialGrid), JSON.stringify(outcome.steps),
-        outcome.scatterCount, outcome.freeSpinsAwarded, freeSpinsRemaining, appliedRtpVersion, createdAt],
+        outcome.scatterCount, outcome.freeSpinsAwarded, freeSpinsRemaining, freeSpinWinTotal,
+        freeSpinFeatureFinished ? 1 : 0, pendingBonusId, appliedRtpVersion, createdAt],
     });
     const finalMultiplier = outcome.steps.at(-1)?.multiplier || (isFreeSpin ? 2 : 1);
     await tx.execute({
@@ -204,6 +234,7 @@ export async function POST(req: NextRequest) {
       stake,
       charged,
       payout: outcome.payout,
+      creditedPayout,
       balance: balanceAfter,
       isFreeSpin,
       initialGrid: outcome.initialGrid,
@@ -212,6 +243,9 @@ export async function POST(req: NextRequest) {
       scatterCount: outcome.scatterCount,
       freeSpinsAwarded: outcome.freeSpinsAwarded,
       freeSpinsRemaining,
+      freeSpinWinTotal,
+      freeSpinFeatureFinished,
+      pendingBonusId,
     };
     return json({ success: true, spin, replayed: false });
   } catch (error) {

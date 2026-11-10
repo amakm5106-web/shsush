@@ -2401,7 +2401,7 @@ export default function Home() {
                       aria-label="Play Sakura Fortune Deluxe"
                     >
                       <img
-                        src="/games/sakura-fortune/assets/header.webp"
+                        src="/games/sakura-fortune/assets/lobby-poster.webp"
                         alt=""
                         className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
                         loading="lazy"

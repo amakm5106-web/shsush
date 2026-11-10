@@ -1,10 +1,11 @@
 import { randomInt } from 'node:crypto';
 
-export const SAKURA_BET_STEPS = [10, 20, 40, 80, 160, 320, 500] as const;
+export const SAKURA_BET_STEPS = [20, 50, 100, 300, 500, 1000, 3000, 5000] as const;
+const LEGACY_FREE_SPIN_BET_STEPS = [10, 40, 80, 160, 320] as const;
 export const DEFAULT_SAKURA_RTP_PERCENT = 80;
 export const MIN_SAKURA_RTP_PERCENT = 50;
 export const MAX_SAKURA_RTP_PERCENT = 95;
-export const SAKURA_RTP_VERSION = 'sakura-rtp-config-v1';
+export const SAKURA_RTP_VERSION = 'sakura-rtp-config-v2';
 export const SAKURA_MAX_FREE_SPINS = 5;
 export const SAKURA_MAX_CASCADES = 6;
 export const SAKURA_MAX_CASCADE_MULTIPLIER = 8;
@@ -14,7 +15,19 @@ export const SAKURA_SPIN_PAYOUT_CAP_MULTIPLIER = 125;
 // Per-stake calibration for whole-MMK rounding; validated with one million paid rounds
 // per permitted stake, including cascades, multipliers, five-spin bonuses, and payouts.
 export const SAKURA_PAYOUT_SCALE_BY_BET: Readonly<Record<number, number>> = {
-  10: 1.095641, 20: 1.020934, 40: 0.989735, 80: 0.992274, 160: 0.993591, 320: 0.991519, 500: 0.985908,
+  10: 1.095641,
+  20: 1.020934,
+  40: 0.989735,
+  50: 0.991,
+  100: 0.9925,
+  80: 0.992274,
+  160: 0.993591,
+  300: 0.992,
+  500: 0.985908,
+  320: 0.991519,
+  1000: 0.992,
+  3000: 0.992,
+  5000: 0.992,
 };
 
 const SYMBOLS = ['sushi', 'maki', 'cat', 'fan', 'coin', 'drum', 'a', 'k', 'q', 'j', '10', 'wild', 'scatter'] as const;
@@ -121,6 +134,10 @@ export function isSakuraBet(value: unknown): value is (typeof SAKURA_BET_STEPS)[
   return typeof value === 'number' && SAKURA_BET_STEPS.includes(value as (typeof SAKURA_BET_STEPS)[number]);
 }
 
+export function isSakuraRoundStake(value: unknown): value is number {
+  return isSakuraBet(value) || (typeof value === 'number' && LEGACY_FREE_SPIN_BET_STEPS.includes(value as (typeof LEGACY_FREE_SPIN_BET_STEPS)[number]));
+}
+
 export function isSakuraRtpPercent(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) &&
     value >= MIN_SAKURA_RTP_PERCENT && value <= MAX_SAKURA_RTP_PERCENT;
@@ -133,7 +150,7 @@ export function createSakuraOutcome(
   random: RandomIndex = randomInt,
   rtpPercent = DEFAULT_SAKURA_RTP_PERCENT,
 ): SakuraOutcome {
-  if (!isSakuraBet(stake)) throw new Error('Invalid Sakura stake');
+  if (!isSakuraRoundStake(stake)) throw new Error('Invalid Sakura stake');
   if (!isSakuraRtpPercent(rtpPercent)) throw new Error('Invalid Sakura RTP setting');
   let grid = randomGrid(random);
   const initialGrid = grid.slice();

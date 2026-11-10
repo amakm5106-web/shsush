@@ -18,16 +18,25 @@ export async function GET() {
     }
     await ensureSakuraSchema(client);
     const result = await client.execute({
-      sql: 'SELECT freeSpinsRemaining, freeSpinStake FROM sakura_player_state WHERE userId = ? LIMIT 1',
+      sql: `SELECT freeSpinsRemaining, freeSpinStake, freeSpinWinPending, pendingBonusId
+        FROM sakura_player_state WHERE userId = ? LIMIT 1`,
       args: [user.uid],
     });
     const state = result.rows[0];
+    const wallet = await client.execute({ sql: 'SELECT balance FROM users WHERE uid = ? LIMIT 1', args: [user.uid] });
+    const pendingBonusId = String(state?.pendingBonusId || '');
+    const pendingBonusAmount = Number(state?.freeSpinWinPending || 0);
     return NextResponse.json({
       success: true,
       player: {
-        balance: user.balance,
+        balance: Number(wallet.rows[0]?.balance ?? user.balance),
         freeSpins: Number(state?.freeSpinsRemaining || 0),
         freeSpinStake: Number(state?.freeSpinStake || 0),
+        pendingBonus: pendingBonusId && pendingBonusAmount > 0 ? {
+          id: pendingBonusId,
+          amount: pendingBonusAmount,
+          stake: Number(state?.freeSpinStake || 20),
+        } : null,
       },
       game: {
         currency: 'MMK',
