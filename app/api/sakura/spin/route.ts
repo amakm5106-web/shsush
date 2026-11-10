@@ -2,7 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureSakuraSchema, getTursoClient } from '@/lib/turso';
 import { getSessionUser } from '@/lib/tursoAuth';
-import { createSakuraOutcome, isSakuraBet, SAKURA_RTP_VERSION, SAKURA_TARGET_RTP } from '@/lib/sakuraGame';
+import {
+  createSakuraOutcome,
+  DEFAULT_SAKURA_RTP_PERCENT,
+  isSakuraBet,
+  isSakuraRtpPercent,
+  SAKURA_RTP_VERSION,
+} from '@/lib/sakuraGame';
 
 export const dynamic = 'force-dynamic';
 const noStore = { 'Cache-Control': 'no-store, max-age=0' };
@@ -48,8 +54,6 @@ function storedSpin(row: DbRow) {
     scatterCount: Number(row.scatterCount),
     freeSpinsAwarded: Number(row.freeSpinsAwarded),
     freeSpinsRemaining: Number(row.freeSpinsRemaining),
-    rtpVersion: String(row.rtpVersion),
-    targetRtp: SAKURA_TARGET_RTP,
   };
 }
 
@@ -65,7 +69,7 @@ async function findExisting(client: NonNullable<ReturnType<typeof getTursoClient
 }
 
 export async function POST(req: NextRequest) {
-  if (!isSameOrigin(req)) return json({ success: false, code: 'INVALID_ORIGIN', error: 'တောင်းဆိုမှုကို အတည်မပြုနိုင်ပါ။' }, 403);
+  if (!isSameOrigin(req)) return json({ success: false, code: 'INVALID_ORIGIN', error: 'ဂိမ်းကို ယခု မစတင်နိုင်ပါ။ ပြန်ကြိုးစားပါ။' }, 403);
 
   const user = await getSessionUser();
   if (!user) return json({ success: false, code: 'UNAUTHENTICATED', error: 'ကစားရန် အကောင့်ဝင်ပါ။' }, 401);
@@ -81,7 +85,7 @@ export async function POST(req: NextRequest) {
   const requestId = payload.requestId;
   const requestedStake = payload.stake;
   if (typeof requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
-    return json({ success: false, code: 'INVALID_REQUEST_ID', error: 'လှည့်မှုတောင်းဆိုချက်ကို ပြန်စစ်ပြီး ထပ်ကြိုးစားပါ။' }, 400);
+    return json({ success: false, code: 'INVALID_REQUEST_ID', error: 'လှည့်မှုကို မစတင်နိုင်ပါ။ ပြန်ကြိုးစားပါ။' }, 400);
   }
   if (!isSakuraBet(requestedStake)) return json({ success: false, code: 'INVALID_BET', error: 'လောင်းကြေးပမာဏ မမှန်ကန်ပါ။' }, 400);
 
@@ -92,7 +96,7 @@ export async function POST(req: NextRequest) {
   try {
     await ensureSakuraSchema(client);
     const existing = await findExisting(client, user.uid, requestId, requestedStake);
-    if (existing?.conflict) return json({ success: false, code: 'IDEMPOTENCY_CONFLICT', error: 'လှည့်မှုတောင်းဆိုချက်နှင့် လောင်းကြေး မကိုက်ညီပါ။' }, 409);
+    if (existing?.conflict) return json({ success: false, code: 'IDEMPOTENCY_CONFLICT', error: 'လှည့်မှုကို ပြီးမြောက်စေ၍မရပါ။ ပြန်ကြိုးစားပါ။' }, 409);
     if (existing) return json({ success: true, spin: existing.spin, replayed: true });
 
     tx = await client.transaction('write');
@@ -103,9 +107,16 @@ export async function POST(req: NextRequest) {
     const duplicateRow = duplicate.rows[0] as DbRow | undefined;
     if (duplicateRow) {
       await tx.rollback();
-      if (Number(duplicateRow.requestedStake) !== requestedStake) return json({ success: false, code: 'IDEMPOTENCY_CONFLICT', error: 'လှည့်မှုတောင်းဆိုချက်နှင့် လောင်းကြေး မကိုက်ညီပါ။' }, 409);
+      if (Number(duplicateRow.requestedStake) !== requestedStake) return json({ success: false, code: 'IDEMPOTENCY_CONFLICT', error: 'လှည့်မှုကို ပြီးမြောက်စေ၍မရပါ။ ပြန်ကြိုးစားပါ။' }, 409);
       return json({ success: true, spin: storedSpin(duplicateRow), replayed: true });
     }
+
+    const rtpConfig = await tx.execute({
+      sql: 'SELECT value FROM settings WHERE key = ? LIMIT 1',
+      args: ['sakura_rtp_percent'],
+    });
+    const savedRtpPercent = Number(rtpConfig.rows[0]?.value);
+    const rtpPercent = isSakuraRtpPercent(savedRtpPercent) ? savedRtpPercent : DEFAULT_SAKURA_RTP_PERCENT;
 
     const stateResult = await tx.execute({
       sql: 'SELECT freeSpinsRemaining, freeSpinStake FROM sakura_player_state WHERE userId = ? LIMIT 1',
@@ -117,7 +128,7 @@ export async function POST(req: NextRequest) {
     const stake = isFreeSpin ? Number(playerState?.freeSpinStake || 0) : requestedStake;
     if (!isSakuraBet(stake)) {
       await tx.rollback();
-      return json({ success: false, code: 'INVALID_SERVER_STATE', error: 'ဂိမ်းအခြေအနေ မမှန်ကန်သဖြင့် လောင်းကြေး မနုတ်ထားပါ။' }, 409);
+      return json({ success: false, code: 'INVALID_SERVER_STATE', error: 'လှည့်မှုကို ယခု မစတင်နိုင်ပါ။ ပြန်ကြိုးစားပါ။' }, 409);
     }
 
     let charged = 0;
@@ -139,7 +150,7 @@ export async function POST(req: NextRequest) {
       await tx.execute({ sql: 'UPDATE users SET updatedAt = ? WHERE uid = ?', args: [Date.now(), user.uid] });
     }
 
-    const outcome = createSakuraOutcome(stake, isFreeSpin);
+    const outcome = createSakuraOutcome(stake, isFreeSpin, undefined, rtpPercent);
     const freeSpinsRemaining = isFreeSpin
       ? freeSpinsBefore - 1
       : outcome.freeSpinsAwarded;
@@ -167,6 +178,7 @@ export async function POST(req: NextRequest) {
 
     const spinId = `sakura_${randomUUID()}`;
     const createdAt = Date.now();
+    const appliedRtpVersion = `${SAKURA_RTP_VERSION}:${rtpPercent}`;
     await tx.execute({
       sql: `INSERT INTO sakura_spins (
         id, userId, requestId, requestedStake, stake, charged, payout, balanceAfter, isFreeSpin,
@@ -174,7 +186,7 @@ export async function POST(req: NextRequest) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [spinId, user.uid, requestId, requestedStake, stake, charged, outcome.payout, balanceAfter,
         isFreeSpin ? 1 : 0, JSON.stringify(outcome.initialGrid), JSON.stringify(outcome.steps),
-        outcome.scatterCount, outcome.freeSpinsAwarded, freeSpinsRemaining, SAKURA_RTP_VERSION, createdAt],
+        outcome.scatterCount, outcome.freeSpinsAwarded, freeSpinsRemaining, appliedRtpVersion, createdAt],
     });
     const finalMultiplier = outcome.steps.at(-1)?.multiplier || (isFreeSpin ? 2 : 1);
     await tx.execute({
@@ -200,8 +212,6 @@ export async function POST(req: NextRequest) {
       scatterCount: outcome.scatterCount,
       freeSpinsAwarded: outcome.freeSpinsAwarded,
       freeSpinsRemaining,
-      rtpVersion: SAKURA_RTP_VERSION,
-      targetRtp: SAKURA_TARGET_RTP,
     };
     return json({ success: true, spin, replayed: false });
   } catch (error) {
@@ -211,10 +221,10 @@ export async function POST(req: NextRequest) {
     // A commit response can be lost after the write succeeded. Look up the idempotency key before asking the client to retry.
     try {
       const existing = await findExisting(client, user.uid, requestId, requestedStake);
-      if (existing?.conflict) return json({ success: false, code: 'IDEMPOTENCY_CONFLICT', error: 'လှည့်မှုတောင်းဆိုချက်နှင့် လောင်းကြေး မကိုက်ညီပါ။' }, 409);
+      if (existing?.conflict) return json({ success: false, code: 'IDEMPOTENCY_CONFLICT', error: 'လှည့်မှုကို ပြီးမြောက်စေ၍မရပါ။ ပြန်ကြိုးစားပါ။' }, 409);
       if (existing) return json({ success: true, spin: existing.spin, replayed: true });
     } catch {}
-    return json({ success: false, code: 'SETTLEMENT_UNCERTAIN', error: 'လှည့်မှုအခြေအနေကို မသိရှိသေးပါ။ ထပ်လှည့်မည့်အစား အဲဒီတောင်းဆိုမှုကို အတည်ပြုရန် ထပ်စမ်းပါ။' }, 503);
+    return json({ success: false, code: 'SETTLEMENT_UNCERTAIN', error: 'လှည့်မှုကို ယခု မပြီးစီးနိုင်ပါ။ ခဏကြာပြီးမှ ပြန်ကြိုးစားပါ။' }, 503);
   } finally {
     try { tx?.close(); } catch {}
   }

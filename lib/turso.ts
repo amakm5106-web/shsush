@@ -172,6 +172,11 @@ export async function tursoGetUser(uid: string) {
 
 export async function ensureSakuraSchema(client: Client) {
   await client.batch([
+    `CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updatedAt INTEGER
+    );`,
     `CREATE TABLE IF NOT EXISTS sakura_player_state (
       userId TEXT PRIMARY KEY,
       freeSpinsRemaining INTEGER NOT NULL DEFAULT 0,

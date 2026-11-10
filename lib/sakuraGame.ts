@@ -1,8 +1,10 @@
 import { randomInt } from 'node:crypto';
 
 export const SAKURA_BET_STEPS = [10, 20, 40, 80, 160, 320, 500] as const;
-export const SAKURA_TARGET_RTP = 0.8;
-export const SAKURA_RTP_VERSION = 'sakura-rtp-80-v3';
+export const DEFAULT_SAKURA_RTP_PERCENT = 80;
+export const MIN_SAKURA_RTP_PERCENT = 50;
+export const MAX_SAKURA_RTP_PERCENT = 95;
+export const SAKURA_RTP_VERSION = 'sakura-rtp-config-v1';
 export const SAKURA_MAX_FREE_SPINS = 5;
 export const SAKURA_MAX_CASCADES = 6;
 export const SAKURA_MAX_CASCADE_MULTIPLIER = 8;
@@ -59,7 +61,7 @@ function randomGrid(random: RandomIndex): SymbolName[] {
   return Array.from({ length: 30 }, () => pickSymbol(random));
 }
 
-function evaluate(grid: SymbolName[], stake: number, multiplier: number) {
+function evaluate(grid: SymbolName[], stake: number, multiplier: number, rtpPercent: number) {
   const matched = new Set<number>();
   let total = 0;
 
@@ -84,7 +86,7 @@ function evaluate(grid: SymbolName[], stake: number, multiplier: number) {
     if (run < 3) continue;
     const base = SYMBOL_BASE[symbol] ?? 0.55;
     const runFactor = RUN_FACTOR[run] ?? 0.5;
-    const scale = SAKURA_PAYOUT_SCALE_BY_BET[stake];
+    const scale = SAKURA_PAYOUT_SCALE_BY_BET[stake] * (rtpPercent / DEFAULT_SAKURA_RTP_PERCENT);
     const linePayout = Math.round(stake * base * runFactor * ways * multiplier * scale);
     if (linePayout > 0) {
       total += linePayout;
@@ -119,9 +121,20 @@ export function isSakuraBet(value: unknown): value is (typeof SAKURA_BET_STEPS)[
   return typeof value === 'number' && SAKURA_BET_STEPS.includes(value as (typeof SAKURA_BET_STEPS)[number]);
 }
 
+export function isSakuraRtpPercent(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) &&
+    value >= MIN_SAKURA_RTP_PERCENT && value <= MAX_SAKURA_RTP_PERCENT;
+}
+
 /** Generate all money-relevant outcome data on the server. `isFreeSpin` can only come from stored server state. */
-export function createSakuraOutcome(stake: number, isFreeSpin: boolean, random: RandomIndex = randomInt): SakuraOutcome {
+export function createSakuraOutcome(
+  stake: number,
+  isFreeSpin: boolean,
+  random: RandomIndex = randomInt,
+  rtpPercent = DEFAULT_SAKURA_RTP_PERCENT,
+): SakuraOutcome {
   if (!isSakuraBet(stake)) throw new Error('Invalid Sakura stake');
+  if (!isSakuraRtpPercent(rtpPercent)) throw new Error('Invalid Sakura RTP setting');
   let grid = randomGrid(random);
   const initialGrid = grid.slice();
   const scatterCount = grid.filter((symbol) => symbol === 'scatter').length;
@@ -135,7 +148,7 @@ export function createSakuraOutcome(stake: number, isFreeSpin: boolean, random: 
 
   for (let cascadeIndex = 0; cascadeIndex < SAKURA_MAX_CASCADES; cascadeIndex += 1) {
     if (totalPayout >= spinCap) break;
-    const result = evaluate(grid, stake, multiplier);
+    const result = evaluate(grid, stake, multiplier, rtpPercent);
     if (result.winningIndices.length === 0) break;
 
     const payout = Math.min(result.payout, spinCap - totalPayout);

@@ -36,7 +36,7 @@
 - [x] Confirm the route manifest exists and matches the application routes.
 - [x] Commit and push the completed implementation to `origin/main`.
 
-## Sakura Fortune Deluxe demo integration
+## Sakura Fortune Deluxe game integration
 
 - [x] Add the supplied Sakura Fortune HTML game to the project as a dedicated `/sakura-fortune` game page, with a lobby return action.
 - [x] Add a Sakura Fortune game card to the existing game lobby so players can open the new page.
@@ -47,5 +47,11 @@
 
 - [x] Derive the player only from the signed server session; charge the selected whole-MMK stake and credit server-calculated winnings atomically, using server-side randomness/paytable and a per-account idempotency key so retries cannot double-debit or double-credit.
 - [x] Persist and consume free-spin entitlement server-side; award at most five free spins from a paid spin, do not retrigger from free spins, preserve the originating stake for free spins, and never make reset alter wallet funds.
-- [x] Target a reproducible long-run RTP of 80%, including all cascade × multipliers, paid-spin cascades, free-spin winnings, whole-MMK rounding, and payout caps; describe the number as an aggregate target, not a per-spin promise.
+- [x] Keep the internal long-run RTP model at 80%, including cascade × multipliers, paid-spin cascades, free-spin winnings, whole-MMK rounding, and payout caps; treat it as an aggregate model target, not an individual-spin promise.
 - [x] Remove client-authoritative balance/outcome and local demo reset; display MMK and server-returned balance/result. The compiled API was tested against temporary local SQLite data for settlement, retries, free spins, cross-origin rejection, and insufficient funds; no production wallet was accessed.
+
+## Sakura player-facing copy and admin RTP controls
+
+- [x] Remove all RTP labels/percentages and any player-facing text that says a spin is being checked or confirmed by the server. Start the reel animation immediately on tap; keep the final outcome, payout, and wallet changes server-authoritative.
+- [x] Let authenticated admins change Sakura Fortune RTP only from the admin dashboard. Accept whole-number percentages from 50 through 95, default to 80%, persist the setting, and apply it in server payout calculations without returning it in player-facing API responses.
+- [x] Ensure the standalone production output includes the public game HTML and artwork; verify the deployed-style server returns the game page and image assets successfully.

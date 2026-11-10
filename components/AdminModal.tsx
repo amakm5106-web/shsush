@@ -99,6 +99,10 @@ export function AdminModal({
   const [prevSettings, setPrevSettings] = useState<GameSettings>(settings);
   const [formSettings, setFormSettings] = useState<GameSettings>({ ...settings });
   const [saving, setSaving] = useState<boolean>(false);
+  const [sakuraRtpPercent, setSakuraRtpPercent] = useState(80);
+  const [loadingSakuraRtp, setLoadingSakuraRtp] = useState(false);
+  const [savingSakuraRtp, setSavingSakuraRtp] = useState(false);
+  const [sakuraRtpFeedback, setSakuraRtpFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
   const [selectedReceipt, setSelectedReceipt] = useState<string | null>(null);
   const [rejectionTarget, setRejectionTarget] = useState<WithdrawalRequest | null>(null);
   const [rejectionNote, setRejectionNote] = useState<string>('');
@@ -133,6 +137,31 @@ export function AdminModal({
     bets: number;
     settings: number;
   } | null>(null);
+
+  useEffect(() => {
+    if (activeTab !== 'settings' || !isOpen) return;
+    let active = true;
+    const loadingTimer = window.setTimeout(() => { if (active) setLoadingSakuraRtp(true); }, 0);
+    fetch('/api/admin/sakura-rtp', { cache: 'no-store' })
+      .then(async (response) => ({ response, data: await response.json() }))
+      .then(({ response, data }) => {
+        if (!active) return;
+        if (response.ok && data.success && Number.isInteger(data.rtpPercent)) {
+          setSakuraRtpPercent(data.rtpPercent);
+          setSakuraRtpFeedback(null);
+        } else {
+          setSakuraRtpFeedback({ ok: false, msg: data.error || 'RTP ဆက်တင်ကို မရယူနိုင်ပါ။' });
+        }
+      })
+      .catch(() => {
+        if (active) setSakuraRtpFeedback({ ok: false, msg: 'RTP ဆက်တင်ကို မရယူနိုင်ပါ။' });
+      })
+      .finally(() => {
+        window.clearTimeout(loadingTimer);
+        if (active) setLoadingSakuraRtp(false);
+      });
+    return () => { active = false; window.clearTimeout(loadingTimer); };
+  }, [activeTab, isOpen]);
 
   useEffect(() => {
     if (activeTab === 'turso' && isOpen) {
@@ -212,6 +241,31 @@ export function AdminModal({
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveSakuraRtp = async () => {
+    if (!Number.isInteger(sakuraRtpPercent) || sakuraRtpPercent < 50 || sakuraRtpPercent > 95) {
+      setSakuraRtpFeedback({ ok: false, msg: '50 မှ 95 အတွင်း ကိန်းပြည့်ကို ရွေးပါ။' });
+      return;
+    }
+    setSavingSakuraRtp(true);
+    setSakuraRtpFeedback(null);
+    try {
+      const response = await fetch('/api/admin/sakura-rtp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rtpPercent: sakuraRtpPercent }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.error || 'RTP ဆက်တင်ကို သိမ်း၍မရပါ။');
+      setSakuraRtpPercent(data.rtpPercent);
+      setSakuraRtpFeedback({ ok: true, msg: 'Sakura Fortune ဆက်တင်ကို သိမ်းပြီးပါပြီ။' });
+      sounds.playWin();
+    } catch (error) {
+      setSakuraRtpFeedback({ ok: false, msg: error instanceof Error ? error.message : 'RTP ဆက်တင်ကို သိမ်း၍မရပါ။' });
+    } finally {
+      setSavingSakuraRtp(false);
     }
   };
 
@@ -1448,6 +1502,39 @@ export function AdminModal({
                   className="w-full p-2 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:outline-none focus:border-amber-400"
                 />
               </div>
+
+              <section className="p-3.5 sm:p-4 rounded-2xl bg-pink-950/30 border border-pink-300/20 flex flex-col gap-3" aria-labelledby="sakura-rtp-heading">
+                <div>
+                  <h4 id="sakura-rtp-heading" className="text-xs sm:text-sm font-black text-pink-100">Sakura Fortune RTP (%)</h4>
+                  <p className="mt-1 text-[10px] text-white/55">50% မှ 95% အတွင်း ရာခိုင်နှုန်းကိန်းပြည့် သတ်မှတ်နိုင်သည်။ သတ်မှတ်ချက်သည် နောက်လှည့်မှုများမှ စတင်သက်ရောက်မည်။</p>
+                </div>
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="flex-1 min-w-28 text-[11px] font-bold text-zinc-300">
+                    RTP (%)
+                    <input
+                      type="number"
+                      min={50}
+                      max={95}
+                      step={1}
+                      value={sakuraRtpPercent}
+                      disabled={loadingSakuraRtp || savingSakuraRtp}
+                      onChange={(e) => setSakuraRtpPercent(Number(e.target.value))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void handleSaveSakuraRtp(); } }}
+                      className="mt-1 w-full p-2 rounded-xl bg-black/60 border border-white/15 text-white font-mono text-xs focus:outline-none focus:border-pink-300"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleSaveSakuraRtp}
+                    disabled={loadingSakuraRtp || savingSakuraRtp}
+                    className="px-4 py-2.5 rounded-xl bg-pink-300 hover:bg-pink-200 text-[#321323] font-black text-xs transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    <Save className="inline-block w-3.5 h-3.5 mr-1" />
+                    {loadingSakuraRtp ? 'ဖတ်နေပါသည်…' : savingSakuraRtp ? 'သိမ်းနေပါသည်…' : 'RTP သိမ်းမည်'}
+                  </button>
+                </div>
+                {sakuraRtpFeedback && <p role="status" className={`text-[11px] ${sakuraRtpFeedback.ok ? 'text-emerald-300' : 'text-red-300'}`}>{sakuraRtpFeedback.msg}</p>}
+              </section>
 
               <div className="flex items-center justify-end pt-2">
                 <button

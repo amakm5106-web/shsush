@@ -1,10 +1,17 @@
-import { createSakuraOutcome, SAKURA_BET_STEPS } from '../lib/sakuraGame.ts';
+import {
+  createSakuraOutcome,
+  DEFAULT_SAKURA_RTP_PERCENT,
+  isSakuraRtpPercent,
+  SAKURA_BET_STEPS,
+} from '../lib/sakuraGame.ts';
 
 const rounds = Number(process.argv.find((arg) => arg.startsWith('--rounds='))?.split('=')[1] || 100_000);
 const seedArg = Number(process.argv.find((arg) => arg.startsWith('--seed='))?.split('=')[1] || 20261110);
+const rtpPercent = Number(process.argv.find((arg) => arg.startsWith('--rtp='))?.split('=')[1] || DEFAULT_SAKURA_RTP_PERCENT);
 if (!Number.isSafeInteger(rounds) || rounds < 10_000 || rounds > 10_000_000) {
   throw new Error('Use --rounds between 10000 and 10000000');
 }
+if (!isSakuraRtpPercent(rtpPercent)) throw new Error('Use --rtp between 50 and 95');
 
 function seededRandom(seed) {
   let state = seed >>> 0;
@@ -26,13 +33,13 @@ for (const [stepIndex, stake] of SAKURA_BET_STEPS.entries()) {
   const paidRoundReturns = [];
 
   for (let round = 0; round < rounds; round += 1) {
-    const paidOutcome = createSakuraOutcome(stake, false, random);
+    const paidOutcome = createSakuraOutcome(stake, false, random, rtpPercent);
     let roundReturn = paidOutcome.payout;
     let freeSpins = paidOutcome.freeSpinsAwarded;
     awardedFreeSpins += freeSpins;
     while (freeSpins > 0) {
       freeSpins -= 1;
-      roundReturn += createSakuraOutcome(stake, true, random).payout;
+      roundReturn += createSakuraOutcome(stake, true, random, rtpPercent).payout;
     }
     returned += roundReturn;
     if (roundReturn > 0) paidHitCount += 1;
@@ -44,6 +51,7 @@ for (const [stepIndex, stake] of SAKURA_BET_STEPS.entries()) {
   const rtp = returned / wagers;
   console.log(JSON.stringify({
     stakeMMK: stake,
+    configuredRtpPercent: rtpPercent,
     paidRounds: rounds,
     totalPaidWagersMMK: wagers,
     totalPayoutIncludingFreeSpinsMMK: returned,

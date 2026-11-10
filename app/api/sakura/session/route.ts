@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ensureSakuraSchema, getTursoClient } from '@/lib/turso';
 import { getSessionUser } from '@/lib/tursoAuth';
-import { SAKURA_BET_STEPS, SAKURA_MAX_FREE_SPINS, SAKURA_TARGET_RTP } from '@/lib/sakuraGame';
+import { SAKURA_BET_STEPS, SAKURA_MAX_FREE_SPINS } from '@/lib/sakuraGame';
 
 export const dynamic = 'force-dynamic';
 const noStore = { 'Cache-Control': 'no-store, max-age=0' };
@@ -32,7 +32,6 @@ export async function GET() {
       game: {
         currency: 'MMK',
         betSteps: SAKURA_BET_STEPS,
-        targetRtp: SAKURA_TARGET_RTP,
         maxFreeSpins: SAKURA_MAX_FREE_SPINS,
       },
     }, { headers: noStore });
