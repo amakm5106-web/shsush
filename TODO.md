@@ -61,6 +61,10 @@
 
 - [x] Make the reels spin at a more deliberate pace, decelerate in stages, and stop one column at a time with a longer final-reel pause to build anticipation. Keep the visuals starting immediately and do not change or delay the game outcome or wallet settlement.
 
+## Sakura spin response speed
+
+- [x] Reduce repeated database connection and schema/migration work on spin requests while keeping authenticated identity, atomic wallet settlement, idempotent replay protection, and server-side outcomes unchanged.
+
 ## Sakura player-facing copy and admin RTP controls
 
 - [x] Remove all RTP labels/percentages and any player-facing text that says a spin is being checked or confirmed by the server. Start the reel animation immediately on tap; keep the final outcome, payout, and wallet changes server-authoritative.
