@@ -40,5 +40,12 @@
 
 - [x] Add the supplied Sakura Fortune HTML game to the project as a dedicated `/sakura-fortune` game page, with a lobby return action.
 - [x] Add a Sakura Fortune game card to the existing game lobby so players can open the new page.
-- [x] Include the supplied game's required images as static assets with responsive scaling, and keep the demo-credit game separate from the real casino wallet.
+- [x] Include the supplied game's required images as static assets with responsive scaling.
 - [x] Add the new game page to `public/manus-routes.json`; run affected checks and commit/push the implementation to `origin/main`.
+
+## Sakura Fortune MMK wallet and RTP
+
+- [x] Derive the player only from the signed server session; charge the selected whole-MMK stake and credit server-calculated winnings atomically, using server-side randomness/paytable and a per-account idempotency key so retries cannot double-debit or double-credit.
+- [x] Persist and consume free-spin entitlement server-side; award at most five free spins from a paid spin, do not retrigger from free spins, preserve the originating stake for free spins, and never make reset alter wallet funds.
+- [x] Target a reproducible long-run RTP of 80%, including all cascade × multipliers, paid-spin cascades, free-spin winnings, whole-MMK rounding, and payout caps; describe the number as an aggregate target, not a per-spin promise.
+- [x] Remove client-authoritative balance/outcome and local demo reset; display MMK and server-returned balance/result. The compiled API was tested against temporary local SQLite data for settlement, retries, free spins, cross-origin rejection, and insufficient funds; no production wallet was accessed.

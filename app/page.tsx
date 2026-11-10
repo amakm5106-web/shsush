@@ -2410,7 +2410,7 @@ export default function Home() {
                       <div className="relative z-10 flex aspect-[3/4] flex-col justify-between p-2.5 sm:p-3">
                         <div className="flex items-center justify-between">
                           <span className="rounded-md bg-pink-300 px-2 py-0.5 text-[9px] font-black uppercase text-[#321323] shadow-md">NEW</span>
-                          <span className="rounded-md border border-pink-200/30 bg-black/60 px-2 py-0.5 text-[9px] font-black text-pink-100/90 backdrop-blur-md">DEMO</span>
+                          <span className="rounded-md border border-pink-200/30 bg-black/60 px-2 py-0.5 text-[9px] font-black text-pink-100/90 backdrop-blur-md">RTP 80%</span>
                         </div>
                         <div>
                           <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-pink-200 text-[#321323] shadow-[0_0_25px_rgba(249,127,186,0.5)] transition-transform group-hover:scale-105">

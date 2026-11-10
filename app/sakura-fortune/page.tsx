@@ -4,7 +4,7 @@ export default function SakuraFortunePage() {
   return (
     <main className="fixed inset-0 overflow-hidden bg-[#180c15]">
       <iframe
-        title="Sakura Fortune Deluxe demo game"
+        title="Sakura Fortune Deluxe MMK game"
         src="/games/sakura-fortune/index.html"
         className="h-[100dvh] w-full border-0"
         allow="autoplay; fullscreen"

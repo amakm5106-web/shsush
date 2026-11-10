@@ -170,6 +170,37 @@ export async function tursoGetUser(uid: string) {
   return res.rows[0];
 }
 
+export async function ensureSakuraSchema(client: Client) {
+  await client.batch([
+    `CREATE TABLE IF NOT EXISTS sakura_player_state (
+      userId TEXT PRIMARY KEY,
+      freeSpinsRemaining INTEGER NOT NULL DEFAULT 0,
+      freeSpinStake INTEGER NOT NULL DEFAULT 0,
+      updatedAt INTEGER NOT NULL
+    );`,
+    `CREATE TABLE IF NOT EXISTS sakura_spins (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      requestId TEXT NOT NULL,
+      requestedStake INTEGER NOT NULL,
+      stake INTEGER NOT NULL,
+      charged INTEGER NOT NULL,
+      payout INTEGER NOT NULL,
+      balanceAfter INTEGER NOT NULL,
+      isFreeSpin INTEGER NOT NULL DEFAULT 0,
+      initialGridJson TEXT NOT NULL,
+      stepsJson TEXT NOT NULL,
+      scatterCount INTEGER NOT NULL DEFAULT 0,
+      freeSpinsAwarded INTEGER NOT NULL DEFAULT 0,
+      freeSpinsRemaining INTEGER NOT NULL DEFAULT 0,
+      rtpVersion TEXT NOT NULL,
+      createdAt INTEGER NOT NULL,
+      UNIQUE(userId, requestId)
+    );`,
+    'CREATE INDEX IF NOT EXISTS idx_sakura_spins_user_created ON sakura_spins(userId, createdAt DESC);',
+  ], 'write');
+}
+
 export async function tursoAdjustBalance(uid: string, delta: number) {
   const client = getTursoClient();
   if (!client) return null;
