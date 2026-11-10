@@ -2389,6 +2389,42 @@ export default function Home() {
                       </div>
                     </div>
                   )}
+                  {/* GAME CARD 4: Sakura Fortune Deluxe */}
+                  {(lobbyCategory === 'all' || lobbyCategory === 'slots' || lobbyCategory === 'hot') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sounds.playChip();
+                        window.location.assign('/sakura-fortune');
+                      }}
+                      className="group relative cursor-pointer overflow-hidden rounded-2xl border border-pink-400/30 bg-[#24111e] text-left shadow-2xl transition-all duration-300 hover:border-pink-300/80 active:scale-[0.98] sm:rounded-3xl"
+                      aria-label="Play Sakura Fortune Deluxe"
+                    >
+                      <img
+                        src="/games/sakura-fortune/assets/header.webp"
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#170b14] via-[#170b14]/55 to-[#170b14]/10" />
+                      <div className="relative z-10 flex aspect-[3/4] flex-col justify-between p-2.5 sm:p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="rounded-md bg-pink-300 px-2 py-0.5 text-[9px] font-black uppercase text-[#321323] shadow-md">NEW</span>
+                          <span className="rounded-md border border-pink-200/30 bg-black/60 px-2 py-0.5 text-[9px] font-black text-pink-100/90 backdrop-blur-md">DEMO</span>
+                        </div>
+                        <div>
+                          <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-pink-200 text-[#321323] shadow-[0_0_25px_rgba(249,127,186,0.5)] transition-transform group-hover:scale-105">
+                            <Sparkles className="h-5 w-5 stroke-[2.5]" />
+                          </div>
+                          <span className="block truncate text-xs font-black tracking-tight text-white sm:text-sm">Sakura Fortune</span>
+                          <div className="mt-0.5 flex items-center justify-between text-[10px] font-medium text-white/70">
+                            <span>Deluxe Slot</span>
+                            <span className="font-bold text-pink-200">🌸 ကစားမည်</span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  )}
                 </div>
 
                 {/* 5. LIVE RECENT WINS TICKER (SOCIAL PROOF) */}

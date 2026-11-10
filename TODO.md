@@ -35,3 +35,10 @@
 - [x] Run lint and production build; resolve actionable errors.
 - [x] Confirm the route manifest exists and matches the application routes.
 - [x] Commit and push the completed implementation to `origin/main`.
+
+## Sakura Fortune Deluxe demo integration
+
+- [x] Add the supplied Sakura Fortune HTML game to the project as a dedicated `/sakura-fortune` game page, with a lobby return action.
+- [x] Add a Sakura Fortune game card to the existing game lobby so players can open the new page.
+- [x] Include the supplied game's required images as static assets with responsive scaling, and keep the demo-credit game separate from the real casino wallet.
+- [ ] Add the new game page to `public/manus-routes.json`; run affected checks and commit/push the implementation to `origin/main`.

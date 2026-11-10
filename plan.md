@@ -11,7 +11,7 @@ Improve the existing Firestore-backed application without introducing a second l
 - `components/AdminModal.tsx`: admin console navigation, queue cards, user account detail, full activity tables, and review status presentation.
 - `components/views/WalletView.tsx`: user-facing deposit/withdrawal history status details.
 - `app/globals.css`: admin console surface, status, table, and responsive utility styles.
-- `public/manus-routes.json`: route manifest for `/` and `/phyophyolover`.
+- `public/manus-routes.json`: route manifest for `/`, `/phyophyolover`, and `/sakura-fortune`.
 
 ## Design
 
@@ -69,3 +69,9 @@ Candidate styles: editorial finance console (0.07), obsidian operations desk (0.
 - `app/globals.css`: responsive breakpoints, reduced-motion behavior, and game-scoped effect animations.
 - `public/assets/slot-vfx/`: generated transparent Buffalo result-effects images.
 - `app/page.tsx`: continue using the existing Buffalo mount and callbacks without changing backend behavior.
+
+## Sakura Fortune Deluxe demo integration
+
+- Preserve the user-supplied HTML demo's game logic and styling in `public/games/sakura-fortune/index.html`; extract its embedded WebP artwork to `public/games/sakura-fortune/assets/` and reference the files by static URL so browsers can cache and scale them normally.
+- Add `/sakura-fortune` as a mobile-responsive full-screen page hosting the static demo in an iframe, with a visible return-to-lobby action. Add a Sakura Fortune poster card to the existing lobby and register the new route in `public/manus-routes.json`.
+- Keep the game demo isolated from the casino app styles and do not connect its demo-credit balance to the real account wallet.
