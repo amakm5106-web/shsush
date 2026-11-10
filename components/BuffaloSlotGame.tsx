@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import {
   RotateCcw,
   Sparkles,
@@ -14,10 +15,7 @@ import {
   VolumeX,
   Maximize2,
   ChevronLeft,
-  Trophy,
   RotateCw,
-  Zap,
-  ShieldAlert,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { UserProfile, GameSettings, PlayerBet } from '@/lib/types';
@@ -28,6 +26,9 @@ import { db } from '@/lib/firebase';
 import { BuffaloSymbolImage } from './BuffaloSymbolImage';
 import { BuffaloLoadingScreen } from './BuffaloLoadingScreen';
 import { BuffaloBigWinModal } from './BuffaloBigWinModal';
+import { BuffaloDialog } from './buffalo/BuffaloDialog';
+import { BuffaloResultEffects } from './buffalo/BuffaloResultEffects';
+import type { BuffaloSpinFeedback } from './buffalo/BuffaloResultEffects';
 
 interface BuffaloSlotGameProps {
   user: UserProfile | null;
@@ -37,6 +38,7 @@ interface BuffaloSlotGameProps {
   soundEnabled: boolean;
   onToggleSound: () => void;
   onUpdateUserBalance?: (newBalance: number) => void;
+  onRequireAuth?: () => void;
 }
 
 // Tight House-Edge Casino Math: Lowered RTP (~80-84%), 9% Base Regular Hit Rate
@@ -307,6 +309,7 @@ export function BuffaloSlotGame({
   soundEnabled,
   onToggleSound,
   onUpdateUserBalance,
+  onRequireAuth,
 }: BuffaloSlotGameProps) {
   // Cinematic Loading Screen
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -361,6 +364,7 @@ export function BuffaloSlotGame({
 
   // Win and Multiplier States
   const [lastWinAmount, setLastWinAmount] = useState<number>(0);
+  const [spinFeedback, setSpinFeedback] = useState<BuffaloSpinFeedback | null>(null);
   const [winningInfo, setWinningInfo] = useState<string>('လှည့်ရန် အဆင်သင့်');
   const [wildMultipliers, setWildMultipliers] = useState<Record<string, number>>({});
   const [lossStreak, setLossStreak] = useState<number>(0);
@@ -376,11 +380,12 @@ export function BuffaloSlotGame({
   const [isAutoSpinning, setIsAutoSpinning] = useState<boolean>(false);
   const [autoSpinsRemaining, setAutoSpinsRemaining] = useState<number>(0);
   const [isAutoModalOpen, setIsAutoModalOpen] = useState<boolean>(false);
+  const [selectedAutoCount, setSelectedAutoCount] = useState<number | null>(10);
 
   // Device Portrait Detection & Responsive Landscape Toggle
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
   const [forceLandscapeView, setForceLandscapeView] = useState<boolean>(false);
-  const [dismissRotatePrompt, setDismissRotatePrompt] = useState<boolean>(true);
+  const [dismissRotatePrompt, setDismissRotatePrompt] = useState<boolean>(false);
   const [isSubBetCelebration, setIsSubBetCelebration] = useState<boolean>(false);
 
   // Behavioral & Touch Telemetry Tracking
@@ -393,33 +398,15 @@ export function BuffaloSlotGame({
     lastSettledAtRef.current = Date.now();
   }, []);
 
-  // Auto Fullscreen & Auto-Orientation Request upon entering Buffalo Slot Game
+  // Detect orientation only; fullscreen and rotated-view changes require an explicit user action.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-
-    // 1. Auto-request Fullscreen if supported
-    try {
-      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-        document.documentElement.requestFullscreen().catch(() => {});
-      }
-    } catch {
-      // Ignore fullscreen restrictions in certain iframes
-    }
-
-    // 2. Auto-request device screen orientation lock to landscape if supported
-    try {
-      const screenAny = window.screen as unknown as { orientation?: { lock?: (o: string) => Promise<void> } };
-      if (screenAny?.orientation?.lock) {
-        screenAny.orientation.lock('landscape').catch(() => {});
-      }
-    } catch {
-      // Orientation lock fallback
-    }
 
     const checkOrientation = () => {
       const isMobile = window.innerWidth <= 860;
       const portrait = isMobile && window.innerHeight > window.innerWidth;
       setIsPortrait(portrait);
+      if (portrait) setDismissRotatePrompt(false);
     };
     checkOrientation();
     window.addEventListener('resize', checkOrientation);
@@ -500,6 +487,7 @@ export function BuffaloSlotGame({
       if (!user && !isFreeSpin) {
         setIsAutoSpinning(false);
         showGameToast('ကစားရန် အကောင့်ဝင်ပါ သို့မဟုတ် အကောင့်သစ်ဖွင့်ပါ။');
+        onRequireAuth?.();
         return;
       }
 
@@ -512,6 +500,8 @@ export function BuffaloSlotGame({
       }
 
       setIsSpinning(true);
+      setSpinFeedback(null);
+      setLastWinAmount(0);
       setWinningCells([]);
       setWinningInfo('လည်နေသည်...');
       sounds.playChip();
@@ -725,6 +715,18 @@ export function BuffaloSlotGame({
         }
 
         setLastWinAmount(spinTotalWin);
+        setSpinFeedback({
+          id: Date.now(),
+          kind: isFreeSpin
+            ? spinTotalWin > 0
+              ? 'free-win'
+              : 'free-miss'
+            : spinTotalWin > 0
+            ? 'win'
+            : 'loss',
+          amount: spinTotalWin,
+          betAmount: isFreeSpin ? 0 : betAmount,
+        });
 
         // 3. Handle Payout & Firestore Bet Recording
         const shouldCelebrate = spinTotalWin > 0;
@@ -743,8 +745,10 @@ export function BuffaloSlotGame({
 
           // Big Win celebration trigger with screen shake physics
           if (spinTotalWin >= betAmount * 3) {
-            setIsScreenShaking(true);
-            setTimeout(() => setIsScreenShaking(false), 550);
+            if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+              setIsScreenShaking(true);
+              setTimeout(() => setIsScreenShaking(false), 550);
+            }
             setBigWinData({
               amount: spinTotalWin,
               bet: betAmount,
@@ -826,17 +830,23 @@ export function BuffaloSlotGame({
           else if (totalScatterCount === 5) awardedSpins = 25;
           else if (totalScatterCount >= 6) awardedSpins = 100;
 
+          setSpinFeedback((previous) =>
+            previous ? { ...previous, id: previous.id + 1, kind: 'bonus', freeSpinsAwarded: awardedSpins } : previous
+          );
+
           setTotalFreeSpinsWon(awardedSpins);
           setFreeSpinsLeft((prev) => prev + awardedSpins);
           setIsFreeSpinsActive(true);
           setShowBonusTriggerModal(true);
           sounds.playWin();
 
-          confetti({
-            particleCount: 150,
-            spread: 100,
-            origin: { y: 0.5 },
-          });
+          if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            confetti({
+              particleCount: 150,
+              spread: 100,
+              origin: { y: 0.5 },
+            });
+          }
         }
 
         // 5. Update Free Spins Counter if currently in Free Spins
@@ -861,7 +871,9 @@ export function BuffaloSlotGame({
       betAmount,
       lossStreak,
       onGoToWallet,
+      onRequireAuth,
       onUpdateUserBalance,
+      showGameToast,
       playSlotChime,
       playReelStopSound,
       isFreeSpinsActive,
@@ -870,7 +882,7 @@ export function BuffaloSlotGame({
 
   // Auto-Spin and Free Spins Engine
   useEffect(() => {
-    if (isSpinning) return;
+    if (isSpinning || bigWinData) return;
 
     // Handle ongoing Free Spins
     if (isFreeSpinsActive && freeSpinsLeft > 0 && !showBonusTriggerModal) {
@@ -907,6 +919,7 @@ export function BuffaloSlotGame({
     }
   }, [
     isSpinning,
+    bigWinData,
     isFreeSpinsActive,
     freeSpinsLeft,
     showBonusTriggerModal,
@@ -922,6 +935,7 @@ export function BuffaloSlotGame({
     if (!user) {
       showGameToast('Bonus ဝယ်ရန် အကောင့်ဝင်ပါ။');
       setIsBuyBonusModalOpen(false);
+      onRequireAuth?.();
       return;
     }
     const availableBalance = user.balance;
@@ -965,12 +979,13 @@ export function BuffaloSlotGame({
 
   // 2. Responsive Landscape Casino Arena Layout
   const isRotatedActive = isPortrait && forceLandscapeView;
+  const plannedAutoStake = (selectedAutoCount ?? 0) * betAmount;
 
   return (
     <div
-      className={`fixed z-50 text-white flex flex-col justify-between select-none overflow-hidden transition-all duration-300 ${
+      className={`buffalo-game-shell fixed z-50 flex flex-col justify-between overflow-hidden text-white transition-all duration-300 select-none ${
         isRotatedActive
-          ? 'w-[100vh] h-[100vw] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center'
+          ? 'buffalo-game-shell--rotated w-[100vh] h-[100vw] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center'
           : 'inset-0'
       }`}
       style={{
@@ -983,176 +998,158 @@ export function BuffaloSlotGame({
     >
       {/* Toast Notification Banner (Zero alerts, non-blocking smooth feedback) */}
       {gameToast && (
-        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-[#141822]/95 border border-amber-400/50 shadow-2xl shadow-black/80 rounded-full px-5 py-2 text-amber-200 text-xs sm:text-sm font-bold flex items-center gap-2 backdrop-blur-md pointer-events-none transition-all">
+        <div role="status" aria-live="polite" className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-[#141822]/95 border border-amber-400/50 shadow-2xl shadow-black/80 rounded-full px-5 py-2 text-amber-200 text-xs sm:text-sm font-bold flex items-center gap-2 backdrop-blur-md pointer-events-none transition-all">
           <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
           <span>{gameToast}</span>
         </div>
       )}
 
-      {/* Device Rotation Advisory: Prompt user to turn phone sideways if opened in portrait */}
+      {/* Portrait guidance: offer a user-controlled rotated view or continue in portrait. */}
       {isPortrait && !dismissRotatePrompt && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center p-4 sm:p-6 bg-black/95 backdrop-blur-2xl text-center select-none animate-fadeIn">
-          <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center mb-3 shadow-[0_0_30px_rgba(255,255,255,0.15)]">
-            <Smartphone className="w-7 h-7 text-white animate-bounce" />
-          </div>
-          <h2 className="text-base sm:text-lg font-black text-white uppercase tracking-tight mb-1.5">
-            ဖုန်းကို ဘေးစောင်း (Landscape) လှည့်ပေးပါ
-          </h2>
-          <p className="text-xs text-white/70 max-w-xs leading-relaxed mb-5 font-medium">
-            Charge Buffalo (ကျွဲဂိမ်း) ကို စစ်မှန်သော ကာစီနိုစက်ကြီးများအတိုင်း မျက်နှာပြင်ပြည့် ကွက်တိကျကျ ကစားနိုင်ရန် ဖုန်းကို ဘေးစောင်းကိုင်ပေးပါ။
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-2 max-w-xs">
+        <BuffaloDialog
+          titleId="buffalo-orientation-title"
+          descriptionId="buffalo-orientation-description"
+          onClose={() => setDismissRotatePrompt(true)}
+          backdropDismiss={false}
+          panelClassName="max-w-sm rounded-3xl border-white/15 bg-zinc-950/95"
+        >
+          <div className="flex flex-col items-center p-5 text-center sm:p-6">
+            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/10 shadow-[0_0_30px_rgba(255,255,255,0.15)]">
+              <Smartphone className="h-7 w-7 text-white" aria-hidden="true" />
+            </div>
+            <h2 id="buffalo-orientation-title" className="mb-1.5 text-base font-black tracking-tight text-white sm:text-lg">
+              ကစားမည့် မျက်နှာပြင်ပုံစံကို ရွေးပါ
+            </h2>
+            <p id="buffalo-orientation-description" className="mb-5 max-w-xs text-xs font-medium leading-relaxed text-white/70">
+              Landscape ပုံစံမှာ reel များ ပိုကျယ်ပါမည်။ မျက်နှာပြင်ကို အလိုအလျောက်မလှည့်ဘဲ အောက်ပါရွေးချယ်မှုအတိုင်း ဆက်လုပ်ပါမည်။
+            </p>
+            <div className="flex w-full flex-col gap-2">
             <button
+              type="button"
               onClick={() => {
                 sounds.playChip();
                 setForceLandscapeView(true);
                 setDismissRotatePrompt(true);
               }}
-              className="px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-100 text-black font-black text-xs active:scale-95 transition-all shadow-lg flex items-center gap-1.5"
+              className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-amber-100 to-amber-400 px-3.5 py-2 text-xs font-black text-black shadow-lg transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
-              <RotateCw className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>အစောင်း လှည့်မည် (Rotate 90°)</span>
+              <RotateCw className="h-4 w-4 stroke-[2.5]" aria-hidden="true" />
+              <span>ဂိမ်းမြင်ကွင်းကို အစောင်းလှည့်မည်</span>
             </button>
             <button
+              type="button"
               onClick={() => {
                 sounds.playChip();
                 toggleFullScreen();
                 setDismissRotatePrompt(true);
               }}
-              className="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/20 text-white font-bold text-xs active:scale-95 transition-all flex items-center gap-1.5"
+              className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-white/15 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
             >
-              <Maximize2 className="w-3.5 h-3.5" />
-              <span>မျက်နှာပြင် အပြည့်</span>
+              <Maximize2 className="h-4 w-4" aria-hidden="true" />
+              <span>မျက်နှာပြင်အပြည့်ဖွင့်ပြီး ဆက်မည်</span>
             </button>
             <button
+              type="button"
               onClick={() => {
                 sounds.playChip();
                 setDismissRotatePrompt(true);
               }}
-              className="px-3 py-1.5 rounded-xl text-white/60 hover:text-white text-[11px] font-medium"
+              className="min-h-11 rounded-xl px-3 py-2 text-[11px] font-bold text-white/75 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
             >
-              ဆက်လက်ကစားမည်
+              Portrait ပုံစံအတိုင်း ဆက်ကစားမည်
             </button>
           </div>
-        </div>
+          </div>
+        </BuffaloDialog>
       )}
 
-      {/* ========================================================= */}
-      {/* TOP HEADER BAR: Sleek Dark Frosted Glass & Line Icons     */}
-      {/* ========================================================= */}
-      <header className="w-full px-2 sm:px-3 py-1 sm:py-1.5 border-b border-white/10 bg-zinc-950/80 backdrop-blur-xl flex items-center justify-between z-30 shrink-0">
-        {/* Left: Back & Game Branding */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
+      <header className="z-30 flex w-full shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-zinc-950/85 px-2 py-1.5 backdrop-blur-xl sm:px-4">
+        <div className="flex min-w-0 items-center gap-2">
           <button
+            type="button"
             onClick={() => {
               sounds.playChip();
               onBackToLobby();
             }}
-            className="p-1 sm:p-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white active:scale-95 transition-all flex items-center gap-1 shadow-sm"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:w-auto sm:gap-1 sm:px-2"
             title="အနောက်သို့ ပြန်ထွက်မည်"
+            aria-label="ဂိမ်းစာရင်းသို့ ပြန်သွားရန်"
           >
-            <ChevronLeft className="w-4 h-4 text-white stroke-[2]" />
-            <span className="text-xs font-bold text-white">ထွက်မည်</span>
+            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+            <span className="hidden text-xs font-bold sm:inline">ထွက်မည်</span>
           </button>
-
-          <div className="flex items-center gap-1.5">
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg overflow-hidden border border-white/20 bg-black flex items-center justify-center">
-              <img
-                src="/assets/slot-symbols/individual/buffalo.png"
-                alt="Buffalo"
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/assets/slot-symbols/individual/buffalo.webp';
-                }}
-              />
+          <div className="flex min-w-0 items-center gap-1.5">
+            <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-lg border border-amber-200/25 bg-black">
+              <Image src="/assets/slot-symbols/individual/buffalo.webp" alt="" fill sizes="28px" className="object-cover" />
             </div>
-            <h1 className="text-xs sm:text-sm font-black font-sans uppercase tracking-widest text-white">
+            <h1 className="hidden truncate text-sm font-black uppercase tracking-widest text-white sm:block">
               CHARGE BUFFALO
             </h1>
           </div>
+        </div>
 
-          {/* BUY BONUS Quick Action */}
-          <button
-            onClick={() => {
-              sounds.playChip();
-              setIsBuyBonusModalOpen(true);
-            }}
-            className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-red-950/60 hover:bg-red-900/60 border border-red-500/40 text-red-200 font-black text-[10px] shadow-sm hover:scale-105 active:scale-95 transition-all ml-0.5"
+        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+          <div
+            role="group"
+            className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-black/60 px-2 py-1 shadow-inner"
+            aria-label={`လက်ကျန်ငွေ ${formatKs(user?.balance || 0)}`}
           >
-            <Flame className="w-3 h-3 text-red-400 stroke-[2]" />
-            <span>BONUS 100×</span>
-          </button>
-        </div>
-
-        {/* Center: Live Status or Winning Info */}
-        <div className="flex items-center justify-center px-1">
-          <div className="px-2.5 py-0.5 rounded-full bg-black/60 border border-white/15 shadow-inner max-w-[170px] sm:max-w-xs truncate text-center">
-            <span className="text-[10px] sm:text-[11px] font-black text-white truncate">
-              {winningInfo}
-            </span>
-          </div>
-        </div>
-
-        {/* Right: Balance, Rotate & Controls */}
-        <div className="flex items-center gap-1 sm:gap-1.5">
-          {/* Quick Balance */}
-          <div className="flex items-center gap-1 px-2 py-0.5 rounded-xl bg-black/60 border border-white/15 shadow-inner">
-            <span className="text-[9px] text-white/50 font-bold hidden sm:inline">လက်ကျန်:</span>
-            <span className="text-xs font-black font-mono text-white flex items-center gap-1">
-              <span>{formatKs(user?.balance || 0)}</span>
-            </span>
+            <span className="hidden text-[9px] font-bold text-white/50 sm:inline">လက်ကျန်</span>
+            <span className="font-mono text-[11px] font-black text-white sm:text-xs">{formatKs(user?.balance || 0)}</span>
             <button
+              type="button"
               onClick={() => {
                 sounds.playChip();
                 onGoToWallet();
               }}
-              className="w-4 h-4 rounded-full bg-white hover:bg-zinc-200 text-black font-black text-[10px] flex items-center justify-center active:scale-95 transition-all ml-0.5 shadow-sm"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-200 text-black shadow-sm transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
               title="ငွေသွင်းရန်"
+              aria-label="Wallet ဖွင့်ရန်၊ ငွေဖြည့်ရန်"
             >
-              <Plus className="w-3 h-3 stroke-[3]" />
+              <Plus className="h-4 w-4 stroke-[3]" aria-hidden="true" />
             </button>
           </div>
 
-          {/* Rotate View Toggle Button */}
-          <button
-            onClick={() => {
-              sounds.playChip();
-              setForceLandscapeView((prev) => !prev);
-            }}
-            className={`p-1 sm:p-1.5 rounded-xl border transition-all ${
-              forceLandscapeView
-                ? 'bg-white text-black border-white shadow-sm'
-                : 'bg-white/10 hover:bg-white/15 border-white/15 text-white'
-            }`}
-            title="မျက်နှာပြင် အစောင်း/ဒေါင်လိုက် လှည့်ရန်"
-          >
-            <RotateCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2]" />
-          </button>
+          {isPortrait && (
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playChip();
+                setForceLandscapeView((previous) => !previous);
+              }}
+              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+                forceLandscapeView ? 'border-amber-200 bg-amber-200 text-black' : 'border-white/15 bg-white/10 text-white hover:bg-white/15'
+              }`}
+              title="ဂိမ်းမြင်ကွင်းကို အစောင်းလှည့်ရန်"
+              aria-label="ဂိမ်းမြင်ကွင်း အစောင်းပုံစံ ပြောင်းရန်"
+              aria-pressed={forceLandscapeView}
+            >
+              <RotateCw className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
 
-          {/* Sound Toggle */}
           <button
+            type="button"
             onClick={() => {
               sounds.playChip();
               onToggleSound();
             }}
-            className="p-1 sm:p-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white active:scale-95 transition-all"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
             title="အသံ ဖွင့်/ပိတ်"
+            aria-label={soundEnabled ? 'အသံပိတ်ရန်' : 'အသံဖွင့်ရန်'}
+            aria-pressed={soundEnabled}
           >
-            {soundEnabled ? (
-              <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white stroke-[2]" />
-            ) : (
-              <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/50 stroke-[2]" />
-            )}
+            {soundEnabled ? <Volume2 className="h-4 w-4" aria-hidden="true" /> : <VolumeX className="h-4 w-4 text-white/55" aria-hidden="true" />}
           </button>
 
-          {/* Fullscreen Button */}
           <button
+            type="button"
             onClick={toggleFullScreen}
-            className="p-1 sm:p-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white active:scale-95 transition-all hidden sm:flex"
-            title="မျက်နှာပြင် အပြည့်"
+            className="hidden h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:flex"
+            title="မျက်နှာပြင်အပြည့်"
+            aria-label="မျက်နှာပြင်အပြည့်ဖွင့်/ပိတ်ရန်"
           >
-            <Maximize2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white stroke-[2]" />
+            <Maximize2 className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
       </header>
@@ -1175,32 +1172,10 @@ export function BuffaloSlotGame({
       {/* ========================================================================= */}
       {/* CENTER ARENA: Compact 6 Reels x 4 Rows Matrix (Neatly Proportioned)       */}
       {/* ========================================================================= */}
-      <main className="flex-1 w-full flex flex-col justify-center items-center px-1 sm:px-2 py-0.5 overflow-hidden">
-        {/* Dynamic Status Message Bar */}
-        <div className="w-full max-w-[420px] sm:max-w-xl md:max-w-2xl lg:max-w-3xl mb-1 px-3 py-1 rounded-xl bg-zinc-950/80 border border-white/10 backdrop-blur-md flex items-center justify-between text-center shrink-0">
-          <div className="flex items-center gap-2 mx-auto">
-            {isSubBetCelebration || lastWinAmount > 0 ? (
-              <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
-            ) : isSpinning ? (
-              <RotateCw className="w-4 h-4 text-amber-400 animate-spin" />
-            ) : (
-              <ShieldAlert className="w-4 h-4 text-white/50" />
-            )}
-            <span
-              className={`text-[11px] sm:text-xs font-bold tracking-wide truncate ${
-                isSubBetCelebration || lastWinAmount > 0
-                  ? 'text-amber-300 animate-pulse font-black'
-                  : 'text-white/80'
-              }`}
-            >
-              {winningInfo}
-            </span>
-          </div>
-        </div>
-
+      <main className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-2 py-2">
         {/* Responsive Slot Grid Container: Luxury Dark Obsidian Glass with Warm Amber Sheen */}
         <div
-          className={`relative rounded-2xl p-1.5 sm:p-2.5 md:p-3 border backdrop-blur-2xl transition-all flex flex-col justify-center w-full max-w-[420px] sm:max-w-xl md:max-w-2xl lg:max-w-3xl ${
+          className={`buffalo-reel-stage relative rounded-2xl p-1.5 sm:p-2.5 md:p-3 border backdrop-blur-2xl transition-all flex flex-col justify-center w-full max-w-[420px] sm:max-w-xl md:max-w-2xl lg:max-w-3xl ${
             isScreenShaking ? 'animate-screen-shake' : ''
           } ${
             isSubBetCelebration
@@ -1228,7 +1203,7 @@ export function BuffaloSlotGame({
                       {spinStrip.map((symId, sIdx) => (
                         <div
                           key={`spin-strip-${colIdx}-${sIdx}`}
-                          className="aspect-square w-full min-h-[42px] sm:min-h-[56px] md:min-h-[68px] lg:min-h-[76px] rounded-lg overflow-hidden shrink-0"
+                          className="buffalo-reel-cell aspect-square w-full min-h-[42px] sm:min-h-[56px] md:min-h-[68px] lg:min-h-[76px] rounded-lg overflow-hidden shrink-0"
                         >
                           <BuffaloSymbolImage
                             symbolId={symId}
@@ -1249,7 +1224,7 @@ export function BuffaloSlotGame({
                         return (
                           <div
                             key={`cell-${colIdx}-${rowIdx}`}
-                            className={`aspect-square w-full min-h-[42px] sm:min-h-[56px] md:min-h-[68px] lg:min-h-[76px] rounded-lg relative overflow-hidden transition-all ${
+                            className={`buffalo-reel-cell aspect-square w-full min-h-[42px] sm:min-h-[56px] md:min-h-[68px] lg:min-h-[76px] rounded-lg relative overflow-hidden transition-all ${
                               isWinningCell ? 'z-20' : ''
                             }`}
                           >
@@ -1275,103 +1250,120 @@ export function BuffaloSlotGame({
             <span className="text-white font-black tracking-wider">CHARGE BUFFALO</span>
           </div>
         </div>
+        <BuffaloResultEffects
+          result={spinFeedback}
+          isSpinning={isSpinning}
+          isFreeSpinActive={isFreeSpinsActive}
+          betAmount={betAmount}
+          message={winningInfo}
+        />
       </main>
 
-      {/* ========================================================================= */}
-      {/* BOTTOM CONTROL ARENA: Dark Frosted Glass Dashboard & White Bold Buttons   */}
-      {/* ========================================================================= */}
-      <footer className="w-full px-2 sm:px-4 py-1.5 border-t border-white/10 bg-zinc-950/90 backdrop-blur-2xl shadow-[0_-8px_25px_rgba(0,0,0,0.9)] flex items-center justify-between z-30 shrink-0">
-        <div className="w-full max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
-          {/* 1. WIN DISPLAY */}
-          <div className="flex flex-col items-start px-2 py-0.5 rounded-xl bg-black/60 border border-white/15 min-w-[85px] sm:min-w-[105px]">
-            <span className="text-[9px] font-black tracking-widest text-white/50 uppercase">
-              WIN (ဆုကြေး)
-            </span>
-            <span className="text-xs sm:text-sm font-black font-mono text-white">
-              Ks {lastWinAmount.toLocaleString()}
-            </span>
-          </div>
-
-          {/* 2. BET SELECTOR BUTTON */}
-          <button
-            onClick={() => {
-              if (isSpinning) return;
-              sounds.playChip();
-              setIsBetModalOpen(true);
-            }}
-            disabled={isSpinning}
-            className="flex flex-col items-center px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 shadow active:scale-95 transition-all min-w-[80px] sm:min-w-[100px]"
-          >
-            <span className="text-[9px] font-bold text-white/60 uppercase">
-              လောင်းကြေး
-            </span>
-            <span className="text-xs font-black font-mono text-white">
-              Ks {betAmount.toLocaleString()}
-            </span>
-          </button>
-
-          {/* 3. CENTER COMPACT [ SPIN ] BUTTON: Modern White & Dark Frosted Disc */}
-          <button
-            onClick={() => executeSpin(false)}
-            disabled={isSpinning || (user ? user.balance < betAmount : false)}
-            className={`relative rounded-full p-1 transition-all shadow-[0_0_20px_rgba(255,255,255,0.25)] ${
-              isSpinning
-                ? 'scale-95 cursor-not-allowed opacity-90'
-                : 'hover:scale-105 active:scale-95'
-            }`}
-            style={{
-              width: '54px',
-              height: '54px',
-              background: 'linear-gradient(135deg, #ffffff 0%, #d4d4d8 60%, #71717a 100%)',
-            }}
-          >
-            {/* Concentric Dark Core with Bold White Text / Active Spinner */}
-            <div className="w-full h-full rounded-full flex flex-col items-center justify-center bg-black shadow-inner">
-              {isSpinning ? (
-                <RotateCw className="w-5 h-5 text-amber-400 animate-spin" />
-              ) : (
-                <span className="text-[12px] font-black font-sans uppercase tracking-tight text-white">
-                  SPIN
-                </span>
-              )}
+      <footer className="z-30 w-full shrink-0 border-t border-white/10 bg-zinc-950/95 px-2 py-2 shadow-[0_-8px_25px_rgba(0,0,0,0.9)] backdrop-blur-2xl sm:px-4">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-2">
+          {!user ? (
+            <div className="buffalo-user-banner flex min-h-10 items-center justify-between gap-2 rounded-xl border border-sky-300/20 bg-sky-950/35 px-3 py-1.5 text-[11px] text-sky-100" role="status">
+              <span>ကစားရန် အကောင့်ဝင်ရန် လိုအပ်ပါသည်။</span>
+              <button
+                type="button"
+                onClick={() => onRequireAuth?.()}
+                className="min-h-10 shrink-0 rounded-lg bg-sky-200 px-3 font-black text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                ဝင်ရောက်ရန်
+              </button>
             </div>
-          </button>
+          ) : user.balance < betAmount ? (
+            <div className="buffalo-user-banner flex min-h-10 items-center justify-between gap-2 rounded-xl border border-rose-300/25 bg-rose-950/35 px-3 py-1.5 text-[11px] text-rose-100" role="alert">
+              <span className="min-w-0 truncate">လက်ကျန် {formatKs(user.balance)} — တစ်ကြိမ်လှည့်ရန် {formatKs(betAmount)} လိုအပ်ပါသည်။</span>
+              <button
+                type="button"
+                onClick={onGoToWallet}
+                className="min-h-10 shrink-0 rounded-lg bg-rose-100 px-3 font-black text-rose-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                ငွေဖြည့်ရန်
+              </button>
+            </div>
+          ) : null}
 
-          {/* 4. AUTO SPIN BUTTON */}
-          <button
-            onClick={() => {
-              if (isAutoSpinning) {
-                sounds.playChip();
-                setIsAutoSpinning(false);
-                setAutoSpinsRemaining(0);
-              } else {
-                sounds.playChip();
-                setIsAutoModalOpen(true);
-              }
-            }}
-            className={`flex flex-col items-center px-2 py-1 rounded-xl border transition-all min-w-[70px] sm:min-w-[85px] ${
-              isAutoSpinning
-                ? 'bg-amber-400 text-black border-amber-300 font-black shadow-[0_0_15px_rgba(251,191,36,0.5)] animate-pulse'
-                : 'bg-white/10 hover:bg-white/15 border-white/20 text-white active:scale-95'
-            }`}
-          >
-            <RotateCcw className={`w-3.5 h-3.5 ${isAutoSpinning ? 'animate-spin stroke-[2.5]' : 'stroke-[2]'}`} />
-            <span className="text-[9px] font-black uppercase mt-0.5">
-              {isAutoSpinning ? `STOP (${autoSpinsRemaining})` : 'AUTO'}
-            </span>
-          </button>
+          <div className="buffalo-controls-row flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="buffalo-controls-summary grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <div className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-amber-200/15 bg-black/55 px-3 py-1">
+                <span className="text-[9px] font-black uppercase tracking-widest text-white/50">WIN · ဆုကြေး</span>
+                <span className="truncate font-mono text-xs font-black text-amber-100">Ks {lastWinAmount.toLocaleString()}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isSpinning || isAutoSpinning) return;
+                  sounds.playChip();
+                  setIsBetModalOpen(true);
+                }}
+                disabled={isSpinning || isAutoSpinning || isFreeSpinsActive}
+                className="flex min-h-12 min-w-0 flex-col items-start justify-center rounded-xl border border-white/20 bg-white/10 px-3 py-1 text-left transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:min-w-[116px]"
+                aria-label={isFreeSpinsActive ? `Free Spin လှည့်ခ Ks 0 ဖြစ်ပြီး ဆုတွက်ရန်အခြေခံ ${formatKs(betAmount)} ဖြစ်ပါသည်။ Free Spin ပြီးမှ လောင်းကြေးပြောင်းနိုင်ပါမည်။` : `လောင်းကြေးကို ပြောင်းရန်၊ တစ်ကြိမ် ${formatKs(betAmount)}`}
+              >
+                <span className="text-[9px] font-bold text-white/60">{isFreeSpinsActive ? 'Free Spin · ကုန်ကျငွေ' : 'တစ်ကြိမ်လောင်းကြေး'}</span>
+                <span className="truncate font-mono text-xs font-black text-white" title={isFreeSpinsActive ? `Free Spin ကုန်ကျ Ks 0; ဆုတွက်ရန်အခြေခံ Ks ${betAmount.toLocaleString()}` : formatKs(betAmount)}>
+                  {isFreeSpinsActive ? 'Ks 0' : formatKs(betAmount)}
+                </span>
+                {isFreeSpinsActive && <small className="buffalo-free-spin-basis truncate text-[8px] font-semibold text-amber-100/70">ဆုတွက်ရန် {formatKs(betAmount)}</small>}
+              </button>
+            </div>
 
-          {/* 5. BUY BONUS BUTTON */}
-          <button
-            onClick={() => {
-              sounds.playChip();
-              setIsBuyBonusModalOpen(true);
-            }}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-950/60 hover:bg-red-900/60 border border-red-500/40 text-red-200 font-black text-[10px] sm:text-[11px] shadow-md hover:scale-105 active:scale-95 transition-all"
-          >
-            <Flame className="w-3 h-3 text-red-400 stroke-[2]" />
-            <span>BONUS 100×</span>
-          </button>
+            <div className="buffalo-controls-actions grid grid-cols-3 gap-2 sm:flex sm:items-center">
+              <button
+                type="button"
+                onClick={() => executeSpin(false)}
+                disabled={isSpinning || isAutoSpinning || isFreeSpinsActive || Boolean(user && user.balance < betAmount)}
+                className="flex min-h-12 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-amber-100/40 bg-gradient-to-b from-amber-100 to-amber-500 px-2 text-black shadow-[0_0_18px_rgba(245,158,11,0.25)] transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:grayscale disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:min-w-[108px]"
+                aria-label={isFreeSpinsActive ? `အလိုအလျောက် Free Spin လည်နေပါသည်၊ ${freeSpinsLeft} ကြိမ် ကျန်` : `Spin တစ်ကြိမ် လှည့်ရန်၊ လောင်းကြေး ${formatKs(betAmount)}`}
+              >
+                {isSpinning ? <RotateCw className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Sparkles className="h-4 w-4" aria-hidden="true" />}
+                <span className="text-xs font-black">{isSpinning ? 'လည်နေသည်' : isFreeSpinsActive ? `FREE ${freeSpinsLeft}` : 'SPIN'}</span>
+                {!isSpinning && !isFreeSpinsActive && <span className="hidden text-[9px] font-bold sm:inline">{formatKs(betAmount)}</span>}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (isAutoSpinning) {
+                    sounds.playChip();
+                    setIsAutoSpinning(false);
+                    setAutoSpinsRemaining(0);
+                  } else {
+                    sounds.playChip();
+                    setSelectedAutoCount(10);
+                    setIsAutoModalOpen(true);
+                  }
+                }}
+                className={`flex min-h-12 min-w-0 items-center justify-center gap-1 rounded-xl border px-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+                  isAutoSpinning
+                    ? 'border-amber-200 bg-amber-300 text-black shadow-[0_0_15px_rgba(251,191,36,0.4)]'
+                    : 'border-white/20 bg-white/10 text-white hover:bg-white/15'
+                }`}
+                aria-label={isAutoSpinning ? `Auto Spin ရပ်ရန်၊ ${autoSpinsRemaining} ကြိမ် ကျန်` : 'Auto Spin အကြိမ်ရေ ရွေးရန်'}
+                aria-pressed={isAutoSpinning}
+                disabled={!isAutoSpinning && (isSpinning || isFreeSpinsActive)}
+              >
+                <RotateCcw className={`h-4 w-4 shrink-0 ${isAutoSpinning ? 'animate-spin' : ''}`} aria-hidden="true" />
+                <span className="truncate text-[10px] font-black">{isAutoSpinning ? `STOP ${autoSpinsRemaining}` : 'AUTO'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.playChip();
+                  setIsBuyBonusModalOpen(true);
+                }}
+                className="flex min-h-12 min-w-0 items-center justify-center gap-1 rounded-xl border border-red-300/30 bg-gradient-to-b from-red-950 to-red-900 px-2 text-red-100 shadow-md transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:min-w-[118px]"
+                aria-label={`Buy Bonus ဖွင့်ရန်၊ ကုန်ကျငွေ ${formatKs(betAmount * 100)}`}
+                disabled={isSpinning || isAutoSpinning || isFreeSpinsActive}
+              >
+                <Flame className="h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
+                <span className="truncate text-[9px] font-black sm:text-[10px]">BONUS 100×</span>
+              </button>
+            </div>
+          </div>
         </div>
       </footer>
 
@@ -1382,186 +1374,295 @@ export function BuffaloSlotGame({
       {/* SPECTACULAR BIG WIN CELEBRATION MODAL */}
       {bigWinData && (
         <BuffaloBigWinModal
+          key={`${bigWinData.amount}-${bigWinData.bet}`}
           winAmount={bigWinData.amount}
           betAmount={bigWinData.bet}
           onClose={() => setBigWinData(null)}
         />
       )}
 
-      {/* MODAL 1: Bet Selector Modal: Dark Glass & Bold White Typography */}
+      {/* Bet selector with current balance and per-spin stake impact. */}
       {isBetModalOpen && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-2xl animate-fadeIn select-none">
-          <div className="w-full max-w-xs rounded-2xl p-3.5 border border-white/20 bg-zinc-950/90 shadow-2xl flex flex-col gap-2.5 text-center">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Coins className="w-4 h-4 text-white stroke-[2]" />
-                <h3 className="text-xs font-black text-white uppercase tracking-wider">
+        <BuffaloDialog
+          titleId="buffalo-bet-title"
+          descriptionId="buffalo-bet-description"
+          onClose={() => setIsBetModalOpen(false)}
+          panelClassName="max-w-md border-white/15"
+        >
+          <div className="flex flex-col gap-3 p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Coins className="h-5 w-5 text-amber-200" aria-hidden="true" />
+                <h2 id="buffalo-bet-title" className="text-sm font-black uppercase tracking-wider text-white">
                   လောင်းကြေး ရွေးချယ်ပါ
-                </h3>
+                </h2>
               </div>
-              <button
-                onClick={() => setIsBetModalOpen(false)}
-                className="p-1 rounded-full text-white/60 hover:text-white"
-              >
-                <X className="w-4 h-4 stroke-[2]" />
+              <button type="button" onClick={() => setIsBetModalOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl text-white/65 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300" aria-label="လောင်းကြေးရွေးချယ်မှု ပိတ်ရန်">
+                <X className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
+            <p id="buffalo-bet-description" className="text-xs leading-relaxed text-white/65">
+              ဤပမာဏသည် paid spin တစ်ကြိမ်စီအတွက် အသုံးပြုပါမည်။ Spin မစမီ အောက်တွင် ဖော်ပြထားသော လောင်းကြေးကို စစ်ဆေးပါ။
+            </p>
 
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-3 gap-2">
               {BET_OPTIONS.map((amt) => (
                 <button
+                  type="button"
                   key={`bet-opt-${amt}`}
                   onClick={() => {
                     setBetAmount(amt);
                     setIsBetModalOpen(false);
                     sounds.playChip();
                   }}
-                  className={`py-1.5 px-1 rounded-xl text-[11px] font-black font-mono border transition-all ${
+                  aria-pressed={betAmount === amt}
+                  className={`min-h-11 rounded-xl border px-1 text-[11px] font-black font-mono transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
                     betAmount === amt
-                      ? 'bg-white text-black border-white shadow-md scale-105'
-                      : 'bg-black/60 text-white/90 border-white/15 hover:border-white/30'
+                      ? 'scale-[1.02] border-amber-100 bg-gradient-to-b from-amber-100 to-amber-400 text-black shadow-md'
+                      : 'border-white/15 bg-black/60 text-white/90 hover:border-amber-200/40 hover:bg-white/10'
                   }`}
                 >
                   Ks {amt.toLocaleString()}
                 </button>
               ))}
             </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-white/10 bg-black/45 p-2.5 text-left">
+                <p className="text-[10px] text-white/50">လက်ရှိလက်ကျန်</p>
+                <p className="font-mono text-xs font-black text-white">{formatKs(user?.balance || 0)}</p>
+              </div>
+              <div className="rounded-xl border border-amber-200/15 bg-amber-950/20 p-2.5 text-left">
+                <p className="text-[10px] text-white/50">တစ်ကြိမ်လောင်းကြေး</p>
+                <p className="font-mono text-xs font-black text-amber-100">{formatKs(betAmount)}</p>
+              </div>
+            </div>
+            <p className={`rounded-xl border px-3 py-2 text-left text-[11px] ${
+              user && user.balance < betAmount
+                ? 'border-rose-300/25 bg-rose-950/30 text-rose-100'
+                : 'border-white/10 bg-white/[0.04] text-white/70'
+            }`}>
+              {!user
+                ? 'လောင်းကစားရန် အကောင့်ဝင်ပါ။'
+                : user.balance < betAmount
+                ? `တစ်ကြိမ်လှည့်ရန် ${formatKs(betAmount)} လိုအပ်ပါသည်။`
+                : `လောင်းကြေးနုတ်ပြီးနောက် ခန့်မှန်းလက်ကျန် ${formatKs(user.balance - betAmount)} ဖြစ်ပါမည် (ဆုကြေးမပါဝင်ပါ)။`}
+            </p>
           </div>
-        </div>
+        </BuffaloDialog>
       )}
 
-      {/* MODAL 2: BUY BONUS Confirmation Modal */}
+      {/* Buy Bonus confirmation keeps the existing 100× price and 10-spin award. */}
       {isBuyBonusModalOpen && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-2xl animate-fadeIn select-none">
-          <div className="w-full max-w-xs sm:max-w-sm rounded-2xl p-3 sm:p-4 border border-white/20 bg-zinc-950/90 shadow-2xl flex flex-col items-center gap-2.5 text-center">
-            <div className="w-12 h-12 rounded-xl border border-white/20 overflow-hidden shadow-lg bg-black flex items-center justify-center">
-              <img
-                src="/assets/slot-symbols/individual/buffalo.webp"
-                alt="Charge Buffalo"
-                className="w-full h-full object-cover"
-              />
+        <BuffaloDialog
+          titleId="buffalo-buy-bonus-title"
+          descriptionId="buffalo-buy-bonus-description"
+          onClose={() => setIsBuyBonusModalOpen(false)}
+          panelClassName="max-w-md border-red-300/20"
+        >
+          <div className="flex flex-col items-center gap-3 p-4 text-center sm:p-5">
+            <div className="relative h-16 w-16 overflow-hidden rounded-2xl border border-amber-200/25 bg-black shadow-lg">
+              <Image src="/assets/slot-symbols/individual/buffalo.webp" alt="" fill sizes="64px" className="object-cover" />
             </div>
             <div>
-              <span className="text-[9px] uppercase font-black tracking-widest text-red-300 block">
-                SPECIAL FEATURE
-              </span>
-              <h3 className="text-base font-black text-white">
-                BUY BONUS (100 × BET)
-              </h3>
-              <p className="text-[11px] text-white/70 mt-0.5">
-                Free Spins ၁၀ ကြိမ် ချက်ချင်းရယူပြီး WILD Multipliers ×2, ×3, ×5 ရယူပါ!
+              <span className="block text-[9px] font-black uppercase tracking-widest text-red-300">SPECIAL FEATURE</span>
+              <h2 id="buffalo-buy-bonus-title" className="mt-1 text-base font-black text-white">BUY BONUS (100 × BET)</h2>
+              <p id="buffalo-buy-bonus-description" className="mt-1 text-xs leading-relaxed text-white/70">
+                Free Spins ၁၀ ကြိမ် ရရှိပါမည်။ လက်ရှိဂိမ်းစည်းမျဉ်းအတိုင်း WILD multipliers အသုံးပြုပါမည်။
               </p>
             </div>
 
-            <div className="py-1.5 px-3 rounded-xl bg-black/60 border border-white/15 w-full flex items-center justify-between">
-              <span className="text-[11px] text-white/70">ကျသင့်ငွေ:</span>
-              <span className="text-sm font-black font-mono text-white">
-                Ks {(betAmount * 100).toLocaleString()}
-              </span>
+            <div className="grid w-full grid-cols-2 gap-2 text-left">
+              <div className="rounded-xl border border-white/10 bg-black/50 p-2.5">
+                <p className="text-[10px] text-white/50">တစ်ကြိမ်လောင်းကြေး</p>
+                <p className="font-mono text-xs font-black text-white">{formatKs(betAmount)}</p>
+              </div>
+              <div className="rounded-xl border border-red-300/20 bg-red-950/25 p-2.5">
+                <p className="text-[10px] text-white/55">ဝယ်ယူစရိတ် (100×)</p>
+                <p className="font-mono text-xs font-black text-red-100">{formatKs(betAmount * 100)}</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/50 p-2.5">
+                <p className="text-[10px] text-white/50">လက်ရှိလက်ကျန်</p>
+                <p className="font-mono text-xs font-black text-white">{formatKs(user?.balance || 0)}</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/50 p-2.5">
+                <p className="text-[10px] text-white/50">ဝယ်ပြီးနောက်</p>
+                <p className={`font-mono text-xs font-black ${user && user.balance >= betAmount * 100 ? 'text-emerald-200' : 'text-rose-200'}`}>
+                  {user && user.balance >= betAmount * 100 ? formatKs(user.balance - betAmount * 100) : 'လက်ကျန်မလုံလောက်'}
+                </p>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 w-full pt-1">
-              <button
-                onClick={handleConfirmBuyBonus}
-                className="flex-1 py-2 rounded-xl bg-white hover:bg-zinc-100 text-black font-black text-xs active:scale-95 transition-all shadow-md"
-              >
-                ဝယ်ယူမည်
-              </button>
-              <button
-                onClick={() => setIsBuyBonusModalOpen(false)}
-                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs active:scale-95 transition-all"
-              >
+            {!user || user.balance < betAmount * 100 ? (
+              <p className="w-full rounded-xl border border-rose-300/20 bg-rose-950/30 px-3 py-2 text-left text-[11px] text-rose-100" role="status">
+                {!user ? 'အကောင့်ဝင်ပြီးမှ Bonus ဝယ်နိုင်ပါသည်။' : 'လက်ကျန်ငွေ မလုံလောက်ပါ။ ငွေဖြည့်ရန် Wallet ကို ဖွင့်ပါ။'}
+              </p>
+            ) : null}
+
+            <div className="flex w-full gap-2 pt-1">
+              <button type="button" onClick={() => setIsBuyBonusModalOpen(false)} className="min-h-12 flex-1 rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-bold text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300">
                 မဝယ်ပါ
               </button>
+              <button type="button" onClick={handleConfirmBuyBonus} className="min-h-12 flex-1 rounded-xl bg-gradient-to-b from-amber-100 to-amber-500 px-3 text-xs font-black text-black shadow-lg transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                အတည်ပြုပြီး ဝယ်မည်
+              </button>
             </div>
           </div>
-        </div>
+        </BuffaloDialog>
       )}
 
-      {/* MODAL 3: Free Spins Trigger Celebration Modal */}
-      {showBonusTriggerModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/90 backdrop-blur-2xl animate-fadeIn select-none">
-          <div className="w-full max-w-xs rounded-2xl p-4 border border-white/20 bg-zinc-950/90 shadow-2xl flex flex-col items-center gap-2.5 text-center">
-            <Sparkles className="w-8 h-8 text-white animate-spin stroke-[2]" />
+      {/* Wait for Big Win dismissal before presenting the free-spin award dialog. */}
+      {showBonusTriggerModal && !bigWinData && (
+        <BuffaloDialog
+          titleId="buffalo-free-spin-title"
+          descriptionId="buffalo-free-spin-description"
+          onClose={() => setShowBonusTriggerModal(false)}
+          backdropDismiss={false}
+          escapeDismiss={false}
+          panelClassName="max-w-sm border-amber-300/25"
+        >
+          <div className="flex flex-col items-center gap-3 p-5 text-center">
+            <div className="relative h-24 w-24">
+              <Image src="/assets/slot-vfx/buffalo_super_win_crest.webp" alt="" fill sizes="96px" className="object-contain" />
+              <Sparkles className="absolute -right-1 top-0 h-5 w-5 animate-pulse text-amber-200" aria-hidden="true" />
+            </div>
             <div>
-              <h3 className="text-lg font-black text-white uppercase">
-                CONGRATULATIONS!
-              </h3>
-              <p className="text-sm font-black text-white mt-0.5">
-                FREE SPINS {totalFreeSpinsWon} ကြိမ် ရရှိပါသည်!
-              </p>
-              <p className="text-[11px] text-white/70 mt-1">
-                WILD များမှ ×2, ×3, ×5 ဆုကြေးများ ပေးအပ်ပါမည်!
+              <h2 id="buffalo-free-spin-title" className="text-lg font-black uppercase text-white">FREE SPINS ရရှိပါပြီ</h2>
+              <p className="mt-1 text-sm font-black text-amber-100">{totalFreeSpinsWon} ကြိမ် အပိုလှည့်ခွင့်</p>
+              <p id="buffalo-free-spin-description" className="mt-1 text-xs leading-relaxed text-white/65">
+                Free Spin များ စတင်ရန် အောက်ပါခလုတ်ကိုနှိပ်ပါ။ ရလဒ်တိုင်းကို reel အောက်တွင် ပြသပါမည်။
               </p>
             </div>
             <button
+              type="button"
               onClick={() => {
                 setShowBonusTriggerModal(false);
                 sounds.playChip();
               }}
-              className="w-full py-2 rounded-xl bg-white hover:bg-zinc-100 text-black font-black text-xs active:scale-95 transition-all shadow-lg flex items-center justify-center gap-1.5"
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-amber-100 to-amber-500 px-4 text-xs font-black text-black shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
-              <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
-              <span>စတင်လည်မည်</span>
+              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              <span>Free Spin စတင်မည်</span>
             </button>
           </div>
-        </div>
+        </BuffaloDialog>
       )}
 
-      {/* MODAL 4: AUTO SPIN COUNT SELECTION MODAL */}
+      {/* Select Auto Spin count, preview stake exposure, then explicitly start or cancel. */}
       {isAutoModalOpen && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-2xl animate-fadeIn select-none">
-          <div className="w-full max-w-xs sm:max-w-sm rounded-2xl p-3.5 sm:p-4 border border-white/20 bg-zinc-950/95 shadow-2xl flex flex-col gap-3">
-            <div className="flex items-center justify-between pb-2 border-b border-white/10">
+        <BuffaloDialog
+          titleId="buffalo-auto-title"
+          descriptionId="buffalo-auto-description"
+          onClose={() => setIsAutoModalOpen(false)}
+          panelClassName="max-w-md border-amber-200/20"
+        >
+          <div className="flex flex-col gap-3 p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <RotateCcw className="w-4 h-4 text-white stroke-[2.5]" />
-                <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
-                  Auto Spin အရေအတွက် ရွေးချယ်ပါ
-                </h3>
+                <RotateCcw className="h-5 w-5 text-amber-200" aria-hidden="true" />
+                <h2 id="buffalo-auto-title" className="text-sm font-black uppercase tracking-wider text-white">Auto Spin သတ်မှတ်ရန်</h2>
               </div>
-              <button
-                onClick={() => setIsAutoModalOpen(false)}
-                className="p-1 rounded-full text-white/60 hover:text-white"
-              >
-                <X className="w-4 h-4 stroke-[2]" />
+              <button type="button" onClick={() => setIsAutoModalOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl text-white/65 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300" aria-label="Auto Spin dialog ပိတ်ရန်">
+                <X className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
-
-            <p className="text-[11px] text-white/70">
-              အလိုအလျောက် လှည့်မည့် အကြိမ်ရေကို ရွေးချယ်ပါ။ လှည့်နေစဉ် အချိန်မရွေး STOP နှိပ်၍ ရပ်တန့်နိုင်ပါသည်။
+            <p id="buffalo-auto-description" className="text-xs leading-relaxed text-white/65">
+              ရွေးထားသောအကြိမ်ရေတစ်ကြိမ်စီတွင် လက်ရှိလောင်းကြေးကို အသုံးပြုပါမည်။ AUTO လည်နေစဉ် STOP ဖြင့် အချိန်မရွေး ရပ်နိုင်ပါသည်။
             </p>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {[10, 20, 50, 100].map((count) => (
                 <button
+                  type="button"
                   key={`auto-spin-count-${count}`}
                   onClick={() => {
                     sounds.playChip();
-                    if (user && user.balance < betAmount) {
-                      setWinningInfo('လက်ကျန်ငွေ မလုံလောက်ပါ');
-                      setIsAutoModalOpen(false);
-                      return;
-                    }
-                    setAutoSpinsRemaining(count);
-                    setIsAutoSpinning(true);
-                    setIsAutoModalOpen(false);
+                    setSelectedAutoCount(count);
                   }}
-                  className="py-2.5 px-2 rounded-xl text-xs font-black font-mono border border-white/20 bg-zinc-900/90 hover:bg-white hover:text-black hover:border-white transition-all active:scale-95 flex items-center justify-center gap-1.5 shadow-md"
+                  aria-pressed={selectedAutoCount === count}
+                  className={`min-h-11 rounded-xl border px-1 text-xs font-black font-mono transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
+                    selectedAutoCount === count
+                      ? 'border-amber-100 bg-gradient-to-b from-amber-100 to-amber-400 text-black'
+                      : 'border-white/15 bg-black/50 text-white hover:bg-white/10'
+                  }`}
                 >
-                  <RotateCcw className="w-3.5 h-3.5 stroke-[2]" />
-                  <span>{count} ကြိမ်</span>
+                  {count}
                 </button>
               ))}
             </div>
 
-            <button
-              onClick={() => setIsAutoModalOpen(false)}
-              className="w-full py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white/80 font-bold text-[11px] transition-all"
-            >
-              ပိတ်မည်
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-white/10 bg-black/45 p-2.5">
+                <p className="text-[10px] text-white/50">လက်ရှိလက်ကျန်</p>
+                <p className="font-mono text-xs font-black text-white">{formatKs(user?.balance || 0)}</p>
+              </div>
+              <div className="rounded-xl border border-amber-200/15 bg-amber-950/20 p-2.5">
+                <p className="text-[10px] text-white/50">တစ်ကြိမ်လောင်းကြေး</p>
+                <p className="font-mono text-xs font-black text-amber-100">{formatKs(betAmount)}</p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-[11px] leading-relaxed text-white/75" role="status">
+              <div className="flex items-center justify-between gap-2">
+                <span>ရွေးထားသော paid spin</span>
+                <strong className="text-white">{selectedAutoCount ?? 0} ကြိမ်</strong>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span>အစီအစဉ်အပြည့်အတွက် စုစုပေါင်း wager</span>
+                <strong className="font-mono text-amber-100">{formatKs(plannedAutoStake)}</strong>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span>လောင်းကြေးနုတ်ပြီး ခန့်မှန်းလက်ကျန် (ဆုကြေးမပါ)</span>
+                <strong className="font-mono text-white">
+                  {user && user.balance >= plannedAutoStake
+                    ? formatKs(user.balance - plannedAutoStake)
+                    : user
+                    ? 'အနိုင်ရငွေ မရပါက မလောက်နိုင်'
+                    : 'အကောင့်ဝင်ရန် လိုအပ်'}
+                </strong>
+              </div>
+              <p className="pt-1 text-[10px] text-white/55">ခန့်မှန်းချက်တွင် ဆုကြေးမပါဝင်ပါ။ Paid Spin တစ်ကြိမ်စီမစမီ လက်ကျန်ကို စစ်ပြီး မလုံလောက်လျှင် AUTO ရပ်ပါမည်။</p>
+            </div>
+
+            {!user || user.balance < betAmount ? (
+              <p className="rounded-xl border border-rose-300/20 bg-rose-950/30 px-3 py-2 text-[11px] text-rose-100" role="status">
+                {!user ? 'AUTO မစတင်မီ အကောင့်ဝင်ပါ။' : 'လက်ကျန်ငွေ မလုံလောက်ပါ။ အရင်ငွေဖြည့်ပါ။'}
+              </p>
+            ) : null}
+
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setIsAutoModalOpen(false)} className="min-h-12 flex-1 rounded-xl border border-white/20 bg-white/10 px-3 text-xs font-bold text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300">
+                မစတင်ပါ
+              </button>
+              <button
+                type="button"
+                disabled={!selectedAutoCount}
+                onClick={() => {
+                  if (!selectedAutoCount) return;
+                  sounds.playChip();
+                  if (!user) {
+                    setIsAutoModalOpen(false);
+                    showGameToast('AUTO စတင်ရန် အကောင့်ဝင်ပါ။');
+                    onRequireAuth?.();
+                    return;
+                  }
+                  if (user.balance < betAmount) {
+                    setIsAutoModalOpen(false);
+                    showGameToast('လက်ကျန်ငွေ မလုံလောက်ပါ။ ငွေအရင်ဖြည့်ပါ။');
+                    onGoToWallet();
+                    return;
+                  }
+                  setAutoSpinsRemaining(selectedAutoCount);
+                  setIsAutoSpinning(true);
+                  setIsAutoModalOpen(false);
+                }}
+                className="min-h-12 flex-1 rounded-xl bg-gradient-to-b from-amber-100 to-amber-500 px-3 text-xs font-black text-black shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              >
+                AUTO စတင်မည်
+              </button>
+            </div>
           </div>
-        </div>
+        </BuffaloDialog>
       )}
     </div>
   );

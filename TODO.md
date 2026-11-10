@@ -22,6 +22,14 @@
 - [x] When a player selects any quick, color, or exact-number bet option, show a responsive premium confirmation dialog with the selected bet type and choice, round, stake, current balance, balance after the stake, multiplier, and estimated payout/profit using the existing settlement formula; provide clear Confirm and Cancel actions.
 - [x] Confirm calls the existing `onPlaceBet` handler exactly once with the captured bet values; Cancel closes the dialog without calling placement or changing balance, bet records, or settlement logic. Keep the existing minimum-bet, insufficient-balance, authentication, anti-bot, anti-hedging, and round validation in the existing handler.
 
+## Buffalo Game UI/UX and result effects
+
+- [x] Keep the existing spin outcomes, odds, bet options, wager deductions, payout/balance calculations, authentication, API/Firestore behavior, and result persistence unchanged; make only UI, interaction, and visual-effect improvements.
+- [x] Make portrait, short-landscape, and desktop layouts usable; provide a reliable orientation choice without silent fullscreen/orientation requests, and keep the reel grid and controls visible and readable.
+- [x] Make current balance, stake and SPIN action state clear; explain insufficient balance and login requirements; remove duplicate status/bonus controls where appropriate; show Auto Spin count and Buy Bonus cost beside available/remaining balance without changing their existing terms; during Free Spins state that the spin costs Ks 0 and the displayed bet is only the payout basis.
+- [x] Add result/drop/landing animation and integrate generated transparent Buffalo VFX assets beneath resolved results; clearly distinguish win, no-win, free-spin, and payout-credit feedback while respecting reduced-motion preferences.
+- [x] Make Buffalo dialogs and icon-only actions accessible by keyboard and assistive technology, and clarify loading and Big Win dismissal/credit messaging.
+
 ## Verification
 
 - [x] Run lint and production build; resolve actionable errors.

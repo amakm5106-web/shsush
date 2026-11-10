@@ -2509,6 +2509,7 @@ export default function Home() {
                 settings={settings}
                 onBackToLobby={() => setSelectedGame('lobby')}
                 onGoToWallet={() => setActiveTab('wallet')}
+                onRequireAuth={() => setIsAuthModalOpen(true)}
                 soundEnabled={soundEnabled}
                 onToggleSound={() => {
                   const next = !soundEnabled;

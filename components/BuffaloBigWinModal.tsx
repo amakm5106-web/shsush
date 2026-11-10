@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import confetti from 'canvas-confetti';
-import { Trophy, Check, Sparkles } from 'lucide-react';
+import { Check, Sparkles, Trophy } from 'lucide-react';
 import { sounds } from '@/lib/audio';
+import { BuffaloDialog } from './buffalo/BuffaloDialog';
 
 interface BuffaloBigWinModalProps {
   winAmount: number;
@@ -14,11 +16,8 @@ interface BuffaloBigWinModalProps {
 export function BuffaloBigWinModal({ winAmount, betAmount, onClose }: BuffaloBigWinModalProps) {
   const [displayedAmount, setDisplayedAmount] = useState<number>(0);
   const [isCountFinished, setIsCountFinished] = useState<boolean>(false);
-
-  // Multiplier ratio
   const ratio = betAmount > 0 ? winAmount / betAmount : 3;
 
-  // Determine Tier with clean badges
   let tierTitle = 'BIG WIN';
   let tierBurmese = 'ဆုကြေးကြီး!';
   let badgeGradient = 'from-emerald-500/30 to-teal-500/20 border-emerald-400/40 text-emerald-300';
@@ -33,10 +32,18 @@ export function BuffaloBigWinModal({ winAmount, betAmount, onClose }: BuffaloBig
     badgeGradient = 'from-amber-500/30 to-yellow-500/20 border-amber-400/40 text-amber-200';
   }
 
-  // Count-up animation & Sound effects
-  // Rapid tally from 0 to winAmount in ~500ms as requested (0 ကနေ လျင်မြန်စွာတက်သွားရမည်)
   useEffect(() => {
     sounds.playWin();
+
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) {
+      const frameId = requestAnimationFrame(() => {
+        setDisplayedAmount(winAmount);
+        setIsCountFinished(true);
+      });
+      return () => cancelAnimationFrame(frameId);
+    }
+
     confetti({
       particleCount: 90,
       spread: 80,
@@ -44,19 +51,17 @@ export function BuffaloBigWinModal({ winAmount, betAmount, onClose }: BuffaloBig
       colors: ['#ffffff', '#f59e0b', '#38bdf8', '#a855f7'],
     });
 
-    const duration = 520; // Fast tally: 520ms
+    const duration = 900;
     const startTime = performance.now();
+    let frameId = 0;
 
     const frame = (now: number) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(1, elapsed / duration);
-      // Fast easeOutCubic curve
+      const progress = Math.min(1, (now - startTime) / duration);
       const eased = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(eased * winAmount);
-      setDisplayedAmount(current);
+      setDisplayedAmount(Math.round(eased * winAmount));
 
       if (progress < 1) {
-        requestAnimationFrame(frame);
+        frameId = requestAnimationFrame(frame);
       } else {
         setDisplayedAmount(winAmount);
         setIsCountFinished(true);
@@ -64,71 +69,64 @@ export function BuffaloBigWinModal({ winAmount, betAmount, onClose }: BuffaloBig
       }
     };
 
-    const animId = requestAnimationFrame(frame);
-
-    // Auto dismiss after 3.8 seconds
-    const autoCloseTimer = setTimeout(() => {
-      onClose();
-    }, 3800);
-
-    return () => {
-      cancelAnimationFrame(animId);
-      clearTimeout(autoCloseTimer);
-    };
-  }, [winAmount, onClose]);
+    frameId = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(frameId);
+  }, [winAmount]);
 
   return (
-    <div
-      onClick={onClose}
-      className="absolute inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-2xl animate-fadeIn select-none cursor-pointer overflow-hidden"
+    <BuffaloDialog
+      titleId="buffalo-big-win-title"
+      descriptionId="buffalo-big-win-description"
+      onClose={onClose}
+      backdropDismiss={false}
+      panelClassName="max-w-[420px] overflow-hidden border-amber-300/30 bg-[radial-gradient(ellipse_at_50%_0%,rgba(245,158,11,.17),transparent_58%),linear-gradient(160deg,rgba(20,20,24,.98),rgba(5,6,10,.98))]"
     >
-      {/* Subtle Ambient Radial Glow */}
-      <div className="absolute w-[280px] h-[280px] sm:w-[360px] sm:h-[360px] rounded-full bg-white/[0.04] blur-3xl pointer-events-none" />
-
-      {/* Main Big Win Card: Premium Dark Glass, Compact Landscape Proportion, Bold White Typography */}
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="relative z-10 w-full max-w-[340px] sm:max-w-md max-h-[92vh] py-2.5 px-3 sm:py-4 sm:px-5 rounded-2xl sm:rounded-3xl bg-zinc-950/90 backdrop-blur-2xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.95)] flex flex-col items-center gap-1.5 sm:gap-2.5 text-center animate-big-win-pop"
-      >
-        {/* Header: Clean Line Trophy + Tier Pill Badge */}
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
-            <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white stroke-[1.75]" />
-          </div>
-          <div className={`px-3 py-0.5 sm:py-1 rounded-full bg-gradient-to-r ${badgeGradient} border backdrop-blur-md`}>
-            <span className="text-[11px] sm:text-xs font-black uppercase tracking-widest text-white">
-              {tierTitle}
-            </span>
-          </div>
-          <span className="text-[11px] sm:text-xs font-black text-white/90">{tierBurmese}</span>
+      <div className="relative flex flex-col items-center gap-3 p-4 text-center sm:gap-4 sm:p-6">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/80 to-transparent" />
+        <div className="relative h-28 w-28 sm:h-36 sm:w-36">
+          <div className="absolute inset-2 rounded-full bg-amber-300/25 blur-2xl" aria-hidden="true" />
+          <Image
+            src="/assets/slot-vfx/buffalo_super_win_crest.webp"
+            alt=""
+            fill
+            priority
+            sizes="144px"
+            className="object-contain drop-shadow-[0_0_22px_rgba(245,158,11,0.35)]"
+          />
         </div>
 
-        {/* Rapid Counter Display: Dark Frosted Glass Box + Bold White Numbers */}
-        <div className="w-full py-2 px-3 sm:py-3 sm:px-4 rounded-xl sm:rounded-2xl bg-black/70 border border-white/15 shadow-inner flex flex-col items-center">
-          <span className="text-[9px] sm:text-[10px] font-bold text-white/60 uppercase tracking-widest">
-            အနိုင်ရရှိငွေ (WIN AMOUNT)
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-amber-200/25 bg-amber-400/10">
+            <Trophy className="h-4 w-4 text-amber-200" aria-hidden="true" />
           </span>
-          <span className="text-2xl sm:text-4xl font-black font-mono tracking-tight text-white my-0.5 sm:my-1 drop-shadow-md">
+          <span className={`rounded-full border bg-gradient-to-r px-3 py-1 text-[11px] font-black tracking-[0.16em] text-white ${badgeGradient}`}>
+            {tierTitle}
+          </span>
+          <span className="text-xs font-black text-white/90">{tierBurmese}</span>
+        </div>
+
+        <div className="w-full rounded-2xl border border-amber-200/20 bg-black/60 px-4 py-3 shadow-inner">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">အနိုင်ရငွေ</p>
+          <h2 id="buffalo-big-win-title" className="my-1 font-mono text-3xl font-black tracking-tight text-amber-100 drop-shadow sm:text-4xl">
             Ks {displayedAmount.toLocaleString()}
-          </span>
-          <span className="text-[10px] sm:text-xs font-bold text-white/80">
-            {ratio.toFixed(1)} × လောင်းကြေး
-          </span>
+          </h2>
+          <p className="text-xs font-bold text-white/75">{ratio.toFixed(1)} × လောင်းကြေး</p>
         </div>
 
-        {/* Action Button: High-Contrast Crisp White Button with Line Check Icon */}
-        <button
-          onClick={onClose}
-          className="w-full py-2 sm:py-2.5 px-4 rounded-xl bg-white hover:bg-zinc-100 text-black font-black text-xs sm:text-sm shadow-lg active:scale-95 transition-all flex items-center justify-center gap-1.5"
-        >
-          <Check className="w-4 h-4 stroke-[2.5]" />
-          <span>ဆုကြေးရယူမည် (Collect)</span>
-        </button>
-
-        <p className="text-[9px] sm:text-[10px] text-white/50 font-medium">
-          {isCountFinished ? 'နှိပ်၍ ဆက်လက်ကစားပါ' : 'ဆုကြေးရေတွက်နေသည်...'}
+        <p id="buffalo-big-win-description" className="max-w-sm text-xs leading-relaxed text-white/70">
+          အနိုင်ရရလဒ်ကို ပြသထားပါသည်။ လက်ကျန်ငွေကို အပေါ်ဘက် Balance တွင် စစ်ဆေးပါ။ နောက် Auto/Free Spin သည် ဤပြကွက်ကို ပိတ်ပြီးမှ ဆက်ပါမည်။
         </p>
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-amber-200 to-amber-500 px-4 py-3 text-sm font-black text-black shadow-[0_8px_24px_rgba(245,158,11,0.24)] transition hover:brightness-105 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-100 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+        >
+          {isCountFinished ? <Check className="h-4 w-4" aria-hidden="true" /> : <Sparkles className="h-4 w-4 animate-pulse" aria-hidden="true" />}
+          <span>ဆက်လက်ကစားမည်</span>
+        </button>
+        <p className="text-[10px] text-white/45">ဆက်လက်ကစားရန် ခလုတ်နှိပ်ပါ သို့မဟုတ် Esc ကိုနှိပ်ပါ။</p>
       </div>
-    </div>
+    </BuffaloDialog>
   );
 }

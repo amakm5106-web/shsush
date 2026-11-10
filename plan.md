@@ -36,3 +36,36 @@ Candidate styles: editorial finance console (0.07), obsidian operations desk (0.
 4. User-facing wallet history uses the same status vocabulary and shows rejection reasons for declined withdrawals.
 5. Admin dashboard visual hierarchy is clearer, responsive on mobile, and uses line-action icons with accessible titles.
 6. Existing lint and production build continue to pass.
+
+
+## Buffalo Game UI/UX and visual feedback
+
+### Implementation approach
+
+- Keep `components/BuffaloSlotGame.tsx` as the owner of the existing game state and spin flow. Treat all work in this request as presentation and interaction improvements; do not alter outcome generation, RTP/odds, bet options, wager deductions, payout/balance calculations, authentication, Firestore/API calls, or result persistence.
+- Keep the existing dark obsidian and amber-gold Charge Buffalo visual language. Improve the active full-screen shell for narrow portrait, short landscape, and desktop instead of redesigning unused components as though players see them.
+- Add a small, isolated Buffalo result-effects layer under `components/buffalo/` that receives existing spin/result/free-spin state and renders only visual feedback. Use generated transparent gold-coin/energy VFX art under `public/assets/slot-vfx/`; keep the reel outcome and payout state as the sole source of truth.
+- Consolidate repeated modal semantics into a reusable accessible Buffalo dialog wrapper under `components/buffalo/` where practical. Scope responsive and animation rules to the Buffalo game in `app/globals.css`; retain the existing parent mount and callbacks in `app/page.tsx`.
+
+### Design
+
+- **Design movement:** premium obsidian-and-amber casino arcade, continuing the existing Charge Buffalo art direction.
+- **Core principles:** keep the 6×4 reels dominant; make each wager's cost and action state explicit; keep result feedback visible and readable; use purposeful, short motion rather than constant decoration.
+- **Color philosophy:** charcoal/black surfaces protect reel contrast; amber/gold marks stakes, wins, and primary actions; use distinct, non-color-only labels for closed, insufficient-balance, win, and free-spin states.
+- **Layout paradigm:** responsive full-screen arena with a compact header, flexible reel stage, a clear lower result/feedback rail, and a stable control dock; allow deliberate portrait play or a clear user-controlled landscape option.
+- **Signature elements:** a generated translucent gold-coin burst beneath resolved results; restrained glow/bounce on winning symbols; a concise, high-contrast result rail.
+- **Interaction philosophy:** never silently request orientation or fullscreen; show why an action is unavailable; surface current bet and available balance together; keep Auto Spin and Buy Bonus terms visible before confirmation; make modal actions keyboard and touch accessible.
+- **Animation:** staggered reel motion remains untouched; add a short result-drop/landing response, particle/coin burst on existing win states, and a reduced-motion alternative. Avoid obstructing symbols or triggering animation when there is no corresponding result.
+- **Typography:** reuse current system sans for labels and tabular monospace for Ks values; preserve readable sizes at phone widths and short landscape heights.
+- **Brand essence:** a bold, clear Charge Buffalo slot arcade for mobile and desktop players; energetic, legible, trustworthy.
+- **Brand voice:** short Burmese state messages that explain the next action, such as “လောင်းကြေး မလုံလောက်ပါ — Wallet ကို ကြည့်ပါ” and “အနိုင်ရရလဒ်ကို အပေါ်ဘက် Balance တွင် စစ်ဆေးပါ”.
+
+### Buffalo project structure
+
+- `components/BuffaloSlotGame.tsx`: existing gameplay state and primary arena/control integration; visual changes only.
+- `components/buffalo/BuffaloDialog.tsx`: shared accessible dialog shell for Buffalo modals.
+- `components/buffalo/BuffaloResultEffects.tsx`: presentational result and coin effects driven by existing results.
+- `components/BuffaloBigWinModal.tsx` and `components/BuffaloSymbolImage.tsx`: retain existing award/symbol rendering while improving presentation/accessibility where needed.
+- `app/globals.css`: responsive breakpoints, reduced-motion behavior, and game-scoped effect animations.
+- `public/assets/slot-vfx/`: generated transparent Buffalo result-effects images.
+- `app/page.tsx`: continue using the existing Buffalo mount and callbacks without changing backend behavior.
