@@ -17,6 +17,11 @@
 - [x] Apply the same status vocabulary to wallet deposit and withdrawal history, including declined withdrawal reasons and completion/review timestamps.
 - [x] Refine the admin console and shared surfaces for a clean, legible responsive UI with compact line icons, accessible action titles, restrained motion, and clear status chips.
 
+## Dice Game bet confirmation
+
+- [x] When a player selects any quick, color, or exact-number bet option, show a responsive premium confirmation dialog with the selected bet type and choice, round, stake, current balance, balance after the stake, multiplier, and estimated payout/profit using the existing settlement formula; provide clear Confirm and Cancel actions.
+- [x] Confirm calls the existing `onPlaceBet` handler exactly once with the captured bet values; Cancel closes the dialog without calling placement or changing balance, bet records, or settlement logic. Keep the existing minimum-bet, insufficient-balance, authentication, anti-bot, anti-hedging, and round validation in the existing handler.
+
 ## Verification
 
 - [x] Run lint and production build; resolve actionable errors.

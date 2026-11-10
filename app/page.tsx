@@ -2486,6 +2486,7 @@ export default function Home() {
                 <BettingBoard
                   settings={settings}
                   userBalance={userProfile?.balance || 0}
+                  roundId={roundId}
                   bettingOpen={bettingOpen}
                   onPlaceBet={handlePlaceBet}
                   currentRoundBets={currentRoundBets}

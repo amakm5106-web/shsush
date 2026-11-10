@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   TrendingDown,
   TrendingUp,
@@ -14,6 +14,10 @@ import {
   Hash,
   Sparkles,
   Palette,
+  ShieldCheck,
+  ArrowRight,
+  X,
+  AlertTriangle,
 } from 'lucide-react';
 import { GameSettings, PlayerBet } from '@/lib/types';
 import { formatKs } from '@/lib/constants';
@@ -22,6 +26,7 @@ import { sounds } from '@/lib/audio';
 interface BettingBoardProps {
   settings: GameSettings;
   userBalance: number;
+  roundId: number;
   bettingOpen: boolean;
   onPlaceBet: (betKind: 'size' | 'number' | 'color', selection: string, amount: number, multiplier: number) => Promise<boolean>;
   currentRoundBets: PlayerBet[];
@@ -32,12 +37,21 @@ const CHIP_PRESETS = [100, 500, 1000, 5000, 10000, 50000];
 export function BettingBoard({
   settings,
   userBalance,
+  roundId,
   bettingOpen,
   onPlaceBet,
   currentRoundBets,
 }: BettingBoardProps) {
   const [selectedAmount, setSelectedAmount] = useState<number>(settings.MINIMUM_BET || 100);
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const submittingRef = useRef(false);
+  const [pendingBet, setPendingBet] = useState<{
+    betKind: 'size' | 'number' | 'color';
+    selection: string;
+    multiplier: number;
+    amount: number;
+    roundId: number;
+  } | null>(null);
   const [activeTab, setActiveTab] = useState<'quick' | 'colors' | 'numbers'>('quick');
 
   const handleChipClick = (amount: number) => {
@@ -45,30 +59,69 @@ export function BettingBoard({
     setSelectedAmount((prev) => Math.min(userBalance, prev + amount));
   };
 
-  const handlePlaceBetAction = async (
+  const handlePlaceBetAction = (
     betKind: 'size' | 'number' | 'color',
     selection: string,
     multiplier: number
   ) => {
-    if (!bettingOpen) return;
+    if (!bettingOpen || submitting || pendingBet) return;
     if (selectedAmount < settings.MINIMUM_BET) {
       sounds.playTick();
       return;
     }
-    if (selectedAmount > userBalance) {
+    sounds.playChip();
+    setPendingBet({ betKind, selection, multiplier, amount: selectedAmount, roundId });
+  };
+
+  const handleCancelBet = () => {
+    if (submittingRef.current) return;
+    sounds.playTick();
+    setPendingBet(null);
+  };
+
+  const handleConfirmBet = async () => {
+    if (!pendingBet || submittingRef.current) return;
+    if (
+      !bettingOpen ||
+      pendingBet.roundId !== roundId ||
+      pendingBet.amount < settings.MINIMUM_BET
+    ) {
       sounds.playTick();
-      await onPlaceBet(betKind, selection, selectedAmount, multiplier);
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     sounds.playChip();
     try {
-      await onPlaceBet(betKind, selection, selectedAmount, multiplier);
+      await onPlaceBet(
+        pendingBet.betKind,
+        pendingBet.selection,
+        pendingBet.amount,
+        pendingBet.multiplier
+      );
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
+      setPendingBet(null);
     }
   };
+
+  const estimatedPayout = pendingBet
+    ? Math.round(pendingBet.amount * pendingBet.multiplier)
+    : 0;
+  const estimatedProfit = pendingBet ? estimatedPayout - pendingBet.amount : 0;
+  const roundChanged = Boolean(pendingBet && pendingBet.roundId !== roundId);
+  const belowMinimum = Boolean(pendingBet && pendingBet.amount < settings.MINIMUM_BET);
+  const selectionLabel = pendingBet
+    ? pendingBet.selection === 'red'
+      ? 'အနီ (Red)'
+      : pendingBet.selection === 'green'
+      ? 'အစိမ်း (Green)'
+      : pendingBet.selection === 'violet'
+      ? 'ခရမ်း (Violet)'
+      : pendingBet.selection
+    : '';
 
   return (
     <div className="w-full flex flex-col gap-3">
@@ -440,6 +493,142 @@ export function BettingBoard({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {pendingBet && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 px-3 py-5 backdrop-blur-md sm:px-5"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dice-bet-confirm-title"
+          aria-describedby="dice-bet-confirm-description"
+          onClick={handleCancelBet}
+        >
+          <div
+            className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-[28px] border border-amber-300/25 bg-[radial-gradient(ellipse_at_top,rgba(245,158,11,0.13),transparent_42%),linear-gradient(160deg,#171b23_0%,#0b0e14_54%,#090b10_100%)] shadow-[0_28px_100px_rgba(0,0,0,0.75),0_0_45px_rgba(245,158,11,0.08)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="h-1 w-full bg-gradient-to-r from-amber-500 via-yellow-200 to-amber-500" />
+            <div className="p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-2xl border border-amber-300/25 bg-amber-400/10 p-3 text-amber-300 shadow-[0_0_24px_rgba(245,158,11,0.12)]">
+                    <ShieldCheck className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-300/70">အံစာဂိမ်း • လောင်းကြေးစစ်ဆေးခြင်း</p>
+                    <h2 id="dice-bet-confirm-title" className="mt-1 text-lg font-black tracking-tight text-white sm:text-xl">လောင်းကြေး အတည်ပြုရန်</h2>
+                    <p id="dice-bet-confirm-description" className="mt-1 text-xs leading-relaxed text-white/55">အောက်ပါအချက်အလက်များကို စစ်ဆေးပြီးမှ လောင်းကြေးတင်ပါ။</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCancelBet}
+                  disabled={submitting}
+                  aria-label="Cancel bet confirmation"
+                  className="rounded-xl border border-white/10 bg-white/5 p-2 text-white/60 transition hover:border-white/20 hover:bg-white/10 hover:text-white disabled:opacity-40"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-white/10 bg-black/35 p-4">
+                <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/45">ပွဲစဉ်</p>
+                    <p className="mt-1 font-mono text-sm font-black text-white">#{pendingBet.roundId}</p>
+                  </div>
+                  <span className={`rounded-full border px-3 py-1 text-[10px] font-black ${bettingOpen && !roundChanged ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-300' : 'border-red-400/25 bg-red-500/10 text-red-300'}`}>
+                    {bettingOpen && !roundChanged ? 'လောင်းကြေးဖွင့်ထားသည်' : 'လောင်းကြေးပိတ်ထားသည်'}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2.5">
+                  <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
+                    <p className="text-[10px] font-bold text-white/45">လောင်းကစားအမျိုးအစား</p>
+                    <p className="mt-1.5 text-sm font-black text-white">
+                      {pendingBet.betKind === 'size' ? 'အကြီး / အသေး' : pendingBet.betKind === 'color' ? 'အရောင်ရွေးချယ်မှု' : 'ဂဏန်းအတိအကျ'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-amber-300/15 bg-amber-400/[0.06] p-3">
+                    <p className="text-[10px] font-bold text-white/45">သင်ရွေးထားသည်</p>
+                    <p className="mt-1.5 truncate text-sm font-black text-amber-200">{selectionLabel}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
+                    <p className="text-[10px] font-bold text-white/45">လောင်းကြေး</p>
+                    <p className="mt-1.5 font-mono text-base font-black text-white">{formatKs(pendingBet.amount)}</p>
+                  </div>
+                  <div className="rounded-xl border border-white/8 bg-white/[0.035] p-3">
+                    <p className="text-[10px] font-bold text-white/45">အနိုင်မြှောက်ကိန်း</p>
+                    <p className="mt-1.5 font-mono text-base font-black text-amber-300">{pendingBet.multiplier}×</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 rounded-xl border border-emerald-400/15 bg-emerald-500/[0.055] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-semibold text-white/65">အနိုင်ရလျှင် ပြန်ရနိုင်ငွေ (ခန့်မှန်း)</span>
+                    <span className="font-mono text-sm font-black text-emerald-300">{formatKs(estimatedPayout)}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-3 border-t border-white/8 pt-2">
+                    <span className="text-xs font-semibold text-white/45">လောင်းကြေးနုတ်ပြီး ရရှိမည့်အမြတ်</span>
+                    <span className="font-mono text-xs font-black text-white/80">{formatKs(estimatedProfit)}</span>
+                  </div>
+                  <p className="mt-2 text-[10px] leading-relaxed text-white/35">အနိုင်ရလဒ်ကို အာမခံမပေးပါ။ ဖော်ပြထားသောငွေမှာ အနိုင်ရပါက လက်ရှိဂိမ်းမြှောက်ကိန်းဖြင့်တွက်ထားသည့် ခန့်မှန်းပမာဏဖြစ်သည်။</p>
+                </div>
+
+                <div className="mt-3 space-y-2 rounded-xl border border-white/8 bg-black/25 p-3">
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <span className="text-white/50">လက်ရှိလက်ကျန်</span>
+                    <span className="font-mono font-bold text-white/80">{formatKs(userBalance)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <span className="text-white/50">လောင်းပြီးနောက် လက်ကျန်</span>
+                    {userBalance >= pendingBet.amount ? (
+                      <span className="font-mono font-black text-amber-200">{formatKs(userBalance - pendingBet.amount)}</span>
+                    ) : (
+                      <span className="font-bold text-red-300">လက်ကျန်မလုံလောက်ပါ</span>
+                    )}
+                  </div>
+                </div>
+
+                {(roundChanged || !bettingOpen || belowMinimum || userBalance < pendingBet.amount) && (
+                  <div role="status" className="mt-3 flex items-start gap-2 rounded-xl border border-amber-300/20 bg-amber-400/[0.06] px-3 py-2.5 text-[11px] leading-relaxed text-amber-100/80">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                    <span>
+                      {roundChanged
+                        ? 'ပွဲစဉ်အသစ်သို့ ပြောင်းသွားပါပြီ။ ဒီလောင်းကြေးကို မတင်နိုင်တော့ပါ—ပယ်ဖျက်ပြီး ရွေးချယ်မှုအသစ်လုပ်ပါ။'
+                        : !bettingOpen
+                        ? 'ဒီပွဲ၏ လောင်းကြေးပိတ်သွားပါပြီ။ ပယ်ဖျက်ပြီး နောက်ပွဲစဉ်ကို စောင့်ပါ။'
+                        : belowMinimum
+                        ? `အနည်းဆုံးလောင်းကြေးမှာ ${formatKs(settings.MINIMUM_BET)} ဖြစ်သည်။`
+                        : 'လက်ကျန်ငွေ မလုံလောက်ပါ။ အတည်ပြုပါက ငွေစာရင်းစစ်ဆေးမှုကို ဆက်လုပ်မည်။'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleCancelBet}
+                  disabled={submitting}
+                  className="flex min-h-12 items-center justify-center rounded-xl border border-white/15 bg-white/[0.045] px-4 py-3 text-sm font-black text-white/75 transition hover:border-white/25 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ပယ်ဖျက်မည်
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmBet}
+                  disabled={submitting || !bettingOpen || roundChanged || belowMinimum}
+                  className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-amber-200/30 bg-gradient-to-br from-amber-300 via-amber-400 to-yellow-500 px-4 py-3 text-sm font-black text-[#18120a] shadow-[0_8px_26px_rgba(245,158,11,0.22)] transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:grayscale disabled:opacity-45"
+                >
+                  {submitting ? 'တင်နေသည်...' : 'အတည်ပြုပြီး လောင်းမည်'}
+                  {!submitting && <ArrowRight className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
