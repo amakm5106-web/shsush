@@ -2296,6 +2296,7 @@ export default function Home() {
                     <div
                       onClick={() => {
                         sounds.playChip();
+                        window.scrollTo(0, 0);
                         setSelectedGame('fishing');
                       }}
                       className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/20 bg-zinc-950 shadow-2xl transition-all duration-300 hover:border-white/60 active:scale-[0.98] sm:rounded-3xl"
