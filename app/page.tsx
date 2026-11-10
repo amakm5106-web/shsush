@@ -290,6 +290,75 @@ export default function Home() {
   // Page View Routing State
   const [activeTab, setActiveTab] = useState<'home' | 'referral' | 'wallet' | 'profile'>('home');
   const [selectedGame, setSelectedGame] = useState<'lobby' | 'dice' | 'buffalo' | 'fishing'>('lobby');
+  const buffaloEntrySessionRef = useRef(0);
+  const buffaloWasFullscreenRef = useRef(false);
+  const buffaloOrientationLockedRef = useRef(false);
+
+  const enterBuffaloGame = () => {
+    const entrySession = ++buffaloEntrySessionRef.current;
+    buffaloWasFullscreenRef.current = Boolean(document.fullscreenElement);
+    buffaloOrientationLockedRef.current = false;
+    setSelectedGame('buffalo');
+
+    const requestLandscapeLock = () => {
+      if (entrySession !== buffaloEntrySessionRef.current) return;
+      const orientation = window.screen.orientation as ScreenOrientation & {
+        lock?: (orientation: 'landscape') => Promise<void>;
+      };
+      if (typeof orientation?.lock !== 'function') return;
+
+      try {
+        void orientation.lock('landscape').then(() => {
+          if (entrySession !== buffaloEntrySessionRef.current) {
+            orientation.unlock();
+            return;
+          }
+          buffaloOrientationLockedRef.current = true;
+        }).catch(() => {
+          // Unsupported orientation locks fall back to the game's CSS-rotated view.
+        });
+      } catch {
+        // Unsupported orientation locks fall back to the game's CSS-rotated view.
+      }
+    };
+
+    if (document.fullscreenElement || typeof document.documentElement.requestFullscreen !== 'function') {
+      requestLandscapeLock();
+      return;
+    }
+
+    try {
+      void document.documentElement.requestFullscreen().then(() => {
+        if (entrySession !== buffaloEntrySessionRef.current) {
+          if (!buffaloWasFullscreenRef.current && document.fullscreenElement) {
+            void document.exitFullscreen().catch(() => {});
+          }
+          return;
+        }
+        requestLandscapeLock();
+      }).catch(() => requestLandscapeLock());
+    } catch {
+      requestLandscapeLock();
+    }
+  };
+
+  const exitBuffaloGame = () => {
+    buffaloEntrySessionRef.current += 1;
+    if (buffaloOrientationLockedRef.current) {
+      try {
+        window.screen.orientation.unlock();
+      } catch {
+        // Browsers without Screen Orientation API need no cleanup.
+      }
+    }
+    buffaloOrientationLockedRef.current = false;
+    if (!buffaloWasFullscreenRef.current && document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+    }
+    buffaloWasFullscreenRef.current = false;
+    setSelectedGame('lobby');
+  };
+
   const [lobbyCategory, setLobbyCategory] = useState<'all' | 'slots' | 'dice' | 'hot'>('all');
   const [promoIndex, setPromoIndex] = useState<number>(0);
 
@@ -2052,7 +2121,7 @@ export default function Home() {
                           <button
                             onClick={() => {
                               sounds.playChip();
-                              setSelectedGame('buffalo');
+                              enterBuffaloGame();
                             }}
                             className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs active:scale-95 transition-all shadow-lg flex items-center gap-1.5 w-fit"
                           >
@@ -2204,7 +2273,7 @@ export default function Home() {
                     <div
                       onClick={() => {
                         sounds.playChip();
-                        setSelectedGame('buffalo');
+                        enterBuffaloGame();
                       }}
                       className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[3/4] border border-amber-500/25 hover:border-amber-400/70 transition-all duration-300 shadow-2xl cursor-pointer active:scale-[0.98] bg-zinc-950 flex flex-col justify-between"
                     >
@@ -2507,7 +2576,7 @@ export default function Home() {
               <BuffaloSlotGame
                 user={userProfile}
                 settings={settings}
-                onBackToLobby={() => setSelectedGame('lobby')}
+                onBackToLobby={exitBuffaloGame}
                 onGoToWallet={() => setActiveTab('wallet')}
                 onRequireAuth={() => setIsAuthModalOpen(true)}
                 soundEnabled={soundEnabled}

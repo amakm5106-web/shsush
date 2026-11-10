@@ -25,7 +25,7 @@
 ## Buffalo Game UI/UX and result effects
 
 - [x] Keep the existing spin outcomes, odds, bet options, wager deductions, payout/balance calculations, authentication, API/Firestore behavior, and result persistence unchanged; make only UI, interaction, and visual-effect improvements.
-- [x] Make portrait, short-landscape, and desktop layouts usable; provide a reliable orientation choice without silent fullscreen/orientation requests, and keep the reel grid and controls visible and readable.
+- [x] When the player enters Buffalo, request fullscreen and landscape orientation automatically from the entry tap; if the browser/device rejects orientation lock, rotate the game into landscape with CSS while keeping reels and controls usable. When the player exits Buffalo, unlock orientation and leave fullscreen so the app returns to its normal view.
 - [x] Make current balance, stake and SPIN action state clear; explain insufficient balance and login requirements; remove duplicate status/bonus controls where appropriate; show Auto Spin count and Buy Bonus cost beside available/remaining balance without changing their existing terms; during Free Spins state that the spin costs Ks 0 and the displayed bet is only the payout basis.
 - [x] Add result/drop/landing animation and integrate generated transparent Buffalo VFX assets beneath resolved results; clearly distinguish win, no-win, free-spin, and payout-credit feedback while respecting reduced-motion preferences.
 - [x] Make Buffalo dialogs and icon-only actions accessible by keyboard and assistive technology, and clarify loading and Big Win dismissal/credit messaging.

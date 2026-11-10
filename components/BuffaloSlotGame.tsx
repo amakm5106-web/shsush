@@ -10,7 +10,6 @@ import {
   Flame,
   CheckCircle2,
   X,
-  Smartphone,
   Volume2,
   VolumeX,
   Maximize2,
@@ -384,8 +383,6 @@ export function BuffaloSlotGame({
 
   // Device Portrait Detection & Responsive Landscape Toggle
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
-  const [forceLandscapeView, setForceLandscapeView] = useState<boolean>(false);
-  const [dismissRotatePrompt, setDismissRotatePrompt] = useState<boolean>(false);
   const [isSubBetCelebration, setIsSubBetCelebration] = useState<boolean>(false);
 
   // Behavioral & Touch Telemetry Tracking
@@ -398,7 +395,7 @@ export function BuffaloSlotGame({
     lastSettledAtRef.current = Date.now();
   }, []);
 
-  // Detect orientation only; fullscreen and rotated-view changes require an explicit user action.
+  // Fullscreen/orientation are requested from the parent entry tap; rotate the layout if the device stays portrait.
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -406,7 +403,6 @@ export function BuffaloSlotGame({
       const isMobile = window.innerWidth <= 860;
       const portrait = isMobile && window.innerHeight > window.innerWidth;
       setIsPortrait(portrait);
-      if (portrait) setDismissRotatePrompt(false);
     };
     checkOrientation();
     window.addEventListener('resize', checkOrientation);
@@ -978,7 +974,7 @@ export function BuffaloSlotGame({
   }
 
   // 2. Responsive Landscape Casino Arena Layout
-  const isRotatedActive = isPortrait && forceLandscapeView;
+  const isRotatedActive = isPortrait;
   const plannedAutoStake = (selectedAutoCount ?? 0) * betAmount;
 
   return (
@@ -1002,65 +998,6 @@ export function BuffaloSlotGame({
           <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
           <span>{gameToast}</span>
         </div>
-      )}
-
-      {/* Portrait guidance: offer a user-controlled rotated view or continue in portrait. */}
-      {isPortrait && !dismissRotatePrompt && (
-        <BuffaloDialog
-          titleId="buffalo-orientation-title"
-          descriptionId="buffalo-orientation-description"
-          onClose={() => setDismissRotatePrompt(true)}
-          backdropDismiss={false}
-          panelClassName="max-w-sm rounded-3xl border-white/15 bg-zinc-950/95"
-        >
-          <div className="flex flex-col items-center p-5 text-center sm:p-6">
-            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/20 bg-white/10 shadow-[0_0_30px_rgba(255,255,255,0.15)]">
-              <Smartphone className="h-7 w-7 text-white" aria-hidden="true" />
-            </div>
-            <h2 id="buffalo-orientation-title" className="mb-1.5 text-base font-black tracking-tight text-white sm:text-lg">
-              ကစားမည့် မျက်နှာပြင်ပုံစံကို ရွေးပါ
-            </h2>
-            <p id="buffalo-orientation-description" className="mb-5 max-w-xs text-xs font-medium leading-relaxed text-white/70">
-              Landscape ပုံစံမှာ reel များ ပိုကျယ်ပါမည်။ မျက်နှာပြင်ကို အလိုအလျောက်မလှည့်ဘဲ အောက်ပါရွေးချယ်မှုအတိုင်း ဆက်လုပ်ပါမည်။
-            </p>
-            <div className="flex w-full flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                sounds.playChip();
-                setForceLandscapeView(true);
-                setDismissRotatePrompt(true);
-              }}
-              className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-amber-100 to-amber-400 px-3.5 py-2 text-xs font-black text-black shadow-lg transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-            >
-              <RotateCw className="h-4 w-4 stroke-[2.5]" aria-hidden="true" />
-              <span>ဂိမ်းမြင်ကွင်းကို အစောင်းလှည့်မည်</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                sounds.playChip();
-                toggleFullScreen();
-                setDismissRotatePrompt(true);
-              }}
-              className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3.5 py-2 text-xs font-bold text-white transition hover:bg-white/15 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-            >
-              <Maximize2 className="h-4 w-4" aria-hidden="true" />
-              <span>မျက်နှာပြင်အပြည့်ဖွင့်ပြီး ဆက်မည်</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                sounds.playChip();
-                setDismissRotatePrompt(true);
-              }}
-              className="min-h-11 rounded-xl px-3 py-2 text-[11px] font-bold text-white/75 transition hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-            >
-              Portrait ပုံစံအတိုင်း ဆက်ကစားမည်
-            </button>
-          </div>
-          </div>
-        </BuffaloDialog>
       )}
 
       <header className="z-30 flex w-full shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-zinc-950/85 px-2 py-1.5 backdrop-blur-xl sm:px-4">
@@ -1109,24 +1046,6 @@ export function BuffaloSlotGame({
               <Plus className="h-4 w-4 stroke-[3]" aria-hidden="true" />
             </button>
           </div>
-
-          {isPortrait && (
-            <button
-              type="button"
-              onClick={() => {
-                sounds.playChip();
-                setForceLandscapeView((previous) => !previous);
-              }}
-              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
-                forceLandscapeView ? 'border-amber-200 bg-amber-200 text-black' : 'border-white/15 bg-white/10 text-white hover:bg-white/15'
-              }`}
-              title="ဂိမ်းမြင်ကွင်းကို အစောင်းလှည့်ရန်"
-              aria-label="ဂိမ်းမြင်ကွင်း အစောင်းပုံစံ ပြောင်းရန်"
-              aria-pressed={forceLandscapeView}
-            >
-              <RotateCw className="h-4 w-4" aria-hidden="true" />
-            </button>
-          )}
 
           <button
             type="button"

@@ -43,7 +43,7 @@ Candidate styles: editorial finance console (0.07), obsidian operations desk (0.
 ### Implementation approach
 
 - Keep `components/BuffaloSlotGame.tsx` as the owner of the existing game state and spin flow. Treat all work in this request as presentation and interaction improvements; do not alter outcome generation, RTP/odds, bet options, wager deductions, payout/balance calculations, authentication, Firestore/API calls, or result persistence.
-- Keep the existing dark obsidian and amber-gold Charge Buffalo visual language. Improve the active full-screen shell for narrow portrait, short landscape, and desktop instead of redesigning unused components as though players see them.
+- Keep the existing dark obsidian and amber-gold Charge Buffalo visual language. From the player's Buffalo-entry gesture, request fullscreen and landscape orientation; if the browser/device cannot lock orientation, automatically use the CSS-rotated landscape fallback. On exit, release the orientation lock and fullscreen so the lobby returns to its normal view.
 - Add a small, isolated Buffalo result-effects layer under `components/buffalo/` that receives existing spin/result/free-spin state and renders only visual feedback. Use generated transparent gold-coin/energy VFX art under `public/assets/slot-vfx/`; keep the reel outcome and payout state as the sole source of truth.
 - Consolidate repeated modal semantics into a reusable accessible Buffalo dialog wrapper under `components/buffalo/` where practical. Scope responsive and animation rules to the Buffalo game in `app/globals.css`; retain the existing parent mount and callbacks in `app/page.tsx`.
 
@@ -52,9 +52,9 @@ Candidate styles: editorial finance console (0.07), obsidian operations desk (0.
 - **Design movement:** premium obsidian-and-amber casino arcade, continuing the existing Charge Buffalo art direction.
 - **Core principles:** keep the 6×4 reels dominant; make each wager's cost and action state explicit; keep result feedback visible and readable; use purposeful, short motion rather than constant decoration.
 - **Color philosophy:** charcoal/black surfaces protect reel contrast; amber/gold marks stakes, wins, and primary actions; use distinct, non-color-only labels for closed, insufficient-balance, win, and free-spin states.
-- **Layout paradigm:** responsive full-screen arena with a compact header, flexible reel stage, a clear lower result/feedback rail, and a stable control dock; allow deliberate portrait play or a clear user-controlled landscape option.
+- **Layout paradigm:** enter an immersive fullscreen arena and request landscape on Buffalo entry; use an automatic CSS-rotated landscape fallback on devices that reject orientation locking, then restore the regular lobby view on exit.
 - **Signature elements:** a generated translucent gold-coin burst beneath resolved results; restrained glow/bounce on winning symbols; a concise, high-contrast result rail.
-- **Interaction philosophy:** never silently request orientation or fullscreen; show why an action is unavailable; surface current bet and available balance together; keep Auto Spin and Buy Bonus terms visible before confirmation; make modal actions keyboard and touch accessible.
+- **Interaction philosophy:** use the Buffalo-entry tap to request fullscreen/orientation, handle unsupported or rejected APIs without blocking play, and release immersive state on exit; show why an action is unavailable; surface current bet and available balance together; keep Auto Spin and Buy Bonus terms visible before confirmation; make modal actions keyboard and touch accessible.
 - **Animation:** staggered reel motion remains untouched; add a short result-drop/landing response, particle/coin burst on existing win states, and a reduced-motion alternative. Avoid obstructing symbols or triggering animation when there is no corresponding result.
 - **Typography:** reuse current system sans for labels and tabular monospace for Ks values; preserve readable sizes at phone widths and short landscape heights.
 - **Brand essence:** a bold, clear Charge Buffalo slot arcade for mobile and desktop players; energetic, legible, trustworthy.
