@@ -15,9 +15,12 @@ export default function AdminDashboard() {
   const [error, setError] = useState('');
   const [data, setData] = useState<Data>({ users: [], deposits: [], withdrawals: [] });
   const [query, setQuery] = useState('');
-  const [tab, setTab] = useState<'overview' | 'users' | 'deposits' | 'withdrawals'>('overview');
+  const [tab, setTab] = useState<'overview' | 'users' | 'deposits' | 'withdrawals' | 'sakura'>('overview');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [sakuraRtp, setSakuraRtp] = useState('80');
+  const [sakuraRtpBusy, setSakuraRtpBusy] = useState(false);
+  const [sakuraRtpNotice, setSakuraRtpNotice] = useState('');
 
   const load = async (q = query) => {
     const response = await fetch(`/api/admin/overview${q ? `?q=${encodeURIComponent(q)}` : ''}`, { cache: 'no-store', credentials: 'include' });
@@ -34,6 +37,46 @@ export default function AdminDashboard() {
       if (r.authenticated) await load();
     }).catch(() => setAuthenticated(false));
   }, []);
+
+  useEffect(() => {
+    if (tab !== 'sakura' || !authenticated) return;
+    let active = true;
+    fetch('/api/admin/sakura-rtp', { credentials: 'include', cache: 'no-store' })
+      .then(async (response) => ({ response, data: await response.json() }))
+      .then(({ response, data }) => {
+        if (!active) return;
+        if (!response.ok || !data.success) throw new Error(data.error || 'Sakura ဆက်တင်ကို မဖတ်နိုင်ပါ။');
+        setSakuraRtp(String(data.rtpPercent));
+        setSakuraRtpNotice('');
+      })
+      .catch((error) => { if (active) setSakuraRtpNotice(error instanceof Error ? error.message : 'Sakura ဆက်တင်ကို မဖတ်နိုင်ပါ။'); });
+    return () => { active = false; };
+  }, [tab, authenticated]);
+
+  const saveSakuraRtp = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const value = Number(sakuraRtp);
+    if (!Number.isInteger(value) || value < 50 || value > 95) {
+      setSakuraRtpNotice('50 မှ 95 အတွင်း ကိန်းပြည့်တန်ဖိုး ထည့်ပါ။');
+      return;
+    }
+    setSakuraRtpBusy(true);
+    setSakuraRtpNotice('');
+    try {
+      const response = await fetch('/api/admin/sakura-rtp', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rtpPercent: value }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Sakura ဆက်တင်ကို သိမ်း၍မရပါ။');
+      setSakuraRtp(String(result.rtpPercent));
+      setSakuraRtpNotice('Sakura Fortune ဆက်တင်ကို သိမ်းပြီးပါပြီ။');
+    } catch (error) {
+      setSakuraRtpNotice(error instanceof Error ? error.message : 'Sakura ဆက်တင်ကို သိမ်း၍မရပါ။');
+    } finally {
+      setSakuraRtpBusy(false);
+    }
+  };
 
   const login = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setError('');
@@ -76,7 +119,7 @@ export default function AdminDashboard() {
     <main className="min-h-screen bg-[#070a12] text-white">
       <header className="border-b border-white/10 bg-zinc-950/90 px-4 py-4 backdrop-blur sm:px-8"><div className="mx-auto flex max-w-7xl items-center justify-between"><div><p className="text-[10px] font-bold tracking-[0.3em] text-amber-400">X-SITE CONTROL CENTER</p><h1 className="text-xl font-black sm:text-2xl">Admin Dashboard</h1></div><button onClick={logout} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-white/70 hover:bg-white/10">Logout</button></div></header>
       <div className="mx-auto max-w-7xl p-4 sm:p-8">
-        <div className="mb-6 flex flex-wrap gap-2">{(['overview', 'users', 'deposits', 'withdrawals'] as const).map((item) => <button key={item} onClick={() => setTab(item)} className={`rounded-xl px-4 py-2 text-xs font-bold ${tab === item ? 'bg-amber-400 text-black' : 'bg-white/5 text-white/70 hover:bg-white/10'}`}>{item === 'overview' ? 'Overview' : item === 'users' ? 'Users' : item === 'deposits' ? 'ငွေသွင်း' : 'ငွေထုတ်'}</button>)}<div className="ml-auto flex gap-2"><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} placeholder="UID / phone / name ရှာရန်" className="w-52 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs outline-none focus:border-amber-400" /><button onClick={() => load()} className="rounded-xl bg-white/10 px-3 py-2 text-xs">Search</button></div></div>
+        <div className="mb-6 flex flex-wrap gap-2">{(['overview', 'users', 'deposits', 'withdrawals', 'sakura'] as const).map((item) => <button key={item} onClick={() => setTab(item)} className={`rounded-xl px-4 py-2 text-xs font-bold ${tab === item ? 'bg-amber-400 text-black' : 'bg-white/5 text-white/70 hover:bg-white/10'}`}>{item === 'overview' ? 'Overview' : item === 'users' ? 'Users' : item === 'deposits' ? 'ငွေသွင်း' : item === 'withdrawals' ? 'ငွေထုတ်' : 'Sakura Fortune'}</button>)}{tab !== 'sakura' && <div className="ml-auto flex gap-2"><input value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && load()} placeholder="UID / phone / name ရှာရန်" className="w-52 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs outline-none focus:border-amber-400" /><button onClick={() => load()} className="rounded-xl bg-white/10 px-3 py-2 text-xs">Search</button></div>}</div>
         {notice && <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-200">{notice}</div>}
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">{[
           ['Users', data.stats?.users],
@@ -91,6 +134,17 @@ export default function AdminDashboard() {
         {tab === 'deposits' && <Queue title="Pending Deposits" rows={data.deposits} type="deposit" onAction={action} busy={busy} />}
         {tab === 'withdrawals' && <Queue title="Pending Withdrawals" rows={data.withdrawals} type="withdrawal" onAction={action} busy={busy} />}
         {tab === 'users' && <UserTable rows={data.users} searchQuery={query} onAction={action} busy={busy} />}
+        {tab === 'sakura' && <section className="max-w-2xl rounded-2xl border border-pink-400/20 bg-pink-950/20 p-5 sm:p-7">
+          <h2 className="text-lg font-black text-pink-100">Sakura Fortune RTP (%)</h2>
+          <p className="mt-2 text-sm text-white/60">50% မှ 95% အတွင်း ကိန်းပြည့်တန်ဖိုး သတ်မှတ်နိုင်သည်။ သိမ်းပြီးနောက်ကစားမည့်လှည့်မှုများတွင် သက်ရောက်ပါမည်။</p>
+          <form onSubmit={saveSakuraRtp} className="mt-5 flex flex-wrap items-end gap-3">
+            <label className="block text-xs font-bold text-white/70">RTP ရာခိုင်နှုန်း
+              <input type="number" min={50} max={95} step={1} value={sakuraRtp} onChange={(event) => setSakuraRtp(event.target.value)} className="mt-1 block w-36 rounded-xl border border-white/15 bg-black/40 px-3 py-3 font-mono text-lg text-white outline-none focus:border-pink-300" />
+            </label>
+            <button type="submit" disabled={sakuraRtpBusy} className="rounded-xl bg-pink-300 px-5 py-3 text-sm font-black text-zinc-950 disabled:opacity-50">{sakuraRtpBusy ? 'သိမ်းဆည်းနေသည်…' : 'သိမ်းဆည်းမည်'}</button>
+          </form>
+          {sakuraRtpNotice && <p role="status" className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/80">{sakuraRtpNotice}</p>}
+        </section>}
       </div>
     </main>
   );
