@@ -46,6 +46,8 @@ import { getTransactionStatus } from '@/lib/transactionStatus';
 interface AdminModalProps {
   isOpen: boolean;
   onClose: () => void;
+  adminAuthRequired: boolean;
+  onAdminLogin: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   settings: GameSettings;
   pendingDeposits: DepositRequest[];
   pendingWithdrawals: WithdrawalRequest[];
@@ -73,6 +75,8 @@ interface AdminModalProps {
 export function AdminModal({
   isOpen,
   onClose,
+  adminAuthRequired,
+  onAdminLogin,
   settings,
   pendingDeposits,
   pendingWithdrawals,
@@ -105,6 +109,10 @@ export function AdminModal({
   const [reviewingWithdrawalIds, setReviewingWithdrawalIds] = useState<Set<string>>(new Set());
   const reviewingWithdrawalIdsRef = useRef(new Set<string>());
   const [reviewFeedback, setReviewFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminLoginBusy, setAdminLoginBusy] = useState(false);
+  const [adminLoginError, setAdminLoginError] = useState('');
 
   // Turso Database Migration States
   const [tursoDbUrl, setTursoDbUrl] = useState<string>('');
@@ -382,6 +390,24 @@ export function AdminModal({
     }
   };
 
+  const handleAdminLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAdminLoginBusy(true);
+    setAdminLoginError('');
+    try {
+      const result = await onAdminLogin(adminUsername.trim(), adminPassword);
+      if (!result.success) {
+        setAdminLoginError(result.error || 'Admin login မအောင်မြင်ပါ။');
+        return;
+      }
+      setAdminPassword('');
+    } catch {
+      setAdminLoginError('Server ချိတ်ဆက်မှု မအောင်မြင်ပါ။ ပြန်ကြိုးစားပါ။');
+    } finally {
+      setAdminLoginBusy(false);
+    }
+  };
+
   // Filtered users
   const filteredUsers = userList.filter((u) => {
     if (userFilter === 'admins') return u.role === 'admin';
@@ -398,6 +424,39 @@ export function AdminModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fadeIn">
       <div className="relative w-full max-w-6xl dark-glass admin-console-shell rounded-3xl p-3 sm:p-5 shadow-[0_20px_60px_rgba(0,0,0,0.85)] border border-white/20 flex flex-col max-h-[94vh] overflow-hidden">
+        {adminAuthRequired && (
+          <div className="absolute inset-0 z-[80] flex items-center justify-center rounded-3xl bg-[#050914]/95 p-4 backdrop-blur-xl" role="dialog" aria-modal="true" aria-labelledby="admin-auth-title">
+            <form onSubmit={handleAdminLogin} className="w-full max-w-md rounded-3xl border border-amber-400/25 bg-slate-950/90 p-5 shadow-2xl sm:p-7">
+              <div className="mb-5 flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-3 text-amber-300">
+                    <ShieldCheck className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h2 id="admin-auth-title" className="text-lg font-black text-white">Admin အတည်ပြုရန်</h2>
+                    <p className="mt-1 text-xs text-white/60">ငွေသွင်းစာရင်းနှင့် admin လုပ်ဆောင်ချက်များအတွက် လိုအပ်ပါသည်။</p>
+                  </div>
+                </div>
+                <button type="button" onClick={onClose} className="rounded-xl p-2 text-white/60 transition hover:bg-white/10 hover:text-white" aria-label="Close admin login">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <label className="mb-3 block text-xs font-bold text-white/70">
+                Admin Username
+                <input value={adminUsername} onChange={(event) => setAdminUsername(event.target.value)} autoComplete="username" required className="mt-1.5 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-3 text-sm text-white outline-none transition focus:border-amber-400" />
+              </label>
+              <label className="mb-4 block text-xs font-bold text-white/70">
+                Admin Password
+                <input value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} type="password" autoComplete="current-password" required className="mt-1.5 w-full rounded-xl border border-white/15 bg-black/40 px-3 py-3 text-sm text-white outline-none transition focus:border-amber-400" />
+              </label>
+              {adminLoginError && <p role="alert" className="mb-4 rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200">{adminLoginError}</p>}
+              <button type="submit" disabled={adminLoginBusy} className="w-full rounded-xl bg-amber-400 px-4 py-3 text-sm font-black text-black transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50">
+                {adminLoginBusy ? 'အတည်ပြုနေသည်...' : 'Admin Login'}
+              </button>
+              <p className="mt-3 text-center text-[10px] text-white/40">စကားဝှက်ကို browser ထဲတွင်သာ ယာယီသုံးပြီး server က session cookie ထုတ်ပေးပါသည်။</p>
+            </form>
+          </div>
+        )}
         {/* Top Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/15">
           <div className="flex items-center gap-2.5">

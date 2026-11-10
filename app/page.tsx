@@ -310,6 +310,8 @@ export default function Home() {
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
+  const [adminAuthRequired, setAdminAuthRequired] = useState<boolean>(false);
+  const [adminOverviewRefreshToken, setAdminOverviewRefreshToken] = useState<number>(0);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [globalToast, setGlobalToast] = useState<{ message: string; type?: 'info' | 'error' | 'success' } | null>(null);
 
@@ -1041,9 +1043,18 @@ export default function Home() {
     let active = true;
     const loadAdminOverview = async () => {
       try {
-        const response = await fetch(`/api/admin/overview?t=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
+        const response = await fetch(`/api/admin/overview?t=${Date.now()}`, { cache: 'no-store', credentials: 'include', headers: { 'Cache-Control': 'no-store' } });
         const result = await response.json();
-        if (!active || !response.ok || !result.success) return;
+        if (!active) return;
+        if (response.status === 401) {
+          setAdminAuthRequired(true);
+          return;
+        }
+        if (!response.ok || !result.success) {
+          console.warn('Turso admin overview request failed:', response.status, result.error || 'Unknown error');
+          return;
+        }
+        setAdminAuthRequired(false);
         setPendingDeposits((result.deposits || []).map((row: DepositRequest) => ({ ...row, id: row.id || row.depositId })));
         setPendingWithdrawals((result.withdrawals || []).map((row: WithdrawalRequest) => ({ ...row, id: row.id || row.withdrawalId })));
         setAllBets((result.bets || []) as PlayerBet[]);
@@ -1054,7 +1065,7 @@ export default function Home() {
     loadAdminOverview();
     const interval = window.setInterval(loadAdminOverview, 3000);
     return () => { active = false; window.clearInterval(interval); };
-  }, [currentUser, userProfile, isAdminOpen]);
+  }, [currentUser, userProfile, isAdminOpen, adminOverviewRefreshToken]);
   // 13-14. User transaction history polling from Turso
   useEffect(() => {
     if (!currentUser) return;
@@ -2680,6 +2691,26 @@ export default function Home() {
         <AdminModal
           isOpen={isAdminOpen}
           onClose={() => setIsAdminOpen(false)}
+          adminAuthRequired={adminAuthRequired}
+          onAdminLogin={async (username, password) => {
+            try {
+              const response = await fetch('/api/admin/login', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: username.trim(), password }),
+              });
+              const result = await response.json().catch(() => ({}));
+              if (!response.ok || !result.success) {
+                return { success: false, error: result.error || 'Admin login မအောင်မြင်ပါ။' };
+              }
+              setAdminAuthRequired(false);
+              setAdminOverviewRefreshToken((value) => value + 1);
+              return { success: true };
+            } catch {
+              return { success: false, error: 'Server ချိတ်ဆက်မှု မအောင်မြင်ပါ။ ပြန်ကြိုးစားပါ။' };
+            }
+          }}
           settings={settings}
           pendingDeposits={pendingDeposits}
           pendingWithdrawals={pendingWithdrawals}
