@@ -57,6 +57,10 @@
 - [x] Generate a new Sakura Fortune portrait lobby image matching the game art and use it in the main game-selection lobby instead of the generic wide header image.
 - [x] Keep server/session implementation details out of all player-facing text; verify the new collection flow and all eight stake steps against an isolated local wallet and confirm the generated image is served from the production-style output.
 
+## Sakura suspenseful reel animation
+
+- [x] Make the reels spin at a more deliberate pace, decelerate in stages, and stop one column at a time with a longer final-reel pause to build anticipation. Keep the visuals starting immediately and do not change or delay the game outcome or wallet settlement.
+
 ## Sakura player-facing copy and admin RTP controls
 
 - [x] Remove all RTP labels/percentages and any player-facing text that says a spin is being checked or confirmed by the server. Start the reel animation immediately on tap; keep the final outcome, payout, and wallet changes server-authoritative.
