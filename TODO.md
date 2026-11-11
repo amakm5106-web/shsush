@@ -70,7 +70,7 @@
 
 ## Sakura suspenseful reel animation
 
-- [x] Start the default reel animation immediately and shorten the complete spin to about 3–4 seconds, with quicker staged column landings. Keep the optional TURBO mode; do not change game outcomes or wallet settlement.
+- [x] Start the reel animation immediately and make symbols land faster with shorter stagger between columns and rows. Keep optional TURBO mode; do not change game outcomes or wallet settlement.
 
 ## Sakura spin response speed
 
