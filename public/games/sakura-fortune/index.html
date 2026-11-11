@@ -68,12 +68,12 @@ async function playRoll(spinPromise){
  cells.forEach(c=>c.classList.add('rolling'));
  let spin;
  try{
-  const rollTicks=turbo?6:18;
+  const rollTicks=turbo?6:12;
   for(let tick=0;tick<rollTicks;tick++){
    grid=randomVisualGrid();
    paint();
    if(tick%3===0)tinySound(250+tick*19,.06,'triangle',.014);
-   await sleep(turbo?48+tick*5:95+tick*10);
+   await sleep(turbo?48+tick*5:62+tick*6);
   }
   spin=await spinPromise;
  }catch(error){
@@ -85,13 +85,13 @@ async function playRoll(spinPromise){
  }
  const serverGrid=spin.initialGrid;
  grid=serverGrid.slice();
- const stopDelays=turbo?[65,80,100,125,150,190]:[220,320,450,600,780,1000];
+ const stopDelays=turbo?[65,80,100,125,150,190]:[140,180,220,270,330,400];
  for(let col=0;col<6;col++){
-  if(col===5&&!turbo)await sleep(420);
+  if(col===5&&!turbo)await sleep(150);
   for(let row=0;row<5;row++){
    const i=row*6+col;
    cells[i].classList.remove('rolling');
-   cells[i].style.setProperty('--stop-delay',`${row*70}ms`);
+   cells[i].style.setProperty('--stop-delay',`${row*45}ms`);
    cells[i].classList.add('stop');
    paint([i]);
   }
@@ -100,7 +100,7 @@ async function playRoll(spinPromise){
  }
  board.classList.remove('is-spinning');
  topSpin();
- await sleep(turbo?120:450);
+ await sleep(turbo?90:180);
  return spin;
 }
 async function cascade(indices,serverGrid){fireOnCells(indices);indices.forEach(i=>cells[i].classList.add('vanish'));await sleep(turbo?70:160);grid=serverGrid.slice();for(let row=0;row<5;row++)for(let col=0;col<6;col++)cells[row*6+col].style.setProperty('--delay',(row*28)+'ms');cells.forEach(c=>c.classList.remove('vanish','win','stop','rolling'));paint();cells.forEach(c=>c.classList.add('drop'));await sleep(turbo?110:220);cells.forEach(c=>{c.classList.remove('drop');c.style.removeProperty('--delay')})}

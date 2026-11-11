@@ -101,10 +101,7 @@ export async function POST(req: NextRequest) {
   let tx: Awaited<ReturnType<typeof client.transaction>> | null = null;
   try {
     await ensureSakuraSchema(client);
-    const existing = await findExisting(client, user.uid, requestId, requestedStake);
-    if (existing?.conflict) return json({ success: false, code: 'IDEMPOTENCY_CONFLICT', error: 'လှည့်မှုကို ပြီးမြောက်စေ၍မရပါ။ ပြန်ကြိုးစားပါ။' }, 409);
-    if (existing) return json({ success: true, spin: existing.spin, replayed: true });
-
+    // Check idempotency in the write transaction below; avoid a separate preflight round trip.
     tx = await client.transaction('write');
     const duplicate = await tx.execute({
       sql: 'SELECT * FROM sakura_spins WHERE userId = ? AND requestId = ? LIMIT 1',
