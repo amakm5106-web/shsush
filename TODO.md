@@ -57,6 +57,17 @@
 - [x] Generate a new Sakura Fortune portrait lobby image matching the game art and use it in the main game-selection lobby instead of the generic wide header image.
 - [x] Keep server/session implementation details out of all player-facing text; verify the new collection flow and all eight stake steps against an isolated local wallet and confirm the generated image is served from the production-style output.
 
+## Admin daily deposit bonus
+
+- [x] In the dedicated admin dashboard, let authenticated admins set a whole-number daily deposit bonus percentage from 0% to 100%, defaulting to 0%; when approving deposits, apply the configured percentage to at most the first approved deposit per user per Myanmar calendar day, using the deposit request's date.
+- [x] Credit the deposit and its bonus together in one idempotent database transaction, record the applied rate/amount/day in an audit ledger, and show the bonus amount in the admin approval result. Do not change existing deposit amounts or award a second bonus that day.
+
+## Admin dashboard pages and navigation
+
+- [x] Split the dedicated admin dashboard into actual overview, users, deposits, withdrawals, and settings/promotions routes; make navigation buttons prominent and show the current section.
+- [x] Provide a visible back-to-overview button on every subpage that works after direct URL access as well as normal navigation, while preserving the existing admin login/session checks.
+- [x] Register all added admin page routes in the route manifest; preserve existing queue, user search, account detail, approval and rejection actions.
+
 ## Sakura suspenseful reel animation
 
 - [x] Make the default reels spin slowly for about 7.5 seconds, decelerate in stages, and land symbols gradually within one column at a time, with a longer final-reel pause to build anticipation. Keep visuals starting immediately; do not change the game outcome or wallet settlement. The optional TURBO mode remains separate.

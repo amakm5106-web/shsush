@@ -120,6 +120,16 @@ export async function initTursoSchema(client: Client) {
       value TEXT,
       updatedAt INTEGER
     );`,
+    `CREATE TABLE IF NOT EXISTS daily_deposit_bonus_claims (
+      userId TEXT NOT NULL,
+      dayKey TEXT NOT NULL,
+      depositId TEXT NOT NULL UNIQUE,
+      depositAmount INTEGER NOT NULL,
+      bonusPercent INTEGER NOT NULL,
+      bonusAmount INTEGER NOT NULL,
+      createdAt INTEGER NOT NULL,
+      PRIMARY KEY (userId, dayKey)
+    );`,
     `CREATE TABLE IF NOT EXISTS admin_audit_logs (
       id TEXT PRIMARY KEY,
       action TEXT NOT NULL,
@@ -153,7 +163,7 @@ export async function initTursoSchema(client: Client) {
 
   for (const table of ['deposits', 'withdrawals']) {
     const columns = new Set((await client.execute(`PRAGMA table_info(${table});`)).rows.map((row) => String(row.name)));
-    const missing: Record<string, string> = { reviewedBy: 'TEXT', reviewNote: 'TEXT', completedAt: 'INTEGER', externalReference: 'TEXT', balanceMutationId: 'TEXT', balanceBeforeDeposit: 'INTEGER' };
+    const missing: Record<string, string> = { reviewedAt: 'INTEGER', reviewedBy: 'TEXT', reviewNote: 'TEXT', completedAt: 'INTEGER', externalReference: 'TEXT', balanceMutationId: 'TEXT', balanceBeforeDeposit: 'INTEGER' };
     for (const [column, definition] of Object.entries(missing)) {
       if (!columns.has(column)) await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
     }

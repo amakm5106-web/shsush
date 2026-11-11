@@ -70,6 +70,19 @@ Candidate styles: editorial finance console (0.07), obsidian operations desk (0.
 - `public/assets/slot-vfx/`: generated transparent Buffalo result-effects images.
 - `app/page.tsx`: continue using the existing Buffalo mount and callbacks without changing backend behavior.
 
+## Daily deposit bonus and dedicated admin dashboard
+
+- Add a whole-number daily deposit bonus percentage setting from 0–100%, default 0%. Apply it only when an admin approves the first deposit for a given user and Myanmar calendar day; use the deposit request's `createdAt` date. Calculate the bonus as `floor(depositAmount × percent / 100)`.
+- Record one unique `(userId, Myanmar dayKey)` claim with the applied percentage and bonus amount. In one database write transaction, claim the day, credit the deposit plus any bonus, update the deposit status, and write the audit record. Increment `totalSuccessfulDeposit` by the deposit amount alone. A zero setting adds no funds; later deposits that day receive no second daily bonus.
+- Persist the rate in `settings` and expose it only through a `requireAdmin` API. Update deposit approval to use the configured rate and return the applied bonus amount to the admin UI. Preserve the existing signed admin session and ordinary deposit review flow.
+- Keep `/phyophyolover` as the overview/login entry, and split users, deposits, withdrawals, and settings/promotions into actual routes sharing one authenticated dashboard shell. Use prominent active-state navigation links, add a reliable Back-to-overview link to every subpage, and register the routes in `public/manus-routes.json`.
+- Keep the existing graphite/amber visual language; prioritize legible section buttons, clear action states, and useful spacing over decorative assets.
+- `app/phyophyolover/_components/AdminDashboard.tsx`: shared authenticated shell, overview, section navigation, forms, and existing queue/account-detail behavior.
+- `app/phyophyolover/{users,deposits,withdrawals,settings}/page.tsx`: route-specific dashboard pages.
+- `app/api/admin/daily-deposit-bonus/route.ts`: authenticated rate read/write API; `app/api/admin/review/route.ts`: atomic daily claim and deposit-plus-bonus settlement.
+- `lib/turso.ts`: daily bonus claim ledger schema; `public/manus-routes.json`: all dedicated admin route entries.
+- Verification: production build passed; lint returned 0 errors and 19 existing warnings. Isolated SQLite tests verified a 0% default, rejected an out-of-range rate, saved 100% and 50%, credited 10,000 MMK on a 10,000-MMK first deposit and no second same-day bonus, then 2,500 MMK on a 5,000-MMK next-day deposit. Concurrent same-day approvals created one bonus claim only; cross-origin approval was rejected; all five dashboard routes returned HTTP 200. Tests used only temporary SQLite data and did not access production wallets.
+
 ## Sakura Fortune Deluxe game integration
 
 - Preserve the supplied HTML design and embedded WebP artwork in `public/games/sakura-fortune/index.html`, while replacing its browser-owned demo balance, outcome, and reset logic with the authenticated server API. Keep the assets as separate static files under `public/games/sakura-fortune/assets/`.

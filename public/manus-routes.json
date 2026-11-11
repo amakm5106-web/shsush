@@ -1,1 +1,1 @@
-{"routes":[{"path":"/","title":"Home"},{"path":"/phyophyolover","title":"Phyophyolover"},{"path":"/sakura-fortune","title":"Sakura Fortune"}]}
+{"routes":[{"path":"/","title":"Home"},{"path":"/phyophyolover","title":"Admin Overview"},{"path":"/phyophyolover/users","title":"Admin Users"},{"path":"/phyophyolover/deposits","title":"Admin Deposits"},{"path":"/phyophyolover/withdrawals","title":"Admin Withdrawals"},{"path":"/phyophyolover/settings","title":"Admin Settings"},{"path":"/sakura-fortune","title":"Sakura Fortune"}]}
