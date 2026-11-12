@@ -37,13 +37,13 @@
 - [x] Remove the embedded Youmegame.com splash/progress cover and keep the Cocos canvas visible while initialization continues; treat a provider `LobbyMain`/Login screen as incomplete startup rather than a successfully opened Buffalo game.
 - [x] Implement authenticated server settlement for paid/free spins with legal stake validation, saved free spins, idempotent retries using the same request ID, and server-generated outcomes; persist the pending request before calling the API, reconcile ambiguous responses before another debit, and refuse spins if recovery storage is unavailable.
 - [x] Keep `LoginGame` as a wallet-gated, anonymous Cocos readiness handshake only; source `LoginfreeCount` from the authenticated parent wallet state, and route `lottery` requests/results exclusively through the authenticated MMK server bridge. The game must render server-returned spin outcomes and must not fall back to demo balance/results.
-- [ ] Validate the Cocos-to-host bridge and packaged source, run lint/production build, and push the completed fix to GitHub without touching a live account balance.
+- [x] Validate the Cocos-to-host bridge and packaged source, run lint/production build, and push the completed fix to GitHub without touching a live account balance.
 
 ## Verification
 
 - [x] Run lint and production build; resolve actionable errors.
 - [x] Confirm the route manifest exists and matches the application routes.
-- [ ] Commit and push the completed implementation to `origin/main`.
+- [x] Commit and push the completed implementation to `origin/main`.
 
 ## Sakura Fortune Deluxe game integration
 
