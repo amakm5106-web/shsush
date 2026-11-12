@@ -173,9 +173,9 @@ export function BuffaloSlotGame({
   const childReadyRef = useRef(false);
   const pendingSpinsRef = useRef(new Set<string>());
   const pendingSpinOperationRef = useRef<PendingBuffaloSpin | null>(null);
-  const [balance, setBalance] = useState(user?.balance || 0);
+  const [balance, setBalance] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(Boolean(user));
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
@@ -187,37 +187,56 @@ export function BuffaloSlotGame({
     iframeRef.current?.contentWindow?.postMessage({ channel: BRIDGE_CHANNEL, ...message }, '*');
   }, []);
 
-  const applyWallet = useCallback((nextBalance: number, freeSpinsRemaining = 0, type: 'wallet:init' | 'wallet:update' = 'wallet:update') => {
+  const applyWallet = useCallback((
+    nextBalance: number,
+    freeSpinsRemaining = 0,
+    type: 'wallet:init' | 'wallet:update' = 'wallet:update',
+    authenticated = true,
+    message = '',
+  ) => {
     const safeBalance = Number.isSafeInteger(nextBalance) && nextBalance >= 0 ? nextBalance : 0;
     setBalance(safeBalance);
     postToGame({
       type,
+      authenticated,
+      message,
       balance: safeBalance,
       freeSpinsRemaining: Math.max(0, Math.trunc(freeSpinsRemaining || 0)),
-      displayName: userRef.current?.fullName || 'Player',
+      displayName: userRef.current?.fullName || '',
     });
   }, [postToGame]);
 
   const refreshWallet = useCallback(async () => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
     try {
       const response = await fetch('/api/buffalo/state', {
         method: 'GET',
         cache: 'no-store',
         credentials: 'same-origin',
+        signal: controller.signal,
       });
       const data = (await response.json()) as BuffaloApiResponse;
       if (!response.ok || !data.success) {
         setIsAuthenticated(false);
-        applyWallet(0, 0, 'wallet:init');
+        const authMessage = response.status === 401
+          ? 'Xsite အကောင့်ဝင်ပြီး Buffalo ဂိမ်းကို ပြန်ဖွင့်ပါ။'
+          : 'ပိုက်ဆံအိတ်ကို စစ်ဆေးမရပါ။ ခဏအကြာ ပြန်ဖွင့်ပါ။';
+        applyWallet(0, 0, 'wallet:init', false, authMessage);
         if (response.status === 401) setNotice('ကစားရန် အကောင့်ဝင်ပါ။');
+        setIsLoading(false);
         return;
       }
       setIsAuthenticated(true);
       setNotice('');
-      applyWallet(data.state?.balance || 0, data.state?.freeSpinsRemaining || 0, 'wallet:init');
+      applyWallet(data.state?.balance || 0, data.state?.freeSpinsRemaining || 0, 'wallet:init', true);
     } catch {
+      setIsAuthenticated(false);
       setNotice('Wallet ချိတ်ဆက်မှု မရနိုင်ပါ။ အင်တာနက်ကို စစ်ဆေးပြီး ပြန်ဖွင့်ပါ။');
-      applyWallet(userRef.current?.balance || 0, 0, 'wallet:init');
+      applyWallet(0, 0, 'wallet:init', false, 'Wallet ချိတ်ဆက်မှု မရနိုင်သဖြင့် Buffalo ကို ဖွင့်မထားပါ။');
+      setIsLoading(false);
+    } finally {
+      window.clearTimeout(timeoutId);
     }
   }, [applyWallet]);
 
@@ -232,7 +251,7 @@ export function BuffaloSlotGame({
         betId: docId,
         roundId: createdAt,
         userId: currentUser.uid,
-        userName: currentUser.fullName || 'Player',
+        userName: currentUser.fullName || '',
         betKind: 'slot',
         selection: 'Buffalo',
         amount: spin.charged,
@@ -351,7 +370,7 @@ export function BuffaloSlotGame({
       const safeWalletBalance = Number.isSafeInteger(walletBalance) && walletBalance >= 0 ? walletBalance : spin.balance;
       setIsAuthenticated(true);
       setNotice('');
-      applyWallet(safeWalletBalance, spin.freeSpinsRemaining);
+      applyWallet(safeWalletBalance, spin.freeSpinsRemaining, 'wallet:update', true);
       callbacksRef.current.onUpdateUserBalance?.(safeWalletBalance);
       void recordVisibleBet(spin, expectedUserId);
       if (notifyRequestId) {
@@ -470,7 +489,8 @@ export function BuffaloSlotGame({
           return;
         }
         if (typeof data.balance === 'number') {
-          applyWallet(data.balance, data.freeSpinsRemaining || 0);
+          const authenticated = response?.status !== 401 && data.code !== 'UNAUTHENTICATED';
+          applyWallet(data.balance, data.freeSpinsRemaining || 0, 'wallet:update', authenticated);
           callbacksRef.current.onUpdateUserBalance?.(data.balance);
         }
         if (response?.status === 401 || data.code === 'UNAUTHENTICATED') {
@@ -537,8 +557,12 @@ export function BuffaloSlotGame({
 
       if (message.type === 'ready') {
         childReadyRef.current = true;
-        setIsLoading(false);
         void refreshWallet();
+      } else if (message.type === 'scene-ready') {
+        setIsLoading(false);
+      } else if (message.type === 'scene-error') {
+        setIsLoading(false);
+        setNotice(typeof message.message === 'string' ? message.message : 'Buffalo ဂိမ်းကို ဖွင့်မရပါ။ ပြန်ဖွင့်ပါ။');
       } else if (message.type === 'spin') {
         const requestId = typeof message.requestId === 'string' ? message.requestId : '';
         const stake = Number(message.stake);
@@ -563,8 +587,7 @@ export function BuffaloSlotGame({
   }, [user?.uid, refreshWallet]);
 
   const handleIframeLoad = () => {
-    setIsLoading(false);
-    // The child also announces readiness. This request covers browsers that load it first.
+    // Keep the unbranded loader until the actual slot scene is ready; refresh this in case the frame loads first.
     void refreshWallet();
   };
 

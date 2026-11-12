@@ -33,10 +33,11 @@
 ## Buffalo supplied Cocos game and MMK wallet replacement
 
 - [x] Replace the approximate React slot presentation with the complete supplied Cocos HTML and its bundled original visuals/animations.
-- [x] Remove the embedded offline demo balance/results and bridge spins to the authenticated Shsush MMK wallet; do not accept client-generated payouts.
-- [x] Remove the embedded Youmegame.com splash/progress cover, keep the Cocos canvas visible during initialization, and enter Buffalo as soon as its scene/card/room controls are ready; show an unbranded error only when startup fails.
-- [x] Settle paid/free spins transactionally with legal stake validation, saved free spins, idempotent retries using the same request ID, and server-generated outcomes; keep bet history and wallet balance synchronized. Persist the pending request before calling the API, and if its response is ambiguous, reconcile it before another debit; refuse spins if recovery storage is unavailable.
-- [x] Validate the iframe bridge contract and source archive, pass lint/production build, and verify the GitHub update without touching a live account balance.
+- [x] Remove the Cocos/provider's second Login screen. Use only the authenticated Xsite/Shsush parent session; do not inject provider credentials, a fake player identity (the Cocos compatibility ID remains anonymous `0`), demo credit, or mock outcomes.
+- [x] Remove the embedded Youmegame.com splash/progress cover and keep the Cocos canvas visible while initialization continues; treat a provider `LobbyMain`/Login screen as incomplete startup rather than a successfully opened Buffalo game.
+- [x] Implement authenticated server settlement for paid/free spins with legal stake validation, saved free spins, idempotent retries using the same request ID, and server-generated outcomes; persist the pending request before calling the API, reconcile ambiguous responses before another debit, and refuse spins if recovery storage is unavailable.
+- [x] Keep `LoginGame` as a wallet-gated, anonymous Cocos readiness handshake only; source `LoginfreeCount` from the authenticated parent wallet state, and route `lottery` requests/results exclusively through the authenticated MMK server bridge. The game must render server-returned spin outcomes and must not fall back to demo balance/results.
+- [x] Validate the Cocos-to-host bridge and packaged source, run lint/production build, and push the completed fix to GitHub without touching a live account balance.
 
 ## Verification
 
