@@ -44,6 +44,7 @@ Candidate styles: editorial finance console (0.07), obsidian operations desk (0.
 ### Implementation approach
 
 - Replace the former React-built slot with the complete supplied single-file Cocos Buffalo game, keeping its original scene, controls, symbols, motion, and visual assets intact.
+- Remove the embedded Youmegame.com splash/progress cover. Keep the Cocos canvas visible while runtime initialization continues, and auto-select/enter Buffalo as soon as its scene, game card, and room controls are ready; show a plain error only if startup actually fails.
 - Host the game in an isolated iframe. Bridge only spin requests, result payloads, wallet state, and exit/navigation messages to the Shsush page; remove the standalone demo balance and fake result path.
 - Settle MMK wagers and wins only through authenticated server routes and the Turso transaction ledger. The client never supplies a payout or outcome; the request is bound to the initiating user and uses a UUID idempotency key.
 - Persist unresolved request IDs in shared browser storage, serialize same-account spins across tabs with the Web Locks API, retry only with the same ID, and block new debits whenever an earlier request or recovery record is uncertain. If storage or locking is unavailable, do not submit a wager.

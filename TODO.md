@@ -34,6 +34,7 @@
 
 - [x] Replace the approximate React slot presentation with the complete supplied Cocos HTML and its bundled original visuals/animations.
 - [x] Remove the embedded offline demo balance/results and bridge spins to the authenticated Shsush MMK wallet; do not accept client-generated payouts.
+- [x] Remove the embedded Youmegame.com splash/progress cover, keep the Cocos canvas visible during initialization, and enter Buffalo as soon as its scene/card/room controls are ready; show an unbranded error only when startup fails.
 - [x] Settle paid/free spins transactionally with legal stake validation, saved free spins, idempotent retries using the same request ID, and server-generated outcomes; keep bet history and wallet balance synchronized. Persist the pending request before calling the API, and if its response is ambiguous, reconcile it before another debit; refuse spins if recovery storage is unavailable.
 - [x] Validate the iframe bridge contract and source archive, pass lint/production build, and verify the GitHub update without touching a live account balance.
 
