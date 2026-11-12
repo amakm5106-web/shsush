@@ -54,20 +54,20 @@ const BET_OPTIONS = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
 
 // Five reels × four rows, matching the attached Cocos scene.
 const INITIAL_REELS: string[][] = [
-  ['buffalo', 'wolf', 'moose', 'eagle'],
-  ['bear', 'wild', 'buffalo', 'wolf'],
-  ['eagle', 'scatter', 'moose', 'bear'],
-  ['wolf', 'buffalo', 'wild', 'eagle'],
-  ['moose', 'bear', 'wolf', 'buffalo'],
+  ['card_a', 'card_10', 'bear', 'card_k'],
+  ['moose', 'card_9', 'wild', 'card_q'],
+  ['card_j', 'scatter', 'buffalo', 'card_10'],
+  ['eagle', 'card_k', 'card_a', 'wolf'],
+  ['card_q', 'buffalo', 'card_j', 'card_9'],
 ];
 
 // Continuous rolling strips for 60fps downward reel spin animation.
 const COLUMN_SPIN_STRIPS: string[][] = [
-  ['buffalo', 'wolf', 'eagle', 'bear', 'buffalo', 'wolf', 'eagle', 'bear'],
-  ['wild', 'moose', 'buffalo', 'scatter', 'wild', 'moose', 'buffalo', 'scatter'],
-  ['bear', 'wolf', 'wild', 'eagle', 'bear', 'wolf', 'wild', 'eagle'],
-  ['moose', 'buffalo', 'scatter', 'bear', 'moose', 'buffalo', 'scatter', 'bear'],
-  ['eagle', 'wild', 'wolf', 'buffalo', 'eagle', 'wild', 'wolf', 'buffalo'],
+  ['card_a', 'buffalo', 'card_9', 'eagle', 'card_q', 'bear', 'card_j', 'card_10'],
+  ['wild', 'card_k', 'moose', 'card_10', 'scatter', 'card_a', 'bear', 'card_9'],
+  ['card_q', 'wolf', 'card_j', 'wild', 'card_10', 'eagle', 'card_a', 'bear'],
+  ['card_9', 'buffalo', 'card_k', 'scatter', 'card_j', 'moose', 'card_q', 'wolf'],
+  ['card_10', 'eagle', 'wild', 'card_a', 'bear', 'card_9', 'moose', 'card_k'],
 ];
 
 const ALL_REGULAR_SYMBOLS = ['buffalo', 'eagle', 'bear', 'wolf', 'moose'];
