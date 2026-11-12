@@ -38,37 +38,34 @@ Candidate styles: editorial finance console (0.07), obsidian operations desk (0.
 6. Existing lint and production build continue to pass.
 
 
-## Buffalo Game UI/UX and visual feedback
+
+## Buffalo Game UI/UX and MMK wallet integration
 
 ### Implementation approach
 
-- Keep `components/BuffaloSlotGame.tsx` as the owner of the existing game state and spin flow. Treat all work in this request as presentation and interaction improvements; do not alter outcome generation, RTP/odds, bet options, wager deductions, payout/balance calculations, authentication, Firestore/API calls, or result persistence.
-- Keep the existing dark obsidian and amber-gold Charge Buffalo visual language. From the player's Buffalo-entry gesture, request fullscreen and landscape orientation; if the browser/device cannot lock orientation, automatically use the CSS-rotated landscape fallback. On exit, release the orientation lock and fullscreen so the lobby returns to its normal view.
-- Add a small, isolated Buffalo result-effects layer under `components/buffalo/` that receives existing spin/result/free-spin state and renders only visual feedback. Use generated transparent gold-coin/energy VFX art under `public/assets/slot-vfx/`; keep the reel outcome and payout state as the sole source of truth.
-- Consolidate repeated modal semantics into a reusable accessible Buffalo dialog wrapper under `components/buffalo/` where practical. Scope responsive and animation rules to the Buffalo game in `app/globals.css`; retain the existing parent mount and callbacks in `app/page.tsx`.
+- Replace the former React-built slot with the complete supplied single-file Cocos Buffalo game, keeping its original scene, controls, symbols, motion, and visual assets intact.
+- Host the game in an isolated iframe. Bridge only spin requests, result payloads, wallet state, and exit/navigation messages to the Shsush page; remove the standalone demo balance and fake result path.
+- Settle MMK wagers and wins only through authenticated server routes and the Turso transaction ledger. The client never supplies a payout or outcome; the request is bound to the initiating user and uses a UUID idempotency key.
+- Persist unresolved request IDs in shared browser storage, serialize same-account spins across tabs with the Web Locks API, retry only with the same ID, and block new debits whenever an earlier request or recovery record is uncertain. If storage or locking is unavailable, do not submit a wager.
+- Keep the existing lobby entry/exit and wallet navigation. Do not update a cached profile balance until the server confirms settlement; do not apply a late result to a different signed-in account.
 
 ### Design
 
-- **Design movement:** premium obsidian-and-amber casino arcade, continuing the existing Charge Buffalo art direction.
-- **Core principles:** keep the 6×4 reels dominant; make each wager's cost and action state explicit; keep result feedback visible and readable; use purposeful, short motion rather than constant decoration.
-- **Color philosophy:** charcoal/black surfaces protect reel contrast; amber/gold marks stakes, wins, and primary actions; use distinct, non-color-only labels for closed, insufficient-balance, win, and free-spin states.
-- **Layout paradigm:** enter an immersive fullscreen arena and request landscape on Buffalo entry; use an automatic CSS-rotated landscape fallback on devices that reject orientation locking, then restore the regular lobby view on exit.
-- **Signature elements:** a generated translucent gold-coin burst beneath resolved results; restrained glow/bounce on winning symbols; a concise, high-contrast result rail.
-- **Interaction philosophy:** use the Buffalo-entry tap to request fullscreen/orientation, handle unsupported or rejected APIs without blocking play, and release immersive state on exit; show why an action is unavailable; surface current bet and available balance together; keep Auto Spin and Buy Bonus terms visible before confirmation; make modal actions keyboard and touch accessible.
-- **Animation:** staggered reel motion remains untouched; add a short result-drop/landing response, particle/coin burst on existing win states, and a reduced-motion alternative. Avoid obstructing symbols or triggering animation when there is no corresponding result.
-- **Typography:** reuse current system sans for labels and tabular monospace for Ks values; preserve readable sizes at phone widths and short landscape heights.
-- **Brand essence:** a bold, clear Charge Buffalo slot arcade for mobile and desktop players; energetic, legible, trustworthy.
-- **Brand voice:** short Burmese state messages that explain the next action, such as “လောင်းကြေး မလုံလောက်ပါ — Wallet ကို ကြည့်ပါ” and “အနိုင်ရရလဒ်ကို အပေါ်ဘက် Balance တွင် စစ်ဆေးပါ”.
+- **Design movement:** preserve the supplied Buffalo Cocos cabinet and full-screen game composition rather than approximating it with a React re-skin.
+- **Core principles:** original 5×4 reels, scene art, CREDIT/BET/WIN meters, controls, and animations remain those of the attached game; Shsush supplies the authenticated MMK wallet and settlement boundary.
+- **Color and layout:** retain the reference's western Buffalo scene, gold-framed reel cabinet, dark/red credit meters, and source control dock at its native 16:9 composition.
+- **Interaction:** spins require an authenticated MMK account and valid server-approved stake. A recovered old spin is never misrepresented as a new request; a new tap does not create another debit while an earlier request is unresolved.
+- **Failure behavior:** wallet state stays server-authoritative; insufficient funds opens the existing wallet view; network uncertainty, account changes, unreadable storage, or unavailable cross-tab locking fail closed.
+- **Brand voice:** use concise Burmese status messages that explain when a spin is blocked, recovered, or requires the player to check the wallet.
 
 ### Buffalo project structure
 
-- `components/BuffaloSlotGame.tsx`: existing gameplay state and primary arena/control integration; visual changes only.
-- `components/buffalo/BuffaloDialog.tsx`: shared accessible dialog shell for Buffalo modals.
-- `components/buffalo/BuffaloResultEffects.tsx`: presentational result and coin effects driven by existing results.
-- `components/BuffaloBigWinModal.tsx` and `components/BuffaloSymbolImage.tsx`: retain existing award/symbol rendering while improving presentation/accessibility where needed.
-- `app/globals.css`: responsive breakpoints, reduced-motion behavior, and game-scoped effect animations.
-- `public/assets/slot-vfx/`: generated transparent Buffalo result-effects images.
-- `app/page.tsx`: continue using the existing Buffalo mount and callbacks without changing backend behavior.
+- `public/games/buffalo/index.html`: the supplied self-contained Cocos Buffalo game and its original visuals/animations; replace its offline balance/result shim with the parent-wallet bridge.
+- `components/BuffaloSlotGame.tsx`: isolated full-viewport host for the original game; accept only validated child spin requests and send server results back through `postMessage`.
+- `app/api/buffalo/state/route.ts` and `app/api/buffalo/spin/route.ts`: authenticated, no-store MMK state and spin settlement endpoints with same-origin validation and idempotent requests.
+- `lib/buffaloSlotServer.ts`: server-only random outcomes, the current Shsush Buffalo payout rules, legal stake validation, and lazy Buffalo ledger/state schema.
+- `app/page.tsx`: mount the Cocos host and update the local profile cache only after the server confirms its transaction.
+- The Cocos canvas owns the Buffalo visuals; remove the former React reel, custom Cocos-style CSS, and extracted duplicate sprites.
 
 ## Daily deposit bonus and dedicated admin dashboard
 

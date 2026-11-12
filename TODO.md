@@ -30,6 +30,13 @@
 - [x] Add result/drop/landing animation and integrate generated transparent Buffalo VFX assets beneath resolved results; clearly distinguish win, no-win, free-spin, and payout-credit feedback while respecting reduced-motion preferences.
 - [x] Make Buffalo dialogs and icon-only actions accessible by keyboard and assistive technology, and clarify loading and Big Win dismissal/credit messaging.
 
+## Buffalo supplied Cocos game and MMK wallet replacement
+
+- [x] Replace the approximate React slot presentation with the complete supplied Cocos HTML and its bundled original visuals/animations.
+- [x] Remove the embedded offline demo balance/results and bridge spins to the authenticated Shsush MMK wallet; do not accept client-generated payouts.
+- [x] Settle paid/free spins transactionally with legal stake validation, saved free spins, idempotent retries using the same request ID, and server-generated outcomes; keep bet history and wallet balance synchronized. Persist the pending request before calling the API, and if its response is ambiguous, reconcile it before another debit; refuse spins if recovery storage is unavailable.
+- [ ] Verify the iframe bridge, source archive, lint, production build, and GitHub update without touching a live account balance.
+
 ## Verification
 
 - [x] Run lint and production build; resolve actionable errors.

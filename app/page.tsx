@@ -2626,7 +2626,7 @@ export default function Home() {
                     if (!prev) return null;
                     const updated = { ...prev, balance: newBal, updatedAt: Date.now() };
                     cacheUserProfile(updated);
-                    syncToTurso('user', updated);
+                    // Buffalo's authenticated spin API already committed this balance transactionally.
                     return updated;
                   });
                 }}
