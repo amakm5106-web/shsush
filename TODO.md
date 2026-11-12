@@ -33,17 +33,17 @@
 ## Buffalo supplied Cocos game and MMK wallet replacement
 
 - [x] Replace the approximate React slot presentation with the complete supplied Cocos HTML and its bundled original visuals/animations.
-- [x] Remove the Cocos/provider's second Login screen. Use only the authenticated Xsite/Shsush parent session; do not inject provider credentials, a fake player identity (the Cocos compatibility ID remains anonymous `0`), demo credit, or mock outcomes.
+- [x] Remove the Cocos/provider's second Login screen on the first and subsequent entries. Use only the authenticated Xsite/Shsush parent session; do not call provider Guest registration, write provider `userData`, inject provider credentials, a fake player identity (the Cocos compatibility ID remains anonymous `0`), demo credit, or mock outcomes.
 - [x] Remove the embedded Youmegame.com splash/progress cover and keep the Cocos canvas visible while initialization continues; treat a provider `LobbyMain`/Login screen as incomplete startup rather than a successfully opened Buffalo game.
 - [x] Implement authenticated server settlement for paid/free spins with legal stake validation, saved free spins, idempotent retries using the same request ID, and server-generated outcomes; persist the pending request before calling the API, reconcile ambiguous responses before another debit, and refuse spins if recovery storage is unavailable.
 - [x] Keep `LoginGame` as a wallet-gated, anonymous Cocos readiness handshake only; source `LoginfreeCount` from the authenticated parent wallet state, and route `lottery` requests/results exclusively through the authenticated MMK server bridge. The game must render server-returned spin outcomes and must not fall back to demo balance/results.
-- [x] Validate the Cocos-to-host bridge and packaged source, run lint/production build, and push the completed fix to GitHub without touching a live account balance.
+- [ ] Validate the Cocos-to-host bridge and packaged source, run lint/production build, and push the completed fix to GitHub without touching a live account balance.
 
 ## Verification
 
 - [x] Run lint and production build; resolve actionable errors.
 - [x] Confirm the route manifest exists and matches the application routes.
-- [x] Commit and push the completed implementation to `origin/main`.
+- [ ] Commit and push the completed implementation to `origin/main`.
 
 ## Sakura Fortune Deluxe game integration
 
