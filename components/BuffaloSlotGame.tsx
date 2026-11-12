@@ -13,7 +13,6 @@ import {
   Volume2,
   VolumeX,
   Maximize2,
-  ChevronLeft,
   RotateCw,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -42,39 +41,36 @@ interface BuffaloSlotGameProps {
 
 // Tight House-Edge Casino Math: Lowered RTP (~80-84%), 9% Base Regular Hit Rate
 // Payouts and hit rates dynamically scale down on high stakes to protect casino bankroll.
-const SYMBOL_PAYOUTS: Record<string, { name: string; p3: number; p4: number; p5: number; p6: number }> = {
-  buffalo: { name: 'ကျွဲရွှေ (Buffalo)', p3: 0.40, p4: 0.75, p5: 1.25, p6: 2.00 },
-  eagle: { name: 'လင်းယုန် (Eagle)', p3: 0.30, p4: 0.55, p5: 0.95, p6: 1.50 },
-  bear: { name: 'ဝက်ဝံ (Bear)', p3: 0.20, p4: 0.40, p5: 0.70, p6: 1.10 },
-  wolf: { name: 'ဝံပုလွေ (Wolf)', p3: 0.15, p4: 0.30, p5: 0.50, p6: 0.80 },
-  moose: { name: 'သမင်/မုစ် (Moose)', p3: 0.10, p4: 0.20, p5: 0.35, p6: 0.60 },
+const SYMBOL_PAYOUTS: Record<string, { name: string; p3: number; p4: number; p5: number }> = {
+  buffalo: { name: 'ကျွဲရွှေ (Buffalo)', p3: 0.40, p4: 0.75, p5: 1.25 },
+  eagle: { name: 'လင်းယုန် (Eagle)', p3: 0.30, p4: 0.55, p5: 0.95 },
+  bear: { name: 'ဝက်ဝံ (Bear)', p3: 0.20, p4: 0.40, p5: 0.70 },
+  wolf: { name: 'ဝံပုလွေ (Wolf)', p3: 0.15, p4: 0.30, p5: 0.50 },
+  moose: { name: 'သမင်/မုစ် (Moose)', p3: 0.10, p4: 0.20, p5: 0.35 },
 };
 
 // Available Bet Options
 const BET_OPTIONS = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
 
-// Diverse initial state (different symbols across all rows and columns)
+// Five reels × four rows, matching the attached Cocos scene.
 const INITIAL_REELS: string[][] = [
   ['buffalo', 'wolf', 'moose', 'eagle'],
   ['bear', 'wild', 'buffalo', 'wolf'],
   ['eagle', 'scatter', 'moose', 'bear'],
   ['wolf', 'buffalo', 'wild', 'eagle'],
   ['moose', 'bear', 'wolf', 'buffalo'],
-  ['scatter', 'eagle', 'buffalo', 'scatter'],
 ];
 
-// Continuous rolling strips for 60fps downward reel spin animation
+// Continuous rolling strips for 60fps downward reel spin animation.
 const COLUMN_SPIN_STRIPS: string[][] = [
   ['buffalo', 'wolf', 'eagle', 'bear', 'buffalo', 'wolf', 'eagle', 'bear'],
   ['wild', 'moose', 'buffalo', 'scatter', 'wild', 'moose', 'buffalo', 'scatter'],
   ['bear', 'wolf', 'wild', 'eagle', 'bear', 'wolf', 'wild', 'eagle'],
   ['moose', 'buffalo', 'scatter', 'bear', 'moose', 'buffalo', 'scatter', 'bear'],
   ['eagle', 'wild', 'wolf', 'buffalo', 'eagle', 'wild', 'wolf', 'buffalo'],
-  ['scatter', 'bear', 'moose', 'eagle', 'scatter', 'bear', 'moose', 'eagle'],
 ];
 
 const ALL_REGULAR_SYMBOLS = ['buffalo', 'eagle', 'bear', 'wolf', 'moose'];
-
 interface GeneratedSpin {
   reels: string[][];
   wildMultipliers: Record<string, number>;
@@ -134,7 +130,7 @@ function generateSlotOutcome(
 
   const isWinningSpin = Math.random() < hitProbability;
 
-  const reels: string[][] = [[], [], [], [], [], []];
+  const reels: string[][] = [[], [], [], [], []];
   const wildMultipliers: Record<string, number> = {};
   let totalScatterCount = 0;
   let nearMissDescription: string | undefined = undefined;
@@ -170,7 +166,7 @@ function generateSlotOutcome(
     // Low chance for 3 Scatters Free Spins (~1.0%)
     const triggerBonus = Math.random() < 0.01;
 
-    for (let col = 0; col < 6; col++) {
+    for (let col = 0; col < 5; col++) {
       const colSyms: string[] = [];
       const isConnectingCol = col < winLength;
 
@@ -225,7 +221,7 @@ function generateSlotOutcome(
       const matchRow0 = Math.floor(Math.random() * 4);
       const matchRow1 = Math.floor(Math.random() * 4);
 
-      for (let col = 0; col < 6; col++) {
+      for (let col = 0; col < 5; col++) {
         const colSyms: string[] = [];
 
         for (let row = 0; row < 4; row++) {
@@ -262,7 +258,7 @@ function generateSlotOutcome(
       totalScatterCount = 2;
       const scatterCols = [0, 1]; // First two reels show Scatter
 
-      for (let col = 0; col < 6; col++) {
+      for (let col = 0; col < 5; col++) {
         const colSyms: string[] = [];
         const hasScatterInCol = scatterCols.includes(col);
         const scatterRow = Math.floor(Math.random() * 4);
@@ -328,10 +324,8 @@ export function BuffaloSlotGame({
     false,
     false,
     false,
-    false,
   ]);
   const [bouncingCols, setBouncingCols] = useState<boolean[]>([
-    false,
     false,
     false,
     false,
@@ -340,7 +334,6 @@ export function BuffaloSlotGame({
   ]);
   const [isScreenShaking, setIsScreenShaking] = useState<boolean>(false);
   const activeSpinningColsRef = useRef<boolean[]>([
-    false,
     false,
     false,
     false,
@@ -358,7 +351,7 @@ export function BuffaloSlotGame({
     }, 3200);
   }, []);
 
-  // 6 Reels x 4 Rows Matrix (Diverse symbols vertically and horizontally)
+  // 5 Reels x 4 Rows Matrix (the reference Cocos layout)
   const [reels, setReels] = useState<string[][]>(INITIAL_REELS);
 
   // Win and Multiplier States
@@ -549,87 +542,51 @@ export function BuffaloSlotGame({
         playSlotChime();
       }, 140);
 
-      // Instantly start all 6 columns rolling at 60fps
-      activeSpinningColsRef.current = [true, true, true, true, true, true];
-      setSpinningCols([true, true, true, true, true, true]);
+      // Start all five source-layout reels, then stop them left to right with the same staggered motion.
+      activeSpinningColsRef.current = [true, true, true, true, true];
+      setSpinningCols([true, true, true, true, true]);
 
-      // Failsafe watchdog to guarantee reels can never get stuck
+      // Failsafe watchdog to guarantee reels can never get stuck.
       const failsafeTimer = setTimeout(() => {
         clearInterval(spinInterval);
         setIsSpinning(false);
-        setSpinningCols([false, false, false, false, false, false]);
-        setBouncingCols([false, false, false, false, false, false]);
+        setSpinningCols([false, false, false, false, false]);
+        setBouncingCols([false, false, false, false, false]);
       }, 3500);
 
-      // Staggered Reel Stopping with Dynamic Physics Bounce
-      // Reel 1 (Col 0) stops at 480ms
-      setTimeout(() => {
-        activeSpinningColsRef.current[0] = false;
-        setSpinningCols((prev) => [false, prev[1], prev[2], prev[3], prev[4], prev[5]]);
-        setReels((prev) => [finalReels[0], prev[1], prev[2], prev[3], prev[4], prev[5]]);
-        setBouncingCols((prev) => [true, prev[1], prev[2], prev[3], prev[4], prev[5]]);
-        setTimeout(() => setBouncingCols((prev) => [false, prev[1], prev[2], prev[3], prev[4], prev[5]]), 400);
-        playReelStopSound(0);
-      }, 480);
+      const stopColumn = (colIdx: number) => {
+        activeSpinningColsRef.current[colIdx] = false;
+        setSpinningCols((prev) => prev.map((value, index) => index === colIdx ? false : value));
+        setReels((prev) => prev.map((column, index) => index === colIdx ? finalReels[colIdx] : column));
+        setBouncingCols((prev) => prev.map((value, index) => index === colIdx ? true : value));
+        setTimeout(() => {
+          setBouncingCols((prev) => prev.map((value, index) => index === colIdx ? false : value));
+        }, 400);
+        playReelStopSound(colIdx);
+      };
 
-      // Reel 2 (Col 1) stops at 720ms
-      setTimeout(() => {
-        activeSpinningColsRef.current[1] = false;
-        setSpinningCols((prev) => [false, false, prev[2], prev[3], prev[4], prev[5]]);
-        setReels((prev) => [prev[0], finalReels[1], prev[2], prev[3], prev[4], prev[5]]);
-        setBouncingCols((prev) => [prev[0], true, prev[2], prev[3], prev[4], prev[5]]);
-        setTimeout(() => setBouncingCols((prev) => [prev[0], false, prev[2], prev[3], prev[4], prev[5]]), 400);
-        playReelStopSound(1);
-      }, 720);
+      [480, 720, 960, 1200].forEach((delay, colIdx) => {
+        setTimeout(() => stopColumn(colIdx), delay);
+      });
 
-      // Reel 3 (Col 2) stops at 960ms
-      setTimeout(() => {
-        activeSpinningColsRef.current[2] = false;
-        setSpinningCols((prev) => [false, false, false, prev[3], prev[4], prev[5]]);
-        setReels((prev) => [prev[0], prev[1], finalReels[2], prev[3], prev[4], prev[5]]);
-        setBouncingCols((prev) => [prev[0], prev[1], true, prev[3], prev[4], prev[5]]);
-        setTimeout(() => setBouncingCols((prev) => [prev[0], prev[1], false, prev[3], prev[4], prev[5]]), 400);
-        playReelStopSound(2);
-      }, 960);
-
-      // Reel 4 (Col 3) stops at 1200ms
-      setTimeout(() => {
-        activeSpinningColsRef.current[3] = false;
-        setSpinningCols((prev) => [false, false, false, false, prev[4], prev[5]]);
-        setReels((prev) => [prev[0], prev[1], prev[2], finalReels[3], prev[4], prev[5]]);
-        setBouncingCols((prev) => [prev[0], prev[1], prev[2], true, prev[4], prev[5]]);
-        setTimeout(() => setBouncingCols((prev) => [prev[0], prev[1], prev[2], false, prev[4], prev[5]]), 400);
-        playReelStopSound(3);
-      }, 1200);
-
-      // Reel 5 (Col 4) stops at 1440ms
+      // Reel 5 is the final reel.
       setTimeout(() => {
         activeSpinningColsRef.current[4] = false;
-        setSpinningCols((prev) => [false, false, false, false, false, prev[5]]);
-        setReels((prev) => [prev[0], prev[1], prev[2], prev[3], finalReels[4], prev[5]]);
-        setBouncingCols((prev) => [prev[0], prev[1], prev[2], prev[3], true, prev[5]]);
-        setTimeout(() => setBouncingCols((prev) => [prev[0], prev[1], prev[2], prev[3], false, prev[5]]), 400);
+        clearInterval(spinInterval);
+        setSpinningCols([false, false, false, false, false]);
+        setReels(finalReels);
+        setWildMultipliers(finalWildMults);
+        setBouncingCols([false, false, false, false, true]);
+        setTimeout(() => setBouncingCols([false, false, false, false, false]), 420);
         playReelStopSound(4);
       }, 1440);
 
-      // Reel 6 (Col 5) stops at 1680ms - FINAL REEL
-      setTimeout(() => {
-        activeSpinningColsRef.current[5] = false;
-        clearInterval(spinInterval);
-        setSpinningCols([false, false, false, false, false, false]);
-        setReels(finalReels);
-        setWildMultipliers(finalWildMults);
-        setBouncingCols([false, false, false, false, false, true]);
-        setTimeout(() => setBouncingCols([false, false, false, false, false, false]), 420);
-        playReelStopSound(5);
-      }, 1680);
-
-      // Payout Evaluation & Firestore updates after all reels have settled at 1800ms
+      // Payout evaluation and Firestore updates after all five reels have settled.
       setTimeout(async () => {
         clearTimeout(failsafeTimer);
         setIsSpinning(false);
 
-        // 2. Evaluate 4,096 Ways Win Math (Left to Right starting from Reel 0)
+        // 2. Evaluate five-reel, four-row ways from left to right (maximum 1,024 ways).
         const symbolTypes = ['buffalo', 'eagle', 'bear', 'wolf', 'moose'];
         let spinTotalWin = 0;
         const hitSymbols: string[] = [];
@@ -641,7 +598,7 @@ export function BuffaloSlotGame({
           let wildMultiplierProduct = 1;
           const currentMatches: string[] = [];
 
-          for (let col = 0; col < 6; col++) {
+          for (let col = 0; col < 5; col++) {
             let symbolMatchesInCol = 0;
             for (let row = 0; row < 4; row++) {
               const current = finalReels[col][row];
@@ -669,8 +626,7 @@ export function BuffaloSlotGame({
             let baseMult = 0;
             if (consecutiveCols === 3) baseMult = payoutDef.p3;
             else if (consecutiveCols === 4) baseMult = payoutDef.p4;
-            else if (consecutiveCols === 5) baseMult = payoutDef.p5;
-            else if (consecutiveCols >= 6) baseMult = payoutDef.p6;
+            else if (consecutiveCols >= 5) baseMult = payoutDef.p5;
 
             // High-Stake Payout Multiplier Dampener:
             // Inversely scales down payout multipliers as bet size increases to shield casino bankroll
@@ -773,7 +729,7 @@ export function BuffaloSlotGame({
                 userId: user.uid,
                 userName: user.fullName,
                 betKind: 'slot',
-                selection: 'Charge Buffalo (6x4 Ways Slot)',
+                selection: 'Charge Buffalo (5x4 Ways Slot)',
                 amount: isFreeSpin ? 0 : betAmount,
                 multiplier: betAmount > 0 ? Number((spinTotalWin / betAmount).toFixed(2)) : 0,
                 status: 'win',
@@ -804,7 +760,7 @@ export function BuffaloSlotGame({
                 userId: user.uid,
                 userName: user.fullName,
                 betKind: 'slot',
-                selection: 'Charge Buffalo (6x4 Ways Slot)',
+                selection: 'Charge Buffalo (5x4 Ways Slot)',
                 amount: betAmount,
                 multiplier: 0,
                 status: 'loss',
@@ -819,12 +775,11 @@ export function BuffaloSlotGame({
           }
         }
 
-        // 4. Check Free Spins Trigger (3+ Scatters)
+        // 4. Check Free Spins Trigger (3+ Scatters; five reels max).
         if (totalScatterCount >= 3) {
           let awardedSpins = 8;
           if (totalScatterCount === 4) awardedSpins = 15;
-          else if (totalScatterCount === 5) awardedSpins = 25;
-          else if (totalScatterCount >= 6) awardedSpins = 100;
+          else if (totalScatterCount >= 5) awardedSpins = 25;
 
           setSpinFeedback((previous) =>
             previous ? { ...previous, id: previous.id + 1, kind: 'bonus', freeSpinsAwarded: awardedSpins } : previous
@@ -979,13 +934,13 @@ export function BuffaloSlotGame({
 
   return (
     <div
-      className={`buffalo-game-shell fixed z-50 flex flex-col justify-between overflow-hidden text-white transition-all duration-300 select-none ${
+      className={`buffalo-game-shell buffalo-original-shell fixed z-50 flex flex-col justify-between overflow-hidden text-white transition-all duration-300 select-none ${
         isRotatedActive
           ? 'buffalo-game-shell--rotated w-[100vh] h-[100vw] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-90 origin-center'
           : 'inset-0'
       }`}
       style={{
-        backgroundImage: `radial-gradient(ellipse at 50% 25%, rgba(10, 15, 25, 0.72) 0%, rgba(5, 7, 12, 0.92) 75%, #030407 100%), url('/assets/casino/buffalo_canyon_bg.jpg')`,
+        backgroundImage: "url('/assets/casino/buffalo-original/canyon-background.png')",
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
@@ -994,93 +949,91 @@ export function BuffaloSlotGame({
     >
       {/* Toast Notification Banner (Zero alerts, non-blocking smooth feedback) */}
       {gameToast && (
-        <div role="status" aria-live="polite" className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-[#141822]/95 border border-amber-400/50 shadow-2xl shadow-black/80 rounded-full px-5 py-2 text-amber-200 text-xs sm:text-sm font-bold flex items-center gap-2 backdrop-blur-md pointer-events-none transition-all">
+        <div role="status" aria-live="polite" className="buffalo-cocos-toast fixed top-12 left-1/2 -translate-x-1/2 z-50 rounded-full px-5 py-2 text-xs sm:text-sm font-bold flex items-center gap-2 pointer-events-none transition-all">
           <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
           <span>{gameToast}</span>
         </div>
       )}
 
-      <header className="buffalo-hud z-30 flex w-full shrink-0 items-center gap-2 px-2 py-1.5 sm:px-4">
-        <div className="buffalo-hud__brand flex min-w-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              sounds.playChip();
-              onBackToLobby();
-            }}
-            className="buffalo-hud__back flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:w-auto sm:gap-1 sm:px-2"
-            title="အနောက်သို့ ပြန်ထွက်မည်"
-            aria-label="ဂိမ်းစာရင်းသို့ ပြန်သွားရန်"
-          >
-            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-            <span className="hidden text-xs font-bold sm:inline">ထွက်မည်</span>
-          </button>
-          <div className="buffalo-hud__title flex min-w-0 items-center gap-1.5">
-            <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-lg border border-amber-200/25 bg-black">
-              <Image src="/assets/slot-symbols/individual/buffalo.webp" alt="" fill sizes="28px" className="object-cover" />
-            </div>
-            <h1 className="truncate text-sm font-black uppercase tracking-widest text-white">CHARGE BUFFALO</h1>
+      <header className="buffalo-cocos-hud z-30 flex w-full shrink-0 items-center">
+        <button
+          type="button"
+          onClick={() => {
+            sounds.playChip();
+            onBackToLobby();
+          }}
+          className="buffalo-cocos-back"
+          title="အနောက်သို့ ပြန်ထွက်မည်"
+          aria-label="ဂိမ်းစာရင်းသို့ ပြန်သွားရန်"
+        >
+          <Image src="/assets/casino/buffalo-original/back-button.png" alt="" width={91} height={57} draggable={false} />
+        </button>
+
+        <div className="buffalo-cocos-meters" role="group" aria-label="ဂိမ်းအချက်အလက်">
+          <div className="buffalo-cocos-meter" aria-label={`CREDIT ${formatKs(user?.balance || 0)}`}>
+            <span className="sr-only">CREDIT</span>
+            <strong>{formatKs(user?.balance || 0)}</strong>
+          </div>
+          <div className="buffalo-cocos-meter" aria-label={`BET ${formatKs(betAmount)}`}>
+            <span className="sr-only">BET</span>
+            <strong>{formatKs(betAmount)}</strong>
+          </div>
+          <div className="buffalo-cocos-meter" aria-label={`WIN ${formatKs(lastWinAmount)}`}>
+            <span className="sr-only">WIN</span>
+            <strong>{formatKs(lastWinAmount)}</strong>
           </div>
         </div>
 
-        <div className="buffalo-hud__stats" role="group" aria-label="ဂိမ်းအချက်အလက်">
-          <div className="buffalo-hud__meter" aria-label={`Credit ${formatKs(user?.balance || 0)}`}>
-            <span className="buffalo-hud__label">CREDIT</span>
-            <strong className="buffalo-hud__value">{formatKs(user?.balance || 0)}</strong>
-          </div>
-          <div className="buffalo-hud__meter" aria-label={`Bet ${formatKs(betAmount)}`}>
-            <span className="buffalo-hud__label">BET</span>
-            <strong className="buffalo-hud__value">{formatKs(betAmount)}</strong>
-          </div>
-          <div className="buffalo-hud__meter" aria-label={`Win ${formatKs(lastWinAmount)}`}>
-            <span className="buffalo-hud__label">WIN</span>
-            <strong className="buffalo-hud__value buffalo-hud__value--win">{formatKs(lastWinAmount)}</strong>
-          </div>
-        </div>
-
-        <div className="buffalo-hud__tools flex shrink-0 items-center gap-1 sm:gap-1.5">
+        <div className="buffalo-cocos-tools">
           <button
             type="button"
             onClick={() => {
               sounds.playChip();
               onGoToWallet();
             }}
-            className="buffalo-hud__wallet flex h-9 w-9 items-center justify-center rounded-full bg-amber-200 text-black shadow-sm transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-            title="ငွေသွင်းရန်"
+            className="buffalo-cocos-tool buffalo-cocos-wallet"
+            title="Wallet ဖွင့်ရန်"
             aria-label={`Wallet ဖွင့်ရန်၊ လက်ကျန် ${formatKs(user?.balance || 0)}`}
           >
-            <Plus className="h-4 w-4 stroke-[3]" aria-hidden="true" />
+            <Plus className="h-5 w-5 stroke-[3]" aria-hidden="true" />
           </button>
-
           <button
             type="button"
             onClick={() => {
               sounds.playChip();
               onToggleSound();
             }}
-            className="buffalo-hud__utility flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+            className="buffalo-cocos-tool"
             title="အသံ ဖွင့်/ပိတ်"
             aria-label={soundEnabled ? 'အသံပိတ်ရန်' : 'အသံဖွင့်ရန်'}
             aria-pressed={soundEnabled}
           >
-            {soundEnabled ? <Volume2 className="h-4 w-4" aria-hidden="true" /> : <VolumeX className="h-4 w-4 text-white/55" aria-hidden="true" />}
+            {soundEnabled ? <Volume2 className="h-4 w-4" aria-hidden="true" /> : <VolumeX className="h-4 w-4" aria-hidden="true" />}
           </button>
-
           <button
             type="button"
             onClick={toggleFullScreen}
-            className="buffalo-hud__utility hidden h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:flex"
+            className="buffalo-cocos-tool buffalo-cocos-fullscreen"
             title="မျက်နှာပြင်အပြည့်"
             aria-label="မျက်နှာပြင်အပြည့်ဖွင့်/ပိတ်ရန်"
           >
             <Maximize2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsBetModalOpen(true)}
+            className="buffalo-cocos-menu"
+            title="လောင်းကြေးနှင့်ဂိမ်းသတ်မှတ်ချက်များ"
+            aria-label="လောင်းကြေးနှင့်ဂိမ်းသတ်မှတ်ချက်များ ဖွင့်ရန်"
+          >
+            <Image src="/assets/casino/buffalo-original/settings-button.png" alt="" width={91} height={57} draggable={false} />
           </button>
         </div>
       </header>
 
       {/* Free Spins Active Banner (during free spins) */}
       {isFreeSpinsActive && (
-        <div className="w-full py-0.5 px-3 bg-zinc-900/95 border-b border-white/15 flex items-center justify-between text-white shadow-lg shrink-0">
+        <div className="buffalo-cocos-free-spin w-full py-0.5 px-3 flex items-center justify-between text-white shrink-0">
           <div className="flex items-center gap-1.5">
             <Flame className="w-3.5 h-3.5 text-amber-400 stroke-[2]" />
             <span className="text-[11px] font-black uppercase tracking-wider text-white">
@@ -1093,25 +1046,13 @@ export function BuffaloSlotGame({
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* CENTER ARENA: 6 Reels x 4 Rows in a gilded Buffalo cabinet.               */}
-      {/* ========================================================================= */}
-      <main className="buffalo-arena-main relative flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-2 py-2">
-        {/* Responsive gold-framed slot cabinet; spin state, symbols, and payout math stay unchanged. */}
+      {/* Reference-matched African Buffalo cabinet: five reels × four rows. */}
+      <main className="buffalo-cocos-arena relative flex min-h-0 w-full flex-1 items-center justify-center">
         <div
-          className={`buffalo-reel-stage buffalo-machine-frame relative rounded-2xl p-1.5 sm:p-2.5 md:p-3 border backdrop-blur-2xl transition-all flex flex-col justify-center w-full ${
-            isScreenShaking ? 'animate-screen-shake' : ''
-          } ${
-            isSubBetCelebration
-              ? 'buffalo-machine-frame--celebrating border-amber-400/90 shadow-[0_0_35px_rgba(245,158,11,0.35)] bg-zinc-950/90'
-              : 'border-amber-500/25 shadow-[0_16px_50px_rgba(0,0,0,0.95)] bg-zinc-950/85'
-          }`}
+          className={`buffalo-cocos-board ${isScreenShaking ? 'animate-screen-shake' : ''} ${isSubBetCelebration ? 'buffalo-cocos-board--celebrating' : ''}`}
+          aria-label="Buffalo 5 reel, 4 row slot board"
         >
-          {/* Subtle Ambient Sheen */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(245,158,11,0.03),transparent_75%)] pointer-events-none" />
-
-          {/* 6 Columns Container with Responsive Aspect-Square Cells */}
-          <div className="grid grid-cols-6 gap-1 sm:gap-1.5 md:gap-2 relative z-10 w-full">
+          <div className="buffalo-cocos-grid" role="grid" aria-label="Five reels, four rows, 1,024 ways">
             {reels.map((columnSymbols, colIdx) => {
               const isColSpinning = spinningCols[colIdx];
               const isColBouncing = bouncingCols[colIdx];
@@ -1120,173 +1061,212 @@ export function BuffaloSlotGame({
               return (
                 <div
                   key={`reel-col-${colIdx}`}
-                  className="buffalo-reel-column relative overflow-hidden rounded-xl p-0.5 sm:p-1"
+                  className={`buffalo-cocos-reel ${isColBouncing ? 'buffalo-cocos-reel--bouncing' : ''}`}
+                  role="rowgroup"
+                  aria-label={`Reel ${colIdx + 1}`}
                 >
                   {isColSpinning ? (
-                    <div className="animate-reel-strip-spin flex flex-col gap-1 sm:gap-1.5 filter blur-[1px]">
+                    <div className="buffalo-cocos-strip animate-reel-strip-spin">
                       {spinStrip.map((symId, sIdx) => (
-                        <div
-                          key={`spin-strip-${colIdx}-${sIdx}`}
-                          className="buffalo-reel-cell aspect-square w-full min-h-[42px] sm:min-h-[56px] md:min-h-[68px] lg:min-h-[76px] rounded-lg overflow-hidden shrink-0"
-                        >
-                          <BuffaloSymbolImage
-                            symbolId={symId}
-                            className="w-full h-full"
-                          />
+                        <div key={`spin-strip-${colIdx}-${sIdx}`} className="buffalo-cocos-cell" role="gridcell">
+                          <BuffaloSymbolImage symbolId={symId} className="buffalo-cocos-symbol" />
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div
-                      className={`flex flex-col gap-1 sm:gap-1.5 ${
-                        isColBouncing ? 'animate-reel-bounce' : ''
-                      }`}
-                    >
-                      {columnSymbols.map((symId, rowIdx) => {
-                        const wildMult = wildMultipliers[`${colIdx}-${rowIdx}`] || 1;
-                        const isWinningCell = winningCells.includes(`${colIdx}-${rowIdx}`);
-                        return (
-                          <div
-                            key={`cell-${colIdx}-${rowIdx}`}
-                            className={`buffalo-reel-cell aspect-square w-full min-h-[42px] sm:min-h-[56px] md:min-h-[68px] lg:min-h-[76px] rounded-lg relative overflow-hidden transition-all ${
-                              isWinningCell ? 'z-20' : ''
-                            }`}
-                          >
-                            <BuffaloSymbolImage
-                              symbolId={symId}
-                              wildMultiplier={wildMult}
-                              isWinning={isWinningCell}
-                              className="w-full h-full"
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
+                    columnSymbols.map((symId, rowIdx) => {
+                      const wildMult = wildMultipliers[`${colIdx}-${rowIdx}`] || 1;
+                      const isWinningCell = winningCells.includes(`${colIdx}-${rowIdx}`);
+                      return (
+                        <div
+                          key={`cell-${colIdx}-${rowIdx}`}
+                          className={`buffalo-cocos-cell ${isWinningCell ? 'buffalo-cocos-cell--winning' : ''}`}
+                          role="gridcell"
+                          aria-label={`Reel ${colIdx + 1}, row ${rowIdx + 1}`}
+                        >
+                          <BuffaloSymbolImage
+                            symbolId={symId}
+                            wildMultiplier={wildMult}
+                            isWinning={isWinningCell}
+                            className="buffalo-cocos-symbol"
+                          />
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               );
             })}
           </div>
-
-          {/* Payline Notice at bottom edge of grid */}
-          <div className="mt-1 px-1.5 flex items-center justify-between text-[9px] sm:text-[10px] text-white/60 font-semibold z-10">
-            <span>ဘယ်ဘက်မှ ၃ ကော်လံ ဆက်တိုက် (4,096 WAYS)</span>
-            <span className="text-white font-black tracking-wider">CHARGE BUFFALO</span>
-          </div>
+          <Image
+            className="buffalo-cocos-frame"
+            src="/assets/casino/buffalo-original/reel-cabinet-frame.png"
+            alt=""
+            fill
+            sizes="(max-width: 760px) 96vw, 1060px"
+            aria-hidden="true"
+            draggable={false}
+          />
+          <div className="sr-only">ဘယ်ဘက်မှ အနည်းဆုံး ၃ ကော်လံဆက်တိုက်အနိုင်၊ 1,024 WAYS</div>
         </div>
-        <BuffaloResultEffects
-          result={spinFeedback}
-          isSpinning={isSpinning}
-          isFreeSpinActive={isFreeSpinsActive}
-          betAmount={betAmount}
-          message={winningInfo}
-        />
+        <div className="sr-only">
+          <BuffaloResultEffects
+            result={spinFeedback}
+            isSpinning={isSpinning}
+            isFreeSpinActive={isFreeSpinsActive}
+            betAmount={betAmount}
+            message={winningInfo}
+          />
+        </div>
       </main>
 
-      <footer className="buffalo-control-dock z-30 w-full shrink-0 border-t border-white/10 px-2 py-2 sm:px-4">
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-2">
+      <footer className="buffalo-cocos-footer z-30 w-full shrink-0">
+        <div className="buffalo-cocos-notice" role={!user ? 'status' : user.balance < betAmount ? 'alert' : undefined}>
           {!user ? (
-            <div className="buffalo-user-banner flex min-h-10 items-center justify-between gap-2 rounded-xl border border-sky-300/20 bg-sky-950/35 px-3 py-1.5 text-[11px] text-sky-100" role="status">
+            <>
               <span>ကစားရန် အကောင့်ဝင်ရန် လိုအပ်ပါသည်။</span>
-              <button
-                type="button"
-                onClick={() => onRequireAuth?.()}
-                className="min-h-10 shrink-0 rounded-lg bg-sky-200 px-3 font-black text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-              >
-                ဝင်ရောက်ရန်
-              </button>
-            </div>
+              <button type="button" onClick={() => onRequireAuth?.()}>ဝင်ရောက်ရန်</button>
+            </>
           ) : user.balance < betAmount ? (
-            <div className="buffalo-user-banner flex min-h-10 items-center justify-between gap-2 rounded-xl border border-rose-300/25 bg-rose-950/35 px-3 py-1.5 text-[11px] text-rose-100" role="alert">
-              <span className="min-w-0 truncate">လက်ကျန် {formatKs(user.balance)} — တစ်ကြိမ်လှည့်ရန် {formatKs(betAmount)} လိုအပ်ပါသည်။</span>
-              <button
-                type="button"
-                onClick={onGoToWallet}
-                className="min-h-10 shrink-0 rounded-lg bg-rose-100 px-3 font-black text-rose-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-              >
-                ငွေဖြည့်ရန်
-              </button>
-            </div>
+            <>
+              <span>လက်ကျန် {formatKs(user.balance)} — တစ်ကြိမ်လှည့်ရန် {formatKs(betAmount)} လိုအပ်ပါသည်။</span>
+              <button type="button" onClick={onGoToWallet}>ငွေဖြည့်ရန်</button>
+            </>
           ) : null}
+        </div>
 
-          <div className="buffalo-controls-row flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="buffalo-controls-summary grid grid-cols-2 gap-2 sm:flex sm:items-center">
-              <div className="flex min-h-12 min-w-0 flex-col justify-center rounded-xl border border-amber-200/15 bg-black/55 px-3 py-1">
-                <span className="text-[9px] font-black uppercase tracking-widest text-white/50">WIN · ဆုကြေး</span>
-                <span className="truncate font-mono text-xs font-black text-amber-100">Ks {lastWinAmount.toLocaleString()}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (isSpinning || isAutoSpinning) return;
-                  sounds.playChip();
-                  setIsBetModalOpen(true);
-                }}
-                disabled={isSpinning || isAutoSpinning || isFreeSpinsActive}
-                className="flex min-h-12 min-w-0 flex-col items-start justify-center rounded-xl border border-white/20 bg-white/10 px-3 py-1 text-left transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:min-w-[116px]"
-                aria-label={isFreeSpinsActive ? `Free Spin လှည့်ခ Ks 0 ဖြစ်ပြီး ဆုတွက်ရန်အခြေခံ ${formatKs(betAmount)} ဖြစ်ပါသည်။ Free Spin ပြီးမှ လောင်းကြေးပြောင်းနိုင်ပါမည်။` : `လောင်းကြေးကို ပြောင်းရန်၊ တစ်ကြိမ် ${formatKs(betAmount)}`}
-              >
-                <span className="text-[9px] font-bold text-white/60">{isFreeSpinsActive ? 'Free Spin · ကုန်ကျငွေ' : 'တစ်ကြိမ်လောင်းကြေး'}</span>
-                <span className="truncate font-mono text-xs font-black text-white" title={isFreeSpinsActive ? `Free Spin ကုန်ကျ Ks 0; ဆုတွက်ရန်အခြေခံ Ks ${betAmount.toLocaleString()}` : formatKs(betAmount)}>
-                  {isFreeSpinsActive ? 'Ks 0' : formatKs(betAmount)}
-                </span>
-                {isFreeSpinsActive && <small className="buffalo-free-spin-basis truncate text-[8px] font-semibold text-amber-100/70">ဆုတွက်ရန် {formatKs(betAmount)}</small>}
-              </button>
-            </div>
+        <div className="buffalo-cocos-controls">
+          <div className="buffalo-cocos-stake-controls" aria-label="လောင်းကြေး ထိန်းချုပ်မှု">
+            <button
+              type="button"
+              className="buffalo-cocos-bet-step"
+              onClick={() => {
+                if (isSpinning || isAutoSpinning || isFreeSpinsActive) return;
+                sounds.playChip();
+                setBetAmount((current) => {
+                  const index = BET_OPTIONS.indexOf(current);
+                  return BET_OPTIONS[Math.max(0, index - 1)];
+                });
+              }}
+              disabled={isSpinning || isAutoSpinning || isFreeSpinsActive || BET_OPTIONS.indexOf(betAmount) <= 0}
+              aria-label="လောင်းကြေး လျှော့ရန်"
+            >
+              <Image src="/assets/casino/buffalo-original/bet-minus-button.png" alt="" width={73} height={82} draggable={false} />
+            </button>
+            <button
+              type="button"
+              className="buffalo-cocos-bet-readout"
+              onClick={() => setIsBetModalOpen(true)}
+              disabled={isSpinning || isAutoSpinning || isFreeSpinsActive}
+              aria-label={`လောင်းကြေးရွေးရန်၊ တစ်ကြိမ် ${formatKs(betAmount)}`}
+            >
+              <span>{isFreeSpinsActive ? 'FREE SPIN' : 'TOTAL BET'}</span>
+              <strong>{isFreeSpinsActive ? 'Ks 0' : formatKs(betAmount)}</strong>
+              {isFreeSpinsActive && <small>အခြေခံ {formatKs(betAmount)}</small>}
+            </button>
+            <button
+              type="button"
+              className="buffalo-cocos-bet-step"
+              onClick={() => {
+                if (isSpinning || isAutoSpinning || isFreeSpinsActive) return;
+                sounds.playChip();
+                setBetAmount((current) => {
+                  const index = BET_OPTIONS.indexOf(current);
+                  return BET_OPTIONS[Math.min(BET_OPTIONS.length - 1, index + 1)];
+                });
+              }}
+              disabled={isSpinning || isAutoSpinning || isFreeSpinsActive || BET_OPTIONS.indexOf(betAmount) >= BET_OPTIONS.length - 1}
+              aria-label="လောင်းကြေး တိုးရန်"
+            >
+              <Image src="/assets/casino/buffalo-original/bet-plus-button.png" alt="" width={74} height={82} draggable={false} />
+            </button>
+          </div>
 
-            <div className="buffalo-controls-actions grid grid-cols-3 gap-2 sm:flex sm:items-center">
-              <button
-                type="button"
-                onClick={() => executeSpin(false)}
-                disabled={isSpinning || isAutoSpinning || isFreeSpinsActive || Boolean(user && user.balance < betAmount)}
-                className="flex min-h-12 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-amber-100/40 bg-gradient-to-b from-amber-100 to-amber-500 px-2 text-black shadow-[0_0_18px_rgba(245,158,11,0.25)] transition hover:brightness-105 active:scale-[0.98] disabled:cursor-not-allowed disabled:grayscale disabled:opacity-55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:min-w-[108px]"
-                aria-label={isFreeSpinsActive ? `အလိုအလျောက် Free Spin လည်နေပါသည်၊ ${freeSpinsLeft} ကြိမ် ကျန်` : `Spin တစ်ကြိမ် လှည့်ရန်၊ လောင်းကြေး ${formatKs(betAmount)}`}
-              >
-                {isSpinning ? <RotateCw className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Sparkles className="h-4 w-4" aria-hidden="true" />}
-                <span className="text-xs font-black">{isSpinning ? 'လည်နေသည်' : isFreeSpinsActive ? `FREE ${freeSpinsLeft}` : 'SPIN'}</span>
-                {!isSpinning && !isFreeSpinsActive && <span className="hidden text-[9px] font-bold sm:inline">{formatKs(betAmount)}</span>}
-              </button>
+          <button
+            type="button"
+            className="buffalo-cocos-level-button"
+            onClick={() => setIsBetModalOpen(true)}
+            disabled={isSpinning || isAutoSpinning || isFreeSpinsActive}
+            aria-label="1C လောင်းကြေးအဆင့် ရွေးရန်"
+          >
+            <Image src="/assets/casino/buffalo-original/level-1c-button.png" alt="1C" width={76} height={79} draggable={false} />
+          </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (isAutoSpinning) {
-                    sounds.playChip();
-                    setIsAutoSpinning(false);
-                    setAutoSpinsRemaining(0);
-                  } else {
-                    sounds.playChip();
-                    setSelectedAutoCount(10);
-                    setIsAutoModalOpen(true);
-                  }
-                }}
-                className={`flex min-h-12 min-w-0 items-center justify-center gap-1 rounded-xl border px-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
-                  isAutoSpinning
-                    ? 'border-amber-200 bg-amber-300 text-black shadow-[0_0_15px_rgba(251,191,36,0.4)]'
-                    : 'border-white/20 bg-white/10 text-white hover:bg-white/15'
-                }`}
-                aria-label={isAutoSpinning ? `Auto Spin ရပ်ရန်၊ ${autoSpinsRemaining} ကြိမ် ကျန်` : 'Auto Spin အကြိမ်ရေ ရွေးရန်'}
-                aria-pressed={isAutoSpinning}
-                disabled={!isAutoSpinning && (isSpinning || isFreeSpinsActive)}
-              >
-                <RotateCcw className={`h-4 w-4 shrink-0 ${isAutoSpinning ? 'animate-spin' : ''}`} aria-hidden="true" />
-                <span className="truncate text-[10px] font-black">{isAutoSpinning ? `STOP ${autoSpinsRemaining}` : 'AUTO'}</span>
-              </button>
+          <button
+            type="button"
+            className="buffalo-cocos-max-bet"
+            onClick={() => {
+              if (!user) {
+                onRequireAuth?.();
+                return;
+              }
+              const affordable = BET_OPTIONS.filter((amount) => amount <= user.balance).pop();
+              if (!affordable) {
+                onGoToWallet();
+                return;
+              }
+              setBetAmount(affordable);
+              sounds.playChip();
+            }}
+            disabled={isSpinning || isAutoSpinning || isFreeSpinsActive}
+            aria-label="လက်ကျန်နှင့်ကိုက်ညီသော အမြင့်ဆုံးလောင်းကြေး ရွေးရန်"
+          >
+            <Image src="/assets/casino/buffalo-original/max-bet-button.png" alt="" width={117} height={79} draggable={false} />
+            <span>MAX</span>
+          </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  sounds.playChip();
-                  setIsBuyBonusModalOpen(true);
-                }}
-                className="flex min-h-12 min-w-0 items-center justify-center gap-1 rounded-xl border border-red-300/30 bg-gradient-to-b from-red-950 to-red-900 px-2 text-red-100 shadow-md transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:min-w-[118px]"
-                aria-label={`Buy Bonus ဖွင့်ရန်၊ ကုန်ကျငွေ ${formatKs(betAmount * 100)}`}
-                disabled={isSpinning || isAutoSpinning || isFreeSpinsActive}
-              >
-                <Flame className="h-4 w-4 shrink-0 text-amber-300" aria-hidden="true" />
-                <span className="truncate text-[9px] font-black sm:text-[10px]">BONUS 100×</span>
-              </button>
-            </div>
+          <button
+            type="button"
+            onClick={() => executeSpin(false)}
+            disabled={isSpinning || isAutoSpinning || isFreeSpinsActive || Boolean(user && user.balance < betAmount)}
+            className="buffalo-cocos-spin"
+            aria-label={isFreeSpinsActive ? `Free Spin ${freeSpinsLeft} ကြိမ် ကျန်` : `Spin တစ်ကြိမ်၊ လောင်းကြေး ${formatKs(betAmount)}`}
+          >
+            <Image src="/assets/casino/buffalo-original/spin-button.png" alt="" width={203} height={88} draggable={false} />
+            <span>{isSpinning ? 'လည်နေသည်' : isFreeSpinsActive ? `FREE ${freeSpinsLeft}` : 'SPIN'}</span>
+            {isSpinning ? <RotateCw className="buffalo-cocos-spin-icon animate-spin" aria-hidden="true" /> : <Sparkles className="buffalo-cocos-spin-icon" aria-hidden="true" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (isAutoSpinning) {
+                sounds.playChip();
+                setIsAutoSpinning(false);
+                setAutoSpinsRemaining(0);
+              } else {
+                sounds.playChip();
+                setSelectedAutoCount(10);
+                setIsAutoModalOpen(true);
+              }
+            }}
+            className={`buffalo-cocos-auto ${isAutoSpinning ? 'buffalo-cocos-auto--active' : ''}`}
+            aria-label={isAutoSpinning ? `Auto Spin ရပ်ရန်၊ ${autoSpinsRemaining} ကြိမ် ကျန်` : 'Auto Spin အကြိမ်ရေ ရွေးရန်'}
+            aria-pressed={isAutoSpinning}
+            disabled={!isAutoSpinning && (isSpinning || isFreeSpinsActive)}
+          >
+            <Image src="/assets/casino/buffalo-original/auto-button.png" alt="" width={204} height={88} draggable={false} />
+            <span>{isAutoSpinning ? `STOP ${autoSpinsRemaining}` : 'AUTO'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              sounds.playChip();
+              setIsBuyBonusModalOpen(true);
+            }}
+            className="buffalo-cocos-bonus"
+            aria-label={`Buy Bonus ဖွင့်ရန်၊ ကုန်ကျငွေ ${formatKs(betAmount * 100)}`}
+            disabled={isSpinning || isAutoSpinning || isFreeSpinsActive}
+          >
+            <Flame className="h-4 w-4" aria-hidden="true" />
+            <span>BONUS</span>
+          </button>
+
+          <div className="buffalo-cocos-total-win" aria-label={`WIN ${formatKs(lastWinAmount)}`}>
+            <Image src="/assets/casino/buffalo-original/footer-win-frame.png" alt="" fill sizes="(max-width: 760px) 105px, 205px" draggable={false} />
+            <span>WIN · ဆုကြေး</span>
+            <strong>{formatKs(lastWinAmount)}</strong>
           </div>
         </div>
       </footer>
