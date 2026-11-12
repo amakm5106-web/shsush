@@ -1307,3 +1307,267 @@ button.bg-white:hover, a.bg-white:hover { color: #000 !important; background-col
   .buffalo-free-spin-basis { display: none; }
 }
 .buffalo-game-shell--rotated .buffalo-free-spin-basis { display: none; }
+
+/* Buffalo presentation refresh: gilded reel cabinet and warm Cocos-style HUD. */
+.buffalo-hud {
+  min-height: 62px;
+  border: 2px solid #ffd760;
+  border-bottom: 4px solid #a74208;
+  background: linear-gradient(180deg, #f65a0a 0%, #bd2706 48%, #6e1707 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 245, 184, .7), inset 0 -5px 12px rgba(50, 5, 0, .58), 0 4px 14px rgba(0, 0, 0, .55);
+}
+
+.buffalo-hud__brand {
+  flex: 0 0 auto;
+  max-width: 28%;
+}
+
+.buffalo-hud__title h1 {
+  color: #fff1b3;
+  text-shadow: 0 2px 0 #741300, 0 0 9px rgba(255, 199, 52, .42);
+}
+
+.buffalo-hud__stats {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  min-width: 0;
+  align-self: stretch;
+}
+
+.buffalo-hud__meter {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 211, 91, .44);
+  border-radius: 7px;
+  padding: 2px 8px;
+  background: linear-gradient(180deg, rgba(62, 12, 0, .54), rgba(35, 7, 1, .78));
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .65), 0 1px 0 rgba(255, 227, 125, .22);
+}
+
+.buffalo-hud__label {
+  color: #ffe06e;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .16em;
+  line-height: 1.05;
+  text-shadow: 0 1px 2px #300700;
+}
+
+.buffalo-hud__value {
+  overflow: hidden;
+  color: #fff3c2;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(12px, 1.8vw, 22px);
+  font-weight: 900;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 0 #561000, 0 0 8px rgba(255, 232, 146, .34);
+  white-space: nowrap;
+}
+
+.buffalo-hud__value--win { color: #fff9d7; }
+
+.buffalo-hud__back,
+.buffalo-hud__utility {
+  border-color: #ffd76b !important;
+  background: linear-gradient(180deg, rgba(255, 218, 112, .3), rgba(74, 13, 3, .54)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 248, 196, .42), 0 2px 5px rgba(25, 5, 0, .45);
+}
+
+.buffalo-hud__wallet {
+  border: 2px solid #fff0a4;
+  background: linear-gradient(180deg, #ffe98d, #f5a800) !important;
+  box-shadow: 0 2px 7px rgba(30, 5, 0, .5), inset 0 1px 0 #fff9cd;
+}
+
+.buffalo-arena-main {
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+.buffalo-game-shell .buffalo-machine-frame {
+  width: min(100%, 1120px, max(270px, calc((100svh - 285px) * 1.5)));
+  max-width: 1120px;
+  border: 4px solid #ffd44e;
+  border-radius: 18px;
+  padding: clamp(4px, .7vw, 10px);
+  background: linear-gradient(135deg, #fff3b1 0%, #a65b08 7%, #ffe176 12%, #692508 17%, #fff0c4 49%, #8a3d06 100%);
+  box-shadow: inset 0 0 0 2px rgba(255, 244, 172, .92), inset 0 0 18px rgba(255, 255, 219, .55), 0 0 0 2px #54200a, 0 12px 34px rgba(0, 0, 0, .72);
+}
+
+.buffalo-game-shell .buffalo-machine-frame--celebrating {
+  border-color: #fff1a0;
+  box-shadow: inset 0 0 0 2px #fff7c7, 0 0 36px rgba(255, 193, 36, .72), 0 0 0 2px #fff0a0, 0 12px 34px rgba(0, 0, 0, .72);
+}
+
+.buffalo-game-shell .buffalo-reel-column {
+  border: 2px solid #f3bd36;
+  border-radius: 9px;
+  padding: clamp(2px, .3vw, 5px);
+  background: linear-gradient(180deg, #9a520b, #552006 45%, #d49520);
+  box-shadow: inset 0 0 0 1px rgba(255, 239, 149, .82), 0 2px 5px rgba(51, 18, 0, .65);
+}
+
+.buffalo-game-shell .buffalo-reel-cell {
+  min-height: 0 !important;
+  aspect-ratio: 1 / 1;
+  border: 1px solid #dfaa35;
+  border-radius: 5px;
+  background: radial-gradient(circle at 50% 38%, #fffce6 0%, #fff0bc 72%, #e8c56b 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .82), 0 1px 3px rgba(80, 39, 3, .38);
+}
+
+.buffalo-game-shell .buffalo-reel-cell img {
+  object-fit: contain;
+}
+
+.buffalo-game-shell .buffalo-reel-stage > div:last-child {
+  color: #fff0ad;
+  text-shadow: 0 1px 2px #321000;
+}
+
+.buffalo-game-shell .buffalo-reel-stage > div:last-child span:last-child {
+  color: #fff2b9;
+}
+
+.buffalo-game-shell .buffalo-result-rail {
+  width: min(100%, 920px);
+  min-height: 52px;
+}
+
+.buffalo-game-shell .buffalo-result-card {
+  min-height: 52px;
+  border-color: rgba(255, 215, 91, .58);
+  border-radius: 12px;
+  background: linear-gradient(100deg, rgba(74, 18, 4, .96), rgba(30, 8, 2, .96));
+  box-shadow: inset 0 1px 0 rgba(255, 238, 169, .18), 0 4px 12px rgba(0, 0, 0, .44);
+}
+
+.buffalo-game-shell .buffalo-result-card--idle,
+.buffalo-game-shell .buffalo-result-card--spinning,
+.buffalo-game-shell .buffalo-result-card--win,
+.buffalo-game-shell .buffalo-result-card--settled {
+  border-color: rgba(255, 215, 91, .58);
+}
+
+.buffalo-control-dock {
+  border-top: 4px solid #f6c744;
+  background: linear-gradient(180deg, rgba(112, 41, 7, .98), rgba(35, 9, 2, .99));
+  box-shadow: 0 -7px 24px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 242, 168, .7);
+}
+
+.buffalo-control-dock > div { max-width: 1120px; }
+
+.buffalo-control-dock .buffalo-controls-summary > * {
+  border: 2px solid #dba935 !important;
+  border-radius: 10px !important;
+  background: linear-gradient(180deg, #4e1c07, #240b02) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 233, 144, .25), 0 2px 5px rgba(0, 0, 0, .42);
+}
+
+.buffalo-control-dock .buffalo-controls-summary > *:last-child {
+  background: linear-gradient(180deg, #ffe98e, #e4a20b) !important;
+  color: #3b1603;
+}
+
+.buffalo-control-dock .buffalo-controls-summary > *:last-child span:first-child { color: #65400a; }
+.buffalo-control-dock .buffalo-controls-summary > *:last-child span:nth-child(2) { color: #321500; }
+
+.buffalo-control-dock .buffalo-controls-actions button {
+  min-height: 46px;
+  border: 2px solid #f0c653;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 248, 203, .62), 0 3px 7px rgba(0, 0, 0, .45);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .22);
+}
+
+.buffalo-control-dock .buffalo-controls-actions button:first-child {
+  border-color: #fff0a1;
+  background: linear-gradient(180deg, #ffe98e, #f0a400) !important;
+  color: #3c1702 !important;
+  box-shadow: inset 0 2px 0 #fff9d2, 0 0 15px rgba(255, 175, 18, .28), 0 3px 7px rgba(0, 0, 0, .46);
+}
+
+.buffalo-control-dock .buffalo-controls-actions button:nth-child(2) {
+  border-color: #a9f36b;
+  background: linear-gradient(180deg, #20d94b, #07852f) !important;
+  color: #f7ffe9 !important;
+}
+
+.buffalo-control-dock .buffalo-controls-actions button:nth-child(3) {
+  border-color: #ffbd45;
+  background: linear-gradient(180deg, #ff9b13, #c63b07) !important;
+  color: #fff2ce !important;
+}
+
+.buffalo-control-dock .buffalo-user-banner {
+  border-color: rgba(255, 213, 105, .6);
+  background: linear-gradient(90deg, rgba(92, 27, 4, .97), rgba(40, 11, 2, .97));
+  color: #fff0be;
+}
+
+.buffalo-game-shell > header + div {
+  border-bottom-color: #f2bd3a;
+  background: linear-gradient(90deg, #7d1b06, #be3b07, #7d1b06);
+}
+
+.buffalo-game-shell [role="dialog"] {
+  border: 2px solid #e9c24a !important;
+  border-radius: 18px !important;
+  background: linear-gradient(165deg, #4b1a07, #190701 72%) !important;
+  box-shadow: 0 0 0 1px #62330d, 0 24px 80px rgba(0, 0, 0, .8), inset 0 1px 0 rgba(255, 235, 159, .22);
+}
+
+@media (max-width: 640px) {
+  .buffalo-hud { min-height: 52px; gap: 5px; padding: 4px 6px; }
+  .buffalo-hud__brand { gap: 4px; max-width: 25%; }
+  .buffalo-hud__title h1 { display: none; }
+  .buffalo-hud__title > div { width: 24px; height: 24px; }
+  .buffalo-hud__back { width: 36px; height: 36px; }
+  .buffalo-hud__tools { gap: 4px; }
+  .buffalo-hud__utility { width: 34px; height: 34px; }
+  .buffalo-hud__stats { gap: 3px; }
+  .buffalo-hud__meter { border-radius: 6px; padding: 2px 4px; }
+  .buffalo-hud__label { font-size: 7px; letter-spacing: .1em; }
+  .buffalo-hud__value { font-size: clamp(10px, 2vw, 16px); }
+  .buffalo-control-dock { padding: 6px; }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  .buffalo-hud { min-height: 43px; padding-top: 3px; padding-bottom: 3px; }
+  .buffalo-hud__back,
+  .buffalo-hud__utility { height: 34px; }
+  .buffalo-game-shell .buffalo-machine-frame {
+    width: min(100%, max(270px, calc((100svh - 185px) * 1.5)));
+    border-width: 3px;
+    border-radius: 12px;
+    padding: 3px;
+  }
+  .buffalo-arena-main { gap: 4px; padding: 3px 4px; }
+  .buffalo-control-dock { padding-top: 4px; padding-bottom: 4px; }
+  .buffalo-control-dock .buffalo-controls-actions button { min-height: 38px; }
+}
+
+@media (max-width: 640px) and (max-height: 560px) and (orientation: landscape) {
+  .buffalo-hud__brand { max-width: 20%; }
+  .buffalo-control-dock .buffalo-controls-summary { flex: 0 0 36%; }
+  .buffalo-control-dock .buffalo-controls-summary > * { min-width: 0; padding-inline: 5px; }
+}
+
+.buffalo-game-shell--rotated > header { min-height: 43px; }
+.buffalo-game-shell--rotated > main { gap: 4px; padding: 4px; }
+.buffalo-game-shell--rotated .buffalo-machine-frame {
+  width: min(100%, max(270px, calc((100vw - 190px) * 1.5)));
+  border-width: 3px;
+  border-radius: 12px;
+  padding: 3px;
+}
+.buffalo-game-shell--rotated .buffalo-reel-cell { min-height: 0 !important; }
+.buffalo-game-shell--rotated .buffalo-control-dock { padding-top: 4px; padding-bottom: 4px; }
+.buffalo-game-shell--rotated .buffalo-control-dock .buffalo-controls-actions button { min-height: 38px; }

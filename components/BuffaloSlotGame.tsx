@@ -1000,52 +1000,57 @@ export function BuffaloSlotGame({
         </div>
       )}
 
-      <header className="z-30 flex w-full shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-zinc-950/85 px-2 py-1.5 backdrop-blur-xl sm:px-4">
-        <div className="flex min-w-0 items-center gap-2">
+      <header className="buffalo-hud z-30 flex w-full shrink-0 items-center gap-2 px-2 py-1.5 sm:px-4">
+        <div className="buffalo-hud__brand flex min-w-0 items-center gap-2">
           <button
             type="button"
             onClick={() => {
               sounds.playChip();
               onBackToLobby();
             }}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:w-auto sm:gap-1 sm:px-2"
+            className="buffalo-hud__back flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:w-auto sm:gap-1 sm:px-2"
             title="အနောက်သို့ ပြန်ထွက်မည်"
             aria-label="ဂိမ်းစာရင်းသို့ ပြန်သွားရန်"
           >
             <ChevronLeft className="h-5 w-5" aria-hidden="true" />
             <span className="hidden text-xs font-bold sm:inline">ထွက်မည်</span>
           </button>
-          <div className="flex min-w-0 items-center gap-1.5">
+          <div className="buffalo-hud__title flex min-w-0 items-center gap-1.5">
             <div className="relative h-7 w-7 shrink-0 overflow-hidden rounded-lg border border-amber-200/25 bg-black">
               <Image src="/assets/slot-symbols/individual/buffalo.webp" alt="" fill sizes="28px" className="object-cover" />
             </div>
-            <h1 className="hidden truncate text-sm font-black uppercase tracking-widest text-white sm:block">
-              CHARGE BUFFALO
-            </h1>
+            <h1 className="truncate text-sm font-black uppercase tracking-widest text-white">CHARGE BUFFALO</h1>
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
-          <div
-            role="group"
-            className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-black/60 px-2 py-1 shadow-inner"
-            aria-label={`လက်ကျန်ငွေ ${formatKs(user?.balance || 0)}`}
-          >
-            <span className="hidden text-[9px] font-bold text-white/50 sm:inline">လက်ကျန်</span>
-            <span className="font-mono text-[11px] font-black text-white sm:text-xs">{formatKs(user?.balance || 0)}</span>
-            <button
-              type="button"
-              onClick={() => {
-                sounds.playChip();
-                onGoToWallet();
-              }}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-200 text-black shadow-sm transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-              title="ငွေသွင်းရန်"
-              aria-label="Wallet ဖွင့်ရန်၊ ငွေဖြည့်ရန်"
-            >
-              <Plus className="h-4 w-4 stroke-[3]" aria-hidden="true" />
-            </button>
+        <div className="buffalo-hud__stats" role="group" aria-label="ဂိမ်းအချက်အလက်">
+          <div className="buffalo-hud__meter" aria-label={`Credit ${formatKs(user?.balance || 0)}`}>
+            <span className="buffalo-hud__label">CREDIT</span>
+            <strong className="buffalo-hud__value">{formatKs(user?.balance || 0)}</strong>
           </div>
+          <div className="buffalo-hud__meter" aria-label={`Bet ${formatKs(betAmount)}`}>
+            <span className="buffalo-hud__label">BET</span>
+            <strong className="buffalo-hud__value">{formatKs(betAmount)}</strong>
+          </div>
+          <div className="buffalo-hud__meter" aria-label={`Win ${formatKs(lastWinAmount)}`}>
+            <span className="buffalo-hud__label">WIN</span>
+            <strong className="buffalo-hud__value buffalo-hud__value--win">{formatKs(lastWinAmount)}</strong>
+          </div>
+        </div>
+
+        <div className="buffalo-hud__tools flex shrink-0 items-center gap-1 sm:gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              sounds.playChip();
+              onGoToWallet();
+            }}
+            className="buffalo-hud__wallet flex h-9 w-9 items-center justify-center rounded-full bg-amber-200 text-black shadow-sm transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            title="ငွေသွင်းရန်"
+            aria-label={`Wallet ဖွင့်ရန်၊ လက်ကျန် ${formatKs(user?.balance || 0)}`}
+          >
+            <Plus className="h-4 w-4 stroke-[3]" aria-hidden="true" />
+          </button>
 
           <button
             type="button"
@@ -1053,7 +1058,7 @@ export function BuffaloSlotGame({
               sounds.playChip();
               onToggleSound();
             }}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+            className="buffalo-hud__utility flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
             title="အသံ ဖွင့်/ပိတ်"
             aria-label={soundEnabled ? 'အသံပိတ်ရန်' : 'အသံဖွင့်ရန်'}
             aria-pressed={soundEnabled}
@@ -1064,7 +1069,7 @@ export function BuffaloSlotGame({
           <button
             type="button"
             onClick={toggleFullScreen}
-            className="hidden h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:flex"
+            className="buffalo-hud__utility hidden h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-white transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300 sm:flex"
             title="မျက်နှာပြင်အပြည့်"
             aria-label="မျက်နှာပြင်အပြည့်ဖွင့်/ပိတ်ရန်"
           >
@@ -1089,16 +1094,16 @@ export function BuffaloSlotGame({
       )}
 
       {/* ========================================================================= */}
-      {/* CENTER ARENA: Compact 6 Reels x 4 Rows Matrix (Neatly Proportioned)       */}
+      {/* CENTER ARENA: 6 Reels x 4 Rows in a gilded Buffalo cabinet.               */}
       {/* ========================================================================= */}
-      <main className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-2 py-2">
-        {/* Responsive Slot Grid Container: Luxury Dark Obsidian Glass with Warm Amber Sheen */}
+      <main className="buffalo-arena-main relative flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-2 py-2">
+        {/* Responsive gold-framed slot cabinet; spin state, symbols, and payout math stay unchanged. */}
         <div
-          className={`buffalo-reel-stage relative rounded-2xl p-1.5 sm:p-2.5 md:p-3 border backdrop-blur-2xl transition-all flex flex-col justify-center w-full max-w-[420px] sm:max-w-xl md:max-w-2xl lg:max-w-3xl ${
+          className={`buffalo-reel-stage buffalo-machine-frame relative rounded-2xl p-1.5 sm:p-2.5 md:p-3 border backdrop-blur-2xl transition-all flex flex-col justify-center w-full ${
             isScreenShaking ? 'animate-screen-shake' : ''
           } ${
             isSubBetCelebration
-              ? 'border-amber-400/90 shadow-[0_0_35px_rgba(245,158,11,0.35)] bg-zinc-950/90'
+              ? 'buffalo-machine-frame--celebrating border-amber-400/90 shadow-[0_0_35px_rgba(245,158,11,0.35)] bg-zinc-950/90'
               : 'border-amber-500/25 shadow-[0_16px_50px_rgba(0,0,0,0.95)] bg-zinc-950/85'
           }`}
         >
@@ -1115,7 +1120,7 @@ export function BuffaloSlotGame({
               return (
                 <div
                   key={`reel-col-${colIdx}`}
-                  className="relative overflow-hidden rounded-xl bg-zinc-950/70 backdrop-blur-md p-0.5 sm:p-1 border border-white/10"
+                  className="buffalo-reel-column relative overflow-hidden rounded-xl p-0.5 sm:p-1"
                 >
                   {isColSpinning ? (
                     <div className="animate-reel-strip-spin flex flex-col gap-1 sm:gap-1.5 filter blur-[1px]">
@@ -1178,7 +1183,7 @@ export function BuffaloSlotGame({
         />
       </main>
 
-      <footer className="z-30 w-full shrink-0 border-t border-white/10 bg-zinc-950/95 px-2 py-2 shadow-[0_-8px_25px_rgba(0,0,0,0.9)] backdrop-blur-2xl sm:px-4">
+      <footer className="buffalo-control-dock z-30 w-full shrink-0 border-t border-white/10 px-2 py-2 sm:px-4">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-2">
           {!user ? (
             <div className="buffalo-user-banner flex min-h-10 items-center justify-between gap-2 rounded-xl border border-sky-300/20 bg-sky-950/35 px-3 py-1.5 text-[11px] text-sky-100" role="status">
