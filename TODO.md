@@ -174,3 +174,11 @@
 - Replaced the remaining Referral transfer hourglass glyph with a monochrome Lucide `RefreshCw` line icon; a pictograph scan of non-game components returned no matches.
 - `npm run lint` completed with 0 errors (17 warnings); `npm run build` completed successfully. The route manifest parsed and contained 7 routes; `git diff --check` passed.
 - The only changed code paths are `app/globals.css` and `components/views/ReferralView.tsx`; no game implementation files or gameplay logic changed.
+
+
+## Burmese-first simple lobby, wallet and referral pass
+
+- [x] Remove repeated lobby headlines, duplicate English translations, unnecessary card subtitles and category captions; keep concise Burmese labels and established game names, with lobby controls and destinations unchanged.
+- [x] Simplify Wallet and Referral copy while retaining required payment methods, minimums, limits, eligibility rules, transaction fields, QR/copy/share/transfer actions, reward claims and member filters; keep longer details collapsed and remove duplicate referral counts.
+- [x] Apply neutral glass treatment to lobby game-card controls without changing poster artwork or any game screen or gameplay logic.
+- [x] Recheck Lobby, Wallet and Referral in a 390px frame (386px content width): no horizontal overflow, and form/referral-link controls stayed within their surfaces. `npm run lint` completed with 0 errors (17 warnings), `npm run build` passed, the 7-route manifest parsed and `git diff --check` passed.

@@ -88,14 +88,12 @@ import {
   formatKs,
   TELEGRAM_CHANNEL_LINK,
   CUSTOMER_SERVICE_BOT_LINK,
-  CUSTOMER_SERVICE_BOT_HANDLE,
   openTelegramLink,
 } from '@/lib/constants';
 import { sounds } from '@/lib/audio';
 
 import { DiceRoller } from '@/components/DiceRoller';
 import { BettingBoard } from '@/components/BettingBoard';
-import { WalletModal } from '@/components/WalletModal';
 import { RulesModal } from '@/components/RulesModal';
 import { ProfileModal } from '@/components/ProfileModal';
 import { AdminModal } from '@/components/AdminModal';
@@ -2049,8 +2047,8 @@ export default function Home() {
           <button className="premium-nav-item" onClick={() => { openTelegramLink(CUSTOMER_SERVICE_BOT_LINK); setMobileSidebarOpen(false); }} title="အကူအညီ">
             <Headphones /><span>အကူအညီ</span>
           </button>
-          <button className="premium-nav-item" onClick={() => { openTelegramLink(TELEGRAM_CHANNEL_LINK); setMobileSidebarOpen(false); }} title="တရားဝင် Telegram Channel">
-            <Megaphone /><span>Telegram Channel</span>
+          <button className="premium-nav-item" onClick={() => { openTelegramLink(TELEGRAM_CHANNEL_LINK); setMobileSidebarOpen(false); }} title="Telegram">
+            <Megaphone /><span>Telegram</span>
           </button>
           {(userProfile?.role === 'admin' || isAdminEmail(currentUser?.email)) && <button className="premium-nav-item" onClick={() => setIsAdminOpen(true)} title="အက်ဒမင်">
             <ShieldAlert /><span>အက်ဒမင်</span>
@@ -2095,14 +2093,12 @@ export default function Home() {
               <div className="flex flex-col gap-3.5">
                 <section className="premium-overview" aria-label="အကောင့်အကျဉ်းချုပ်">
                   <div className="premium-overview__intro">
-                    <span className="premium-eyebrow">XSITE · CASINO LOBBY</span>
                     <h1>{userProfile?.fullName ? `${userProfile.fullName} မင်္ဂလာပါ` : 'ကစားရန် ဂိမ်းတစ်ခု ရွေးချယ်ပါ'}</h1>
-                    <p>သင့်ဂိမ်းများနှင့် ပိုက်ဆံအိတ်ကို တစ်နေရာတည်းမှ ကြည့်ရှုပါ။</p>
                   </div>
                   <div className="premium-metrics">
                     <article className="premium-metric premium-metric--balance"><span>လက်ကျန်ငွေ</span><strong>{currentUser ? formatKs(userProfile?.balance || 0) : '—'}</strong><Wallet /></article>
-                    <article className="premium-metric"><span>စုစုပေါင်း အောင်မြင်ငွေသွင်း</span><strong>{currentUser ? formatKs(userProfile?.totalSuccessfulDeposit || 0) : '—'}</strong><ArrowDownLeft /></article>
-                    <article className="premium-metric"><span>အတည်ပြုငွေထုတ်မှု အကြိမ်</span><strong>{currentUser ? String(userProfile?.withdrawalCount || 0) : '—'}</strong><ArrowUpRight /></article>
+                    <article className="premium-metric"><span>ငွေသွင်းစုစုပေါင်း</span><strong>{currentUser ? formatKs(userProfile?.totalSuccessfulDeposit || 0) : '—'}</strong><ArrowDownLeft /></article>
+                    <article className="premium-metric"><span>ငွေထုတ်အကြိမ်</span><strong>{currentUser ? String(userProfile?.withdrawalCount || 0) : '—'}</strong><ArrowUpRight /></article>
                   </div>
                 </section>
                 {/* 1. TOP LUXURY VIP APP BAR */}
@@ -2163,13 +2159,13 @@ export default function Home() {
                       onClick={() => {
                         sounds.playChip();
                         openTelegramLink(TELEGRAM_CHANNEL_LINK);
-                        showToast('Official Telegram Channel (@dicemyanmar1) သို့ ဖွင့်လှစ်နေပါသည်...', 'info');
+                        showToast('Telegram သို့ ဖွင့်နေသည်…', 'info');
                       }}
                       className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-300 font-bold text-xs active:scale-95 transition-all shadow-sm shrink-0"
-                      title="Official Channel (@dicemyanmar1)"
+                      title="တရားဝင် Telegram"
                     >
                       <Megaphone className="w-3.5 h-3.5 text-sky-400 stroke-[2.2]" />
-                      <span>Channel</span>
+                      <span>Telegram</span>
                     </button>
 
                     {/* Customer Service Bot Button */}
@@ -2177,13 +2173,13 @@ export default function Home() {
                       onClick={() => {
                         sounds.playChip();
                         openTelegramLink(CUSTOMER_SERVICE_BOT_LINK);
-                        showToast(`Customer Service Bot (${CUSTOMER_SERVICE_BOT_HANDLE}) သို့ ဖွင့်လှစ်နေပါသည်...`, 'info');
+                        showToast('အကူအညီကို ဖွင့်နေသည်…', 'info');
                       }}
                       className="premium-cs-action premium-cs-action--compact flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl font-bold text-xs active:scale-[.98] transition-all shrink-0"
-                      title="Customer Service (@xsitecasinobot)"
+                      title="အကူအညီ"
                     >
                       <Headphones className="premium-cs-action__glyph w-3.5 h-3.5 stroke-[2]" />
-                      <span className="hidden xs:inline sm:inline">CS Bot</span>
+                      <span className="hidden xs:inline sm:inline">အကူအညီ</span>
                     </button>
 
                     {/* Audio Toggle */}
@@ -2212,15 +2208,9 @@ export default function Home() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
                       <div className="relative z-10 flex flex-col gap-1 max-w-lg">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">
-                          WALLET & PAYMENTS
-                        </span>
                         <h2 className="text-sm sm:text-lg md:text-xl font-black text-white leading-tight">
-                          ငွေသွင်း၊ ငွေထုတ်နှင့် မှတ်တမ်းများကို ပိုက်ဆံအိတ်မှ စီမံပါ
+                          ငွေသွင်း၊ ငွေထုတ်နှင့် မှတ်တမ်း
                         </h2>
-                        <p className="text-[10px] sm:text-xs text-white/70 line-clamp-1">
-                          KPay နှင့် Wave ငွေပေးချေမှုဆိုင်ရာ ရရှိနိုင်သောရွေးချယ်စရာများကို စစ်ဆေးပါ
-                        </p>
                         <div className="pt-1.5">
                           <button
                             onClick={() => {
@@ -2247,15 +2237,9 @@ export default function Home() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
                       <div className="relative z-10 flex flex-col gap-1 max-w-lg">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">
-                          FEATURED MEGA SLOT
-                        </span>
                         <h2 className="text-sm sm:text-lg md:text-xl font-black text-white leading-tight">
-                          Charge Buffalo (ကျွဲရွှေ ၄,၀၉၆ Ways)
+                          Charge Buffalo
                         </h2>
-                        <p className="text-[10px] sm:text-xs text-white/70 line-clamp-1">
-                          Wild Multipliers ×2, ×3, ×5 နှင့် Free Spins အလှည့်တိုင်း အနိုင်ယူပါ
-                        </p>
                         <div className="pt-1.5">
                           <button
                             onClick={() => launchGame('buffalo')}
@@ -2279,15 +2263,9 @@ export default function Home() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
                       <div className="relative z-10 flex flex-col gap-1 max-w-lg">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                          LIVE MULTIPLAYER
-                        </span>
                         <h2 className="text-sm sm:text-lg md:text-xl font-black text-white leading-tight">
-                          အံစာ 777 (Live Dice Lottery)
+                          အံစာ 777
                         </h2>
-                        <p className="text-[10px] sm:text-xs text-white/70 line-clamp-1">
-                          စက္ကန့် ၆၀ တိုင်း အကြီး၊ အသေး၊ နံပါတ် ၇ ဆုကြေး ၃၂ ဆ အထိ
-                        </p>
                         <div className="pt-1.5">
                           <button
                             onClick={() => launchGame('dice')}
@@ -2317,7 +2295,7 @@ export default function Home() {
                 </div>
 
                 {recentlyPlayed.length > 0 && <section className="premium-recent-games" aria-label="လတ်တလော ကစားခဲ့သောဂိမ်းများ">
-                  <div className="premium-recent-games__heading"><div><span className="premium-eyebrow">RECENTLY PLAYED</span><h2>လတ်တလော ကစားခဲ့သောဂိမ်းများ</h2></div><span>ဤ session အတွင်း</span></div>
+                  <div className="premium-recent-games__heading"><h2>လတ်တလော ကစားခဲ့သောဂိမ်းများ</h2></div>
                   <div className="premium-recent-games__list">{recentlyPlayed.map((game) => <button type="button" className="premium-recent-game" key={game} onClick={() => launchGame(game)}>
                     <span className="premium-recent-game__icon">{game === 'dice' ? <Dices /> : game === 'fishing' ? <Fish /> : game === 'sakura' ? <Sparkles /> : <Gamepad2 />}</span>
                     <span className="premium-recent-game__copy"><small>ထပ်မံကစားရန်</small><strong>{game === 'buffalo' ? 'Charge Buffalo' : game === 'dice' ? 'Live Dice 777' : game === 'fishing' ? 'Deep Sea Catch' : 'Sakura Fortune'}</strong></span>
@@ -2335,7 +2313,7 @@ export default function Home() {
                     className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/25 via-amber-600/20 to-amber-700/25 border border-amber-400/40 hover:border-amber-400 text-amber-300 font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-amber-500/10 group"
                   >
                     <ArrowDownLeft className="w-4 h-4 text-amber-400 stroke-[2.8] group-hover:scale-110 transition-transform" />
-                    <span>ငွေသွင်းရန် (Deposit)</span>
+                    <span>ငွေသွင်းရန်</span>
                   </button>
 
                   <button
@@ -2346,7 +2324,7 @@ export default function Home() {
                     className="p-3 sm:p-3.5 rounded-2xl bg-zinc-900/90 border border-white/15 hover:border-white/30 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg group"
                   >
                     <ArrowUpRight className="w-4 h-4 text-emerald-400 stroke-[2.8] group-hover:scale-110 transition-transform" />
-                    <span>ငွေထုတ်ရန် (Withdraw)</span>
+                    <span>ငွေထုတ်ရန်</span>
                   </button>
                 </div>
 
@@ -2363,7 +2341,7 @@ export default function Home() {
                         : 'text-white/60 hover:text-white'
                     }`}
                   >
-                    အားလုံး (All)
+                    အားလုံး
                   </button>
                   <button
                     onClick={() => {
@@ -2376,7 +2354,7 @@ export default function Home() {
                         : 'text-white/60 hover:text-white'
                     }`}
                   >
-                    စလော့ (Slots)
+                    စလော့
                   </button>
                   <button
                     onClick={() => {
@@ -2389,7 +2367,7 @@ export default function Home() {
                         : 'text-white/60 hover:text-white'
                     }`}
                   >
-                    တိုက်ရိုက်အံစာ (Live Dice)
+                    တိုက်ရိုက်အံစာ
                   </button>
                   <button
                     onClick={() => {
@@ -2402,7 +2380,7 @@ export default function Home() {
                         : 'text-white/60 hover:text-white'
                     }`}
                   >
-                    လူကြိုက်များ (Hot)
+                    လူကြိုက်များ
                   </button>
                   <button
                     onClick={() => {
@@ -2416,14 +2394,14 @@ export default function Home() {
                 </div>
 
                 {/* 4. 2-COLUMN PORTRAIT GAME POSTERS (STAKE & PGSOFT STYLE) */}
-                <div className="premium-library-heading"><div><span className="premium-eyebrow">GAME COLLECTION</span><h2>ဂိမ်းများကို စူးစမ်းပါ</h2><p>လက်ရှိအသုံးပြုနိုင်သော ဂိမ်းများ</p></div><span>{[hasBuffalo, hasDice, hasFishing, hasSakura].filter(Boolean).length} games</span></div>
+                <div className="premium-library-heading"><h2>ဂိမ်းများ</h2></div>
                 <div className="premium-games-grid grid grid-cols-2 gap-3 sm:gap-4 md:gap-5">
                   {/* GAME CARD 1: Charge Buffalo Slot */}
                   {hasBuffalo && (
                     <div
                       role="button"
                       tabIndex={0}
-                      aria-label="Charge Buffalo тоглох"
+                      aria-label="Charge Buffalo ကစားမည်"
                       onClick={() => launchGame('buffalo')}
                       onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); launchGame('buffalo'); } }}
                       className="premium-game-card group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[3/4] border border-amber-500/25 hover:border-amber-400/70 transition-all duration-300 shadow-2xl cursor-pointer active:scale-[0.98] bg-zinc-950 flex flex-col justify-between"
@@ -2439,9 +2417,9 @@ export default function Home() {
                       {/* Top Badges */}
                       <div className="relative z-10 p-2.5 sm:p-3 flex items-center justify-between">
                         <span className="text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500 text-black shadow-md">
-                          HOT
+                          လူကြိုက်
                         </span>
-                        <div className="flex items-center gap-2"><span className="text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-amber-300 border border-amber-400/30">4,096 Ways</span><button type="button" className="premium-favorite-button" aria-label={favoriteGames.includes('buffalo') ? 'Charge Buffalo ကို စိတ်ကြိုက်မှ ဖယ်ရန်' : 'Charge Buffalo ကို စိတ်ကြိုက်ထည့်ရန်'} aria-pressed={favoriteGames.includes('buffalo')} onClick={(event) => { event.stopPropagation(); toggleFavorite('buffalo'); }}><Star fill={favoriteGames.includes('buffalo') ? 'currentColor' : 'none'} /></button></div>
+                        <div className="flex items-center gap-2"><span className="text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-amber-300 border border-amber-400/30">၄,၀၉၆ နည်း</span><button type="button" className="premium-favorite-button" aria-label={favoriteGames.includes('buffalo') ? 'Charge Buffalo ကို စိတ်ကြိုက်မှ ဖယ်ရန်' : 'Charge Buffalo ကို စိတ်ကြိုက်ထည့်ရန်'} aria-pressed={favoriteGames.includes('buffalo')} onClick={(event) => { event.stopPropagation(); toggleFavorite('buffalo'); }}><Star fill={favoriteGames.includes('buffalo') ? 'currentColor' : 'none'} /></button></div>
                       </div>
 
                       {/* Hover / Tap Center Play Overlay */}
@@ -2459,8 +2437,7 @@ export default function Home() {
                         <span className="text-xs sm:text-sm font-black text-white tracking-tight truncate">
                           Charge Buffalo
                         </span>
-                        <div className="flex items-center justify-between text-[10px] text-white/60 font-medium mt-0.5">
-                          <span>PG-Style Slot</span>
+                        <div className="flex items-center justify-end text-[10px] text-white/60 font-medium mt-0.5">
                           <span className="text-amber-400 font-bold">×2, ×3, ×5</span>
                         </div>
                       </div>
@@ -2472,7 +2449,7 @@ export default function Home() {
                     <div
                       role="button"
                       tabIndex={0}
-                      aria-label="Live Dice тоглох"
+                      aria-label="အံစာ 777 ကစားမည်"
                       onClick={() => launchGame('dice')}
                       onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); launchGame('dice'); } }}
                       className="premium-game-card group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[3/4] border border-emerald-500/25 hover:border-emerald-400/70 transition-all duration-300 shadow-2xl cursor-pointer active:scale-[0.98] bg-zinc-950 flex flex-col justify-between"
@@ -2480,7 +2457,7 @@ export default function Home() {
                       {/* Cover Art */}
                       <img
                         src="/assets/casino/dice_poster.jpg"
-                        alt="Live Dice 777"
+                        alt="အံစာ 777"
                         className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="eager"
                       />
@@ -2488,12 +2465,11 @@ export default function Home() {
                       {/* Top Badges */}
                       <div className="relative z-10 p-2.5 sm:p-3 flex items-center justify-between">
                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500 text-black shadow-md">
-                          <div className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
                           <span className="text-[9px] sm:text-[10px] font-black uppercase">
-                            LIVE
+                            တိုက်ရိုက်
                           </span>
                         </div>
-                        <div className="flex items-center gap-2"><span className="text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-emerald-300 border border-emerald-400/30">ဆုကြေး 32×</span><button type="button" className="premium-favorite-button" aria-label={favoriteGames.includes('dice') ? 'Live Dice ကို စိတ်ကြိုက်မှ ဖယ်ရန်' : 'Live Dice ကို စိတ်ကြိုက်ထည့်ရန်'} aria-pressed={favoriteGames.includes('dice')} onClick={(event) => { event.stopPropagation(); toggleFavorite('dice'); }}><Star fill={favoriteGames.includes('dice') ? 'currentColor' : 'none'} /></button></div>
+                        <div className="flex items-center gap-2"><span className="text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-emerald-300 border border-emerald-400/30">ဆုကြေး 32×</span><button type="button" className="premium-favorite-button" aria-label={favoriteGames.includes('dice') ? 'အံစာဂိမ်း စိတ်ကြိုက်မှ ဖယ်ရန်' : 'အံစာဂိမ်း စိတ်ကြိုက်ထည့်ရန်'} aria-pressed={favoriteGames.includes('dice')} onClick={(event) => { event.stopPropagation(); toggleFavorite('dice'); }}><Star fill={favoriteGames.includes('dice') ? 'currentColor' : 'none'} /></button></div>
                       </div>
 
                       {/* Hover / Tap Center Play Overlay */}
@@ -2509,10 +2485,9 @@ export default function Home() {
                       {/* Bottom Scrim & Info */}
                       <div className="relative z-10 p-2.5 sm:p-3 bg-gradient-to-t from-black via-black/80 to-transparent flex flex-col">
                         <span className="text-xs sm:text-sm font-black text-white tracking-tight truncate">
-                          အံစာဂိမ်း (Dice 777)
+                          အံစာ 777
                         </span>
                         <div className="flex items-center justify-between text-[10px] text-white/60 font-medium mt-0.5">
-                          <span>Live Multiplayer</span>
                           <span className="text-emerald-400 font-bold">စက္ကန့် ၆၀</span>
                         </div>
                       </div>
@@ -2524,7 +2499,7 @@ export default function Home() {
                     <div
                       role="button"
                       tabIndex={0}
-                      aria-label="Deep Sea Catch тоглох"
+                      aria-label="Deep Sea Catch ကစားမည်"
                       onClick={() => launchGame('fishing')}
                       onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); launchGame('fishing'); } }}
                       className="premium-game-card group relative cursor-pointer overflow-hidden rounded-2xl border border-white/20 bg-zinc-950 shadow-2xl transition-all duration-300 hover:border-white/60 active:scale-[0.98] sm:rounded-3xl"
@@ -2532,7 +2507,7 @@ export default function Home() {
                       <img src="/assets/casino/fishing_card.jpg" alt="Deep Sea Catch" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/5" />
                       <div className="relative z-10 flex aspect-[3/4] flex-col justify-between p-2.5 sm:p-3">
-                        <div className="flex items-center justify-between"><span className="rounded-md bg-white px-2 py-0.5 text-[9px] font-black uppercase text-black">ARCADE</span><button type="button" className="premium-favorite-button" aria-label={favoriteGames.includes('fishing') ? 'Deep Sea Catch ကို စိတ်ကြိုက်မှ ဖယ်ရန်' : 'Deep Sea Catch ကို စိတ်ကြိုက်ထည့်ရန်'} aria-pressed={favoriteGames.includes('fishing')} onClick={(event) => { event.stopPropagation(); toggleFavorite('fishing'); }}><Star fill={favoriteGames.includes('fishing') ? 'currentColor' : 'none'} /></button></div>
+                        <div className="flex items-center justify-end"><button type="button" className="premium-favorite-button" aria-label={favoriteGames.includes('fishing') ? 'Deep Sea Catch ကို စိတ်ကြိုက်မှ ဖယ်ရန်' : 'Deep Sea Catch ကို စိတ်ကြိုက်ထည့်ရန်'} aria-pressed={favoriteGames.includes('fishing')} onClick={(event) => { event.stopPropagation(); toggleFavorite('fishing'); }}><Star fill={favoriteGames.includes('fishing') ? 'currentColor' : 'none'} /></button></div>
                         <div><div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-white text-black shadow-xl transition-transform group-hover:scale-105"><Fish className="h-5 w-5 fill-black stroke-black" /></div><span className="block truncate text-xs font-black tracking-tight text-white sm:text-sm">Deep Sea Catch</span><div className="mt-0.5 flex items-center justify-between text-[10px] font-medium text-white/65"><span>ငါးပစ်ဂိမ်း</span><span className="font-bold text-white">ကစားမည်</span></div></div>
                       </div>
                     </div>
@@ -2545,7 +2520,7 @@ export default function Home() {
                       onClick={() => launchGame('sakura')}
                       onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); launchGame('sakura'); } }}
                       className="premium-game-card group relative cursor-pointer overflow-hidden rounded-2xl border border-pink-400/30 bg-[#24111e] text-left shadow-2xl transition-all duration-300 hover:border-pink-300/80 active:scale-[0.98] sm:rounded-3xl"
-                      aria-label="Sakura Fortune Deluxe тоглох"
+                      aria-label="Sakura Fortune ကစားမည်"
                     >
                       <img
                         src="/games/sakura-fortune/assets/lobby-poster.webp"
@@ -2555,8 +2530,7 @@ export default function Home() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#170b14] via-[#170b14]/55 to-[#170b14]/10" />
                       <div className="relative z-10 flex aspect-[3/4] flex-col justify-between p-2.5 sm:p-3">
-                        <div className="flex items-center justify-between">
-                          <span className="rounded-md bg-pink-300 px-2 py-0.5 text-[9px] font-black uppercase text-[#321323] shadow-md">SLOT</span>
+                        <div className="flex items-center justify-end">
                           <button type="button" className="premium-favorite-button" aria-label={favoriteGames.includes('sakura') ? 'Sakura Fortune ကို စိတ်ကြိုက်မှ ဖယ်ရန်' : 'Sakura Fortune ကို စိတ်ကြိုက်ထည့်ရန်'} aria-pressed={favoriteGames.includes('sakura')} onClick={(event) => { event.stopPropagation(); toggleFavorite('sakura'); }}><Star fill={favoriteGames.includes('sakura') ? 'currentColor' : 'none'} /></button>
                         </div>
                         <div>
@@ -2565,7 +2539,6 @@ export default function Home() {
                           </div>
                           <span className="block truncate text-xs font-black tracking-tight text-white sm:text-sm">Sakura Fortune</span>
                           <div className="mt-0.5 flex items-center justify-between text-[10px] font-medium text-white/70">
-                            <span>Deluxe Slot</span>
                             <span className="font-bold text-pink-200"><Sparkles className="inline h-3 w-3" aria-hidden="true" /> ကစားမည်</span>
                           </div>
                         </div>
@@ -2576,14 +2549,14 @@ export default function Home() {
 
                 {[hasBuffalo, hasDice, hasFishing, hasSakura].every((visible) => !visible) && <div className="premium-empty-state premium-empty-state--games">ဂိမ်း မတွေ့ပါ။ စကားလုံး သို့မဟုတ် အမျိုးအစားကို ပြောင်းရှာကြည့်ပါ။</div>}
                 <section className="premium-activity-panel" aria-label="လတ်တလော အံစာရလဒ်များ">
-                  <div className="premium-activity-panel__heading"><div><span className="premium-eyebrow">ROUND HISTORY</span><h2>လတ်တလော အံစာရလဒ်များ</h2></div><span className="premium-live-indicator"><i /> Live</span></div>
+                  <div className="premium-activity-panel__heading"><h2>လတ်တလော အံစာရလဒ်များ</h2><span className="premium-live-indicator"><i /> တိုက်ရိုက်</span></div>
                   <div className="premium-round-strip">
                     {recentRounds.slice(0, 4).map((round) => <article className="premium-round-item" key={round.id || round.roundId}><span>ပွဲစဉ် #{round.roundId}</span><strong>{round.totalResult ?? '—'}</strong><small>{round.resultClass === 'small' ? 'အသေး' : round.resultClass === 'big' ? 'အကြီး' : round.resultClass === 'common' ? 'အလယ်' : 'စောင့်ဆိုင်းဆဲ'}</small></article>)}
                     {recentRounds.length === 0 && <p className="premium-empty-state">အံစာရလဒ်များ မရရှိသေးပါ။</p>}
                   </div>
                 </section>
                 <section className="premium-activity-panel premium-transactions-panel" aria-label="လတ်တလော ငွေကြေးမှတ်တမ်း">
-                  <div className="premium-activity-panel__heading"><div><span className="premium-eyebrow">ACCOUNT ACTIVITY</span><h2>လတ်တလော ငွေကြေးမှတ်တမ်း</h2></div>{currentUser && <button className="premium-view-history" onClick={() => goToWallet('history')}>မှတ်တမ်းအားလုံး <ChevronRight /></button>}</div>
+                  <div className="premium-activity-panel__heading"><h2>လတ်တလော ငွေကြေးမှတ်တမ်း</h2>{currentUser && <button className="premium-view-history" onClick={() => goToWallet('history')}>မှတ်တမ်းအားလုံး <ChevronRight /></button>}</div>
                   {!currentUser ? <button className="premium-empty-state premium-transactions-empty" onClick={() => setIsAuthModalOpen(true)}>အကောင့်ဝင်ပြီး သင့်ငွေကြေးမှတ်တမ်းများကို ကြည့်ပါ။</button> : recentTransactions.length === 0 ? <p className="premium-empty-state">လတ်တလော ငွေကြေးမှတ်တမ်း မရှိသေးပါ။</p> : <div className="premium-transaction-list">
                     {recentTransactions.map((transaction) => <article className="premium-transaction-row" key={transaction.key}>
                       <span className={`premium-transaction-icon ${transaction.kind === 'deposit' ? 'is-deposit' : 'is-withdrawal'}`}>{transaction.kind === 'deposit' ? <ArrowDownLeft /> : <ArrowUpRight />}</span>
@@ -2993,17 +2966,16 @@ export default function Home() {
             onClick={() => {
               sounds.playChip();
               openTelegramLink(CUSTOMER_SERVICE_BOT_LINK);
-              showToast(`Customer Service Bot (${CUSTOMER_SERVICE_BOT_HANDLE}) သို့ ဖွင့်လှစ်နေပါသည်...`, 'info');
+              showToast('အကူအညီကို ဖွင့်နေသည်…', 'info');
             }}
             className="premium-cs-action premium-cs-action--floating flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full active:scale-[.98] transition-all"
-            title="Customer Service Bot (@xsitecasinobot)"
+            title="အကူအညီ"
           >
             <div className="premium-cs-action__icon">
               <Headphones className="premium-cs-action__glyph w-4 h-4 stroke-[2]" />
             </div>
             <span className="premium-cs-action__label text-xs font-black tracking-wide font-sans flex items-center gap-1">
-              CS Bot
-              <span className="premium-cs-action__handle text-[10px] font-mono font-normal">(@xsitecasinobot)</span>
+              အကူအညီ
             </span>
           </button>
         </aside>

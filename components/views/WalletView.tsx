@@ -8,7 +8,6 @@ import {
   Copy,
   Check,
   AlertCircle,
-  ShieldCheck,
   CreditCard,
   RefreshCw,
   Coins,
@@ -127,7 +126,7 @@ export function WalletView({
       if (ok) {
         sounds.playWin();
         setTrxLast5('');
-        setSuccessToast(`ငွေသွင်းလွှာ (${formatKs(depositAmount)}) တင်ပြပြီးပါပြီ (ငွေလွှဲ ID: ${cleanTrx})။ မကြာမီ စစ်ဆေးအတည်ပြုပေးပါမည်။`);
+        setSuccessToast('ငွေသွင်းတောင်းဆိုမှု ပို့ပြီးပါပြီ။');
         setTab('history');
         setHistorySubTab('deposits');
         setTimeout(() => setSuccessToast(null), 6000);
@@ -147,17 +146,17 @@ export function WalletView({
     }
 
     if (isHedgingBlocked) {
-      alert('ဘေးမညီလောင်းကြေး (Hedging) သို့မဟုတ် ကန့်သတ်ချက် ရှိနေသဖြင့် ငွေထုတ်ယူမှုကို ခေတ္တရပ်ဆိုင်းထားပါသည်။');
+      alert('ဘေးမညီလောင်းကြေးကြောင့် ငွေထုတ်လို့ မရသေးပါ။');
       return;
     }
 
     if (!isFirstDeposit && !firstWithdrawEligible) {
-      alert(`ပထမအကြိမ် ငွေထုတ်ရန် အနည်းဆုံး စုစုပေါင်း သွင်းငွေ ${formatKs(requiredDepositForFirstWithdraw)} ပြည့်ရပါမည်။`);
+      alert(`ပထမအကြိမ် ငွေထုတ်ရန် ${formatKs(requiredDepositForFirstWithdraw)} သွင်းထားရန် လိုအပ်ပါသည်။`);
       return;
     }
 
     if (!subsequentWithdrawEligible) {
-      alert(`ငွေထုတ်ယူရန် လိုအပ်သော လောင်းကြေးလည်ပတ်ငွေ (${formatKs(requiredWagerForWithdrawal)}) မပြည့်မီသေးပါ။`);
+      alert(`လိုအပ်သော လောင်းကြေး ${formatKs(requiredWagerForWithdrawal)} မပြည့်သေးပါ။`);
       return;
     }
 
@@ -189,7 +188,7 @@ export function WalletView({
       const ok = await onSubmitWithdrawal(withdrawAmount, method, targetPhone, targetName);
       if (ok) {
         sounds.playWin();
-        setSuccessToast(`ငွေထုတ်လွှာ (${formatKs(withdrawAmount)}) တင်ပြပြီးပါပြီ။ စက္ကန့် ၃၀ အတွင်း လွှဲပြောင်းပေးပါမည်။`);
+        setSuccessToast('ငွေထုတ်တောင်းဆိုမှု ပို့ပြီးပါပြီ။');
         setTab('history');
         setHistorySubTab('withdrawals');
         setTimeout(() => setSuccessToast(null), 6000);
@@ -213,7 +212,7 @@ export function WalletView({
       if (ok) {
         sounds.playWin();
         setIsEditingBank(false);
-        setSuccessToast('ဘဏ်အကောင့် အောင်မြင်စွာ ချိတ်ဆက်ပြီးပါပြီ!');
+        setSuccessToast('အကောင့် ချိတ်ဆက်ပြီးပါပြီ။');
         setTimeout(() => setSuccessToast(null), 4000);
       }
     } finally {
@@ -231,7 +230,7 @@ export function WalletView({
       const ok = await onTransferReferral();
       if (ok) {
         sounds.playWin();
-        setSuccessToast(`မိတ်ဆက်ခ ${formatKs(user.referralBalance)} ကို ပင်မလက်ကျန်သို့ ပြောင်းပြီးပါပြီ!`);
+        setSuccessToast('မိတ်ဆက်ခကို လက်ကျန်ငွေထဲသို့ ပြောင်းပြီးပါပြီ။');
         setTimeout(() => setSuccessToast(null), 5000);
       }
     } finally {
@@ -260,7 +259,7 @@ export function WalletView({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-zinc-400 tracking-wide uppercase">
-                  ကစားနိုင်သော လက်ကျန်ငွေ
+                  လက်ကျန်ငွေ
                 </span>
                 {onRefreshUser && (
                   <button
@@ -283,13 +282,6 @@ export function WalletView({
             </div>
           </div>
 
-          {/* Quick Trust Badges */}
-          <div className="flex items-center gap-2 self-start sm:self-auto text-xs font-bold text-zinc-300">
-            <div className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>စက္ကန့် ၃၀ ငွေသွင်း/ထုတ်</span>
-            </div>
-          </div>
         </div>
 
         {/* 2. FOUR SEGMENTED NAVIGATION TABS */}
@@ -371,7 +363,7 @@ export function WalletView({
           <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl flex flex-col gap-3">
             <span className="text-xs font-black text-white flex items-center gap-1.5">
               <CreditCard className="w-4 h-4 text-amber-400" />
-              <span>ငွေပေးချေမှု နည်းလမ်း ရွေးချယ်ပါ</span>
+              <span>ငွေပေးချေမှု</span>
             </span>
 
             <div className="grid grid-cols-2 gap-3">
@@ -397,7 +389,6 @@ export function WalletView({
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xs sm:text-sm font-black text-white">KBZPay</span>
-                  <span className="text-[10px] text-blue-300 font-medium">KPay မိုဘိုင်းဘဏ်</span>
                 </div>
                 {method === 'kpay' && (
                   <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-400" />
@@ -426,7 +417,6 @@ export function WalletView({
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xs sm:text-sm font-black text-white">Wave Money</span>
-                  <span className="text-[10px] text-amber-300 font-medium">WavePay အိတ်ဆောင်</span>
                 </div>
                 {method === 'wave' && (
                   <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-400" />
@@ -438,7 +428,7 @@ export function WalletView({
           {/* Payee Details Box */}
           <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-white">ငွေလက်ခံမည့် {method === 'kpay' ? 'KBZPay' : 'Wave Money'} အကောင့်</span>
+              <span className="text-xs font-black text-white">ငွေလွှဲရန်</span>
               <span className="text-[11px] text-zinc-400 font-medium">
                 အနည်းဆုံးသွင်းငွေ: <strong className="text-amber-400 font-mono">{formatKs(minDepositRequired)}</strong>
               </span>
@@ -446,7 +436,7 @@ export function WalletView({
 
             <div className="p-3 sm:p-4 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-between gap-3">
               <div className="flex flex-col">
-                <span className="text-xs text-zinc-400 font-medium">အကောင့်အမည်: <strong className="text-white">{currentPayName}</strong></span>
+                <span className="text-xs text-zinc-400 font-medium">{currentPayName}</span>
                 <span className="text-base sm:text-lg font-black text-amber-400 font-mono tracking-wider mt-0.5">
                   {currentPayPhone}
                 </span>
@@ -463,13 +453,13 @@ export function WalletView({
             </div>
 
             <p className="text-[11px] text-zinc-400 leading-relaxed">
-              အထက်ပါဖုန်းနံပါတ်သို့ ငွေလွှဲပြီးပါက ရရှိလာသော ငွေလွှဲ ID ၏ နောက်ဆုံး ၅ လုံးကို အောက်တွင် ထည့်သွင်းပေးပါရန် (ပုံတင်ရန် မလိုပါ)။
+              ငွေလွှဲပြီးပါက ပြေစာမှ နောက်ဆုံး ၅ လုံးကို ထည့်ပါ။
             </p>
           </div>
 
           {/* Deposit Amount Selection */}
           <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl flex flex-col gap-3">
-            <span className="text-xs font-black text-white">ငွေသွင်းမည့် ပမာဏ</span>
+            <span className="text-xs font-black text-white">သွင်းမည့်ပမာဏ</span>
 
             {/* Quick Chips */}
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -500,7 +490,7 @@ export function WalletView({
                 step={500}
                 value={depositAmount || ''}
                 onChange={(e) => setDepositAmount(Number(e.target.value))}
-                placeholder={`သွင်းမည့်ပမာဏ (အနည်းဆုံး ${minDepositRequired} Ks)`}
+                placeholder="သွင်းမည့်ပမာဏ"
                 className="w-full py-3 px-4 rounded-xl bg-black/60 border border-white/15 text-white font-mono font-bold text-sm focus:outline-none focus:border-amber-400/80"
               />
               <span className="absolute right-4 top-3.5 text-xs text-zinc-400 font-bold">Ks</span>
@@ -512,18 +502,11 @@ export function WalletView({
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-white flex items-center gap-1.5">
                 <Hash className="w-4 h-4 text-amber-400" />
-                <span>ငွေလွှဲ ID (နောက်ဆုံး ၅ လုံး)</span>
-              </span>
-              <span className="text-[10px] text-amber-400 font-bold bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/20">
-                ပုံတင်ရန်မလိုပါ
+                <span>ငွေလွှဲနံပါတ် · နောက်ဆုံး ၅ လုံး</span>
               </span>
             </div>
 
             <div className="flex flex-col gap-2">
-              <p className="text-[11px] text-zinc-300 leading-relaxed">
-                {method === 'kpay' ? 'KBZPay' : 'Wave Money'} ဖြင့် ငွေလွှဲပြီးပါက ပြေစာတွင် ဖော်ပြထားသော <strong>Transaction ID / ငွေလွှဲနံပါတ် ၏ နောက်ဆုံး ၅ လုံး</strong> ကို အောက်တွင် ရိုက်ထည့်ပေးပါ:
-              </p>
-
               <div className="relative mt-1">
                 <input
                   type="text"
@@ -536,9 +519,6 @@ export function WalletView({
                 />
               </div>
 
-              <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-[10px] text-zinc-400 text-center">
-                ဓာတ်ပုံရိုက်ပြီး တင်ရန်မလိုတော့ပါ။ ငွေလွှဲပြေစာမှ နံပါတ်နောက်ဆုံး ၅ လုံးဖြင့် စက္ကန့် ၃၀ အတွင်း အတည်ပြုပေးပါမည်။
-              </div>
             </div>
           </div>
 
@@ -553,7 +533,7 @@ export function WalletView({
             ) : (
               <ArrowDownLeft className="w-5 h-5 stroke-[2.5]" />
             )}
-            <span>{loading ? 'တင်ပြနေပါသည်...' : `ငွေသွင်းလွှာ တင်မည် (${formatKs(depositAmount)})`}</span>
+            <span>{loading ? 'တင်နေသည်…' : `ငွေသွင်းတင်မည် · ${formatKs(depositAmount)}`}</span>
           </button>
         </form>
       )}
@@ -647,7 +627,7 @@ export function WalletView({
 
                 <input
                   type="text"
-                  placeholder="အကောင့်နာမည် (Account Name)"
+                  placeholder="အကောင့်အမည်"
                   value={accountName}
                   onChange={(e) => setAccountName(e.target.value)}
                   className="py-2.5 px-3 rounded-xl bg-zinc-900 border border-white/15 text-xs text-white focus:outline-none focus:border-amber-400"
@@ -676,17 +656,17 @@ export function WalletView({
           {/* Daily Limit & Turnover Gauge */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="p-3.5 rounded-2xl bg-zinc-950/80 border border-white/10 backdrop-blur-xl flex flex-col justify-between">
-              <span className="text-[11px] text-zinc-400 font-bold">ယနေ့ ငွေထုတ်ယူနိုင်သော ကန့်သတ်ချက်</span>
+              <span className="text-[11px] text-zinc-400 font-bold">ယနေ့ ထုတ်နိုင်သည့်ပမာဏ</span>
               <div className="mt-2 flex items-baseline gap-1">
                 <span className="text-base sm:text-lg font-black text-amber-400 font-mono tabular-nums">
                   {formatKs(remainingDailyWithdrawal)}
                 </span>
-                <span className="text-[10px] text-zinc-500">/ ၃ သိန်း ကျပ်</span>
+                <span className="text-[10px] text-zinc-500">/ {formatKs(maxDailyLimit)}</span>
               </div>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-zinc-950/80 border border-white/10 backdrop-blur-xl flex flex-col justify-between">
-              <span className="text-[11px] text-zinc-400 font-bold">လိုအပ်သော လောင်းကြေးလည်ပတ်ငွေ</span>
+              <span className="text-[11px] text-zinc-400 font-bold">လိုအပ်သည့် လောင်းကြေး</span>
               <div className="mt-2 flex items-baseline gap-1">
                 <span className="text-base sm:text-lg font-black text-emerald-400 font-mono tabular-nums">
                   {formatKs(user.wagerSinceLastWithdrawal || 0)}
@@ -698,7 +678,7 @@ export function WalletView({
 
           {/* Withdrawal Amount Selection */}
           <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl flex flex-col gap-3">
-            <span className="text-xs font-black text-white">ထုတ်ယူမည့် ပမာဏ</span>
+            <span className="text-xs font-black text-white">ထုတ်မည့်ပမာဏ · အနည်းဆုံး {formatKs(settings.MINIMUM_WITHDRAW || 3000)}</span>
 
             {/* Quick Chips */}
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -729,7 +709,7 @@ export function WalletView({
                 step={500}
                 value={withdrawAmount || ''}
                 onChange={(e) => setWithdrawAmount(Number(e.target.value))}
-                placeholder={`ထုတ်ယူမည့်ပမာဏ (အနည်းဆုံး ${settings.MINIMUM_WITHDRAW || 3000} Ks)`}
+                placeholder="ထုတ်မည့်ပမာဏ"
                 className="w-full py-3 px-4 rounded-xl bg-black/60 border border-white/15 text-white font-mono font-bold text-sm focus:outline-none focus:border-amber-400/80"
               />
               <span className="absolute right-4 top-3.5 text-xs text-zinc-400 font-bold">Ks</span>
@@ -747,7 +727,7 @@ export function WalletView({
             ) : (
               <ArrowUpRight className="w-5 h-5 stroke-[2.5]" />
             )}
-            <span>{loading ? 'တင်ပြနေပါသည်...' : `ငွေထုတ်လွှာ တင်မည် (${formatKs(withdrawAmount)})`}</span>
+            <span>{loading ? 'တင်နေသည်…' : `ငွေထုတ်တင်မည် · ${formatKs(withdrawAmount)}`}</span>
           </button>
         </form>
       )}
@@ -769,7 +749,7 @@ export function WalletView({
               }`}
             >
               <ArrowDownLeft className="w-3.5 h-3.5" />
-              <span>ငွေသွင်းမှတ်တမ်း ({userDeposits.length})</span>
+              <span>ငွေသွင်း ({userDeposits.length})</span>
             </button>
 
             <button
@@ -784,7 +764,7 @@ export function WalletView({
               }`}
             >
               <ArrowUpRight className="w-3.5 h-3.5" />
-              <span>ငွေထုတ်မှတ်တမ်း ({userWithdrawals.length})</span>
+              <span>ငွေထုတ် ({userWithdrawals.length})</span>
             </button>
           </div>
 
@@ -816,13 +796,13 @@ export function WalletView({
                             {formatKs(d.amount)}
                           </span>
                           <span className="text-[10px] text-zinc-400 font-mono uppercase">
-                            {d.method}
+                            {d.method === 'kpay' ? 'KBZPay' : 'Wave Money'}
                           </span>
                         </div>
                         <span className="text-[11px] text-amber-300 font-mono mt-0.5 font-bold">
-                          ငွေလွှဲ ID: <span className="bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded">{d.trxLast5 || d.receiptImage || '-'}</span>
+                          ငွေလွှဲနံပါတ်: <span className="bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded">{d.trxLast5 || d.receiptImage || '-'}</span>
                         </span>
-                        <span className="text-[10px] text-zinc-500 font-mono mt-0.5">{new Date(d.createdAt).toLocaleString()} {d.reviewedAt ? `· စစ်ဆေးပြီး ${new Date(d.reviewedAt).toLocaleString()}` : ''}</span>
+                        <span className="text-[10px] text-zinc-500 font-mono mt-0.5">{new Date(d.createdAt).toLocaleString('my-MM')} {d.reviewedAt ? `· စစ်ဆေးပြီး ${new Date(d.reviewedAt).toLocaleString('my-MM')}` : ''}</span>
                         {d.reviewNote && <span className="text-[10px] text-red-300/80 mt-0.5">မှတ်ချက်: {d.reviewNote}</span>}
                       </div>
                     </div>
@@ -882,10 +862,10 @@ export function WalletView({
                             {formatKs(w.amount)}
                           </span>
                           <span className="text-[10px] text-zinc-400 font-mono uppercase">
-                            {w.method}
+                            {w.method === 'kpay' ? 'KBZPay' : 'Wave Money'}
                           </span>
                         </div>
-                        <span className="text-[10px] text-zinc-500 font-mono mt-0.5">{new Date(w.createdAt).toLocaleString()} · {w.phone} ({w.accountName}) {w.reviewedAt ? `· စစ်ဆေးပြီး ${new Date(w.reviewedAt).toLocaleString()}` : ''}</span>
+                        <span className="text-[10px] text-zinc-500 font-mono mt-0.5">{new Date(w.createdAt).toLocaleString('my-MM')} · {w.phone} {w.reviewedAt ? `· စစ်ဆေးပြီး ${new Date(w.reviewedAt).toLocaleString('my-MM')}` : ''}</span>
                         {(w.rejectionReason || w.reviewNote) && <span className="text-[10px] text-red-300/80 mt-0.5">မအောင်မြင်ရခြင်း: {w.rejectionReason || w.reviewNote}</span>}
                       </div>
                     </div>
@@ -927,15 +907,12 @@ export function WalletView({
               <Coins className="w-6 h-6 stroke-[2.2]" />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-black text-white">မိတ်ဆက်ခကို ပင်မလက်ကျန်သို့ ပြောင်းမည်</h3>
-              <p className="text-xs text-zinc-400">
-                ရရှိထားသော မိတ်ဆက်ခကို ဂိမ်းထဲသို့ ထည့်သွင်းပြီး စလော့နှင့် အံစာတုံး တိုက်ရိုက်ကစားပါ
-              </p>
+              <h3 className="text-sm sm:text-base font-black text-white">မိတ်ဆက်ခ လက်ကျန်</h3>
             </div>
           </div>
 
           <div className="p-4 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-between">
-            <span className="text-xs font-bold text-zinc-400">ရရှိထားသော မိတ်ဆက်ခ လက်ကျန်</span>
+              <span className="text-xs font-bold text-zinc-400">လက်ကျန်ငွေ</span>
             <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono tabular-nums">
               {formatKs(user.referralBalance)}
             </span>
@@ -954,8 +931,8 @@ export function WalletView({
             )}
             <span>
               {user.referralBalance >= settings.MINIMUM_TRANSFER_AMOUNT
-                ? `မိတ်ဆက်ခ (${formatKs(user.referralBalance)}) ကို ပင်မလက်ကျန်သို့ ပြောင်းမည်`
-                : `အနည်းဆုံး ${formatKs(settings.MINIMUM_TRANSFER_AMOUNT)} ပြည့်ပါက ပြောင်းနိုင်ပါသည်`}
+                ? 'ပြောင်းရန်'
+                : `အနည်းဆုံး ${formatKs(settings.MINIMUM_TRANSFER_AMOUNT)}`}
             </span>
           </button>
         </div>

@@ -12,13 +12,10 @@ import {
   ShieldCheck,
   TrendingUp,
   Award,
-  Sparkles,
-  ArrowRight,
   Clock,
   QrCode,
   X,
   ChevronRight,
-  Crown,
   RefreshCw,
   CheckCircle2,
   AlertCircle,
@@ -99,7 +96,7 @@ export function ReferralView({
 
   const handleTransfer = async () => {
     if (user.referralBalance < settings.MINIMUM_TRANSFER_AMOUNT) {
-      alert(`မိတ်ဆက်ခ ပြောင်းရန် အနည်းဆုံး ${formatKs(settings.MINIMUM_TRANSFER_AMOUNT)} ပြည့်ရပါမည်။`);
+      alert(`ပြောင်းရန် အနည်းဆုံး ${formatKs(settings.MINIMUM_TRANSFER_AMOUNT)} လိုအပ်ပါသည်။`);
       return;
     }
     setTransferring(true);
@@ -108,7 +105,7 @@ export function ReferralView({
       const ok = await onTransferReferral();
       if (ok) {
         sounds.playWin();
-        setTransferSuccessMsg(`မိတ်ဆက်ခ ${formatKs(user.referralBalance)} ကို ပင်မလက်ကျန်သို့ အောင်မြင်စွာ ပြောင်းပြီးပါပြီ!`);
+        setTransferSuccessMsg('မိတ်ဆက်ခကို လက်ကျန်ငွေထဲသို့ ပြောင်းပြီးပါပြီ။');
         setTimeout(() => setTransferSuccessMsg(null), 5000);
       }
     } finally {
@@ -161,53 +158,30 @@ export function ReferralView({
 
   return (
     <div className="premium-referral-view w-full flex flex-col gap-4 pb-12 animate-fadeIn">
-      {/* 1. TOP VIP REFERRAL HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-3xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 flex items-center justify-center text-black shadow-lg shadow-amber-500/20 shrink-0">
-            <Crown className="w-6 h-6 stroke-black fill-black" />
+      {/* 1. REFERRAL HEADER */}
+      <div className="premium-referral-header flex items-center justify-between gap-3 p-4 sm:p-5 rounded-3xl border border-black/10 bg-white/75 shadow-sm">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-900">
+            <Share2 className="h-5 w-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-black text-white tracking-tight">
-                ဖိတ်ခေါ်မှု & VIP ကော်မရှင်
-              </h1>
-              <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-black uppercase tracking-wider">
-                VIP Partner
-              </span>
-            </div>
-            <p className="text-xs text-zinc-400 font-medium">
-              သူငယ်ချင်းများကို ဖိတ်ခေါ်ပြီး တသက်တာ ကော်မရှင်နှင့် အထူးဆုကြေးများ ရယူပါ
-            </p>
-          </div>
+          <h1 className="text-base sm:text-lg font-black text-zinc-900 tracking-tight">ဖိတ်ခေါ်မှု</h1>
         </div>
-
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <div className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <div className="flex flex-col text-right">
-              <span className="text-[10px] text-zinc-400 font-bold">ကော်မရှင်နှုန်းထား</span>
-              <span className="text-xs font-black text-amber-400 font-mono">
-                {Math.round(settings.COMMISSION_RATE * 100)}% Lifetime
-              </span>
-            </div>
-          </div>
+        <div className="flex shrink-0 items-center gap-2 rounded-full border border-black/10 bg-white/80 px-3 py-2">
+          <span className="text-[11px] font-semibold text-zinc-500">ကော်မရှင်</span>
+          <span className="text-sm font-black text-zinc-900 font-mono">{Math.round(settings.COMMISSION_RATE * 100)}%</span>
         </div>
       </div>
 
       {/* 2. AFFILIATE HERO CARD (Instant Link, QR Code & Share) */}
-      <div className="premium-referral-hero p-4 sm:p-6 rounded-3xl bg-gradient-to-br from-zinc-900/90 via-zinc-950/95 to-black border border-white/10 backdrop-blur-2xl shadow-2xl relative overflow-hidden">
-        {/* Ambient Glow */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
+      <div className="premium-referral-hero p-4 sm:p-6 rounded-3xl border border-black/10 bg-white/90 shadow-sm relative overflow-hidden">
         <div className="relative z-10 flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Share2 className="w-4 h-4 text-amber-400" />
-              <span className="text-xs sm:text-sm font-black text-white">သင့် ဖိတ်ခေါ်လင့်ခ် (Referral Link)</span>
+              <Share2 className="w-4 h-4 text-zinc-700" />
+              <span className="text-xs sm:text-sm font-black text-zinc-900">ဖိတ်ခေါ်လင့်ခ်</span>
             </div>
-            <span className="text-[11px] text-zinc-400">
-              ဖိတ်ခေါ်ကုဒ် (Code): <span className="font-mono text-amber-400 font-black">{user.uid.slice(0, 8)}...</span>
+            <span className="text-[11px] text-zinc-500">
+              ကုဒ်: <span className="font-mono text-zinc-800 font-black">{user.uid.slice(0, 8)}...</span>
             </span>
           </div>
 
@@ -217,19 +191,20 @@ export function ReferralView({
               type="text"
               readOnly
               value={referralLink}
-              className="bg-transparent flex-1 px-3 text-xs sm:text-sm font-mono text-white/90 focus:outline-none select-all truncate"
+              aria-label="ဖိတ်ခေါ်လင့်ခ်"
+              className="bg-transparent flex-1 px-3 text-xs sm:text-sm font-mono text-zinc-800 focus:outline-none select-all truncate"
             />
             <button
               onClick={handleCopyLink}
-              className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs transition-all active:scale-95 shadow-md flex items-center gap-1.5 shrink-0"
+              className="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-black text-xs transition-all active:scale-95 shadow-md flex items-center gap-1.5 shrink-0"
             >
               {copiedLink ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <Copy className="w-3.5 h-3.5 stroke-[2.5]" />}
-              <span>{copiedLink ? 'ကူးယူပြီး' : 'Copy'}</span>
+              <span>{copiedLink ? 'ကူးပြီး' : 'ကူးရန်'}</span>
             </button>
           </div>
 
           {/* Action Buttons: QR Code View & Telegram Share */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
             <button
               onClick={() => {
                 sounds.playChip();
@@ -238,7 +213,7 @@ export function ReferralView({
               className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
             >
               <QrCode className="w-4 h-4 text-amber-400" />
-              <span>QR Code စကင်ပြမည်</span>
+              <span>QR ပြရန်</span>
             </button>
 
             <button
@@ -246,7 +221,7 @@ export function ReferralView({
               className="py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
             >
               {copiedCode ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-cyan-400" />}
-              <span>{copiedCode ? 'ကုဒ် ကူးယူပြီး' : 'ဖိတ်ခေါ်ကုဒ် ကူးမည်'}</span>
+              <span>{copiedCode ? 'ကုဒ် ကူးပြီး' : 'ကုဒ်ကူးရန်'}</span>
             </button>
 
             <a
@@ -257,14 +232,24 @@ export function ReferralView({
               className="py-2.5 px-3 rounded-xl bg-[#2AABEE]/20 hover:bg-[#2AABEE]/30 border border-[#2AABEE]/40 text-[#2AABEE] hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md"
             >
               <Share2 className="w-4 h-4" />
-              <span>Telegram သို့ မျှဝေမည်</span>
+              <span>မျှဝေရန်</span>
             </a>
           </div>
         </div>
       </div>
 
-      {/* 3. 4-METRIC VIP COMMISSION MATRIX */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+      {/* 3. COMPACT REFERRAL SUMMARY */}
+      <details className="premium-referral-section">
+        <summary className="premium-referral-section__summary">
+          <div className="flex min-w-0 items-center gap-2 text-sm font-bold text-zinc-800">
+            <Users className="h-4 w-4 shrink-0 text-zinc-600" />
+            <span>ဖိတ်ခေါ်သူ <strong className="text-zinc-950">{totalInvitedCount}</strong></span>
+            <span className="text-zinc-400">·</span>
+            <span>ငွေသွင်းပြီး <strong className="text-zinc-950">{depositedCount}</strong></span>
+          </div>
+          <ChevronRight className="premium-referral-section__chevron h-4 w-4 shrink-0 text-zinc-500" />
+        </summary>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 px-3 pb-3">
         {/* Stat 1: Total Invited */}
         <div className="p-3.5 sm:p-4 rounded-2xl bg-zinc-950/70 border border-white/10 flex flex-col justify-between backdrop-blur-xl">
           <div className="flex items-center justify-between">
@@ -326,36 +311,33 @@ export function ReferralView({
             </span>
           </div>
         </div>
-      </div>
+        </div>
+      </details>
 
       {/* 4. INSTANT COMMISSION TRANSFER TO MAIN BALANCE */}
       {user.referralBalance >= settings.MINIMUM_TRANSFER_AMOUNT ? (
-        <div className="p-4 rounded-3xl bg-gradient-to-r from-amber-500/20 via-amber-600/15 to-amber-700/20 border border-amber-500/40 backdrop-blur-2xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-pulse">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-3xl border border-black/10 bg-white/90 p-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-400 text-black flex items-center justify-center font-black shrink-0 shadow-md">
+            <div className="w-10 h-10 rounded-2xl bg-zinc-100 text-zinc-900 flex items-center justify-center font-black shrink-0">
               <Coins className="w-5 h-5 stroke-[2.5]" />
             </div>
-            <div>
-              <span className="text-xs sm:text-sm font-black text-white block">
-                မိတ်ဆက်ခ ({formatKs(user.referralBalance)}) ကို ပင်မလက်ကျန်သို့ ပြောင်းပါ
-              </span>
-              <span className="text-[11px] text-amber-200 font-medium">
-                ချက်ချင်းဂိမ်းထဲထည့်သွင်းပြီး စလော့နှင့် အံစာတုံး ကစားနိုင်ပါသည်
-              </span>
+            <div className="flex flex-col">
+              <span className="text-xs font-semibold text-zinc-500">မိတ်ဆက်ခ လက်ကျန်</span>
+              <span className="text-base font-black text-zinc-950 font-mono">{formatKs(user.referralBalance)}</span>
             </div>
           </div>
 
           <button
             onClick={handleTransfer}
             disabled={transferring}
-            className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 shrink-0 disabled:opacity-50"
+            className="px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-black text-xs transition-all active:scale-95 shadow-sm flex items-center justify-center gap-2 shrink-0 disabled:opacity-50"
           >
             {transferring ? (
               <RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" />
             ) : (
               <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
             )}
-            <span>{transferring ? 'ပြောင်းနေပါသည်...' : 'ပင်မလက်ကျန်သို့ ပြောင်းမည်'}</span>
+            <span>{transferring ? 'ပြောင်းနေသည်…' : 'ပြောင်းရန်'}</span>
           </button>
         </div>
       ) : (
@@ -363,11 +345,11 @@ export function ReferralView({
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-zinc-500 shrink-0" />
             <span className="text-[11px]">
-              မိတ်ဆက်ခ အနည်းဆုံး <strong className="text-white font-mono">{formatKs(settings.MINIMUM_TRANSFER_AMOUNT)}</strong> ပြည့်ပါက ပင်မလက်ကျန်သို့ ပြောင်းနိုင်ပါသည်
+              ပြောင်းရန် အနည်းဆုံး <strong className="text-zinc-900 font-mono">{formatKs(settings.MINIMUM_TRANSFER_AMOUNT)}</strong> လိုအပ်ပါသည်
             </span>
           </div>
           <span className="text-[10px] font-mono font-bold text-amber-400/80 shrink-0">
-            လက်ကျန်: {formatKs(user.referralBalance)}
+            လက်ကျန် {formatKs(user.referralBalance)}
           </span>
         </div>
       )}
@@ -380,17 +362,18 @@ export function ReferralView({
         </div>
       )}
 
-      {/* 5. 3 MILESTONE REWARD TIERS */}
-      <div className="flex flex-col gap-3 p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Award className="w-4 h-4 text-amber-400" />
-            <h2 className="text-xs sm:text-sm font-black text-white">မန်ဘာ သွင်းငွေ ဆုကြေးများ (Milestone Rewards)</h2>
+      {/* 5. OPTIONAL REWARD DETAILS */}
+      <details className="premium-referral-section">
+        <summary className="premium-referral-section__summary">
+          <div className="flex min-w-0 items-center gap-2 text-sm font-bold text-zinc-800">
+            <Award className="h-4 w-4 shrink-0 text-zinc-600" />
+            <span>ဆုကြေးများ</span>
+            <span className="text-xs font-semibold text-zinc-500">· +9,000 Ks</span>
           </div>
-          <span className="text-[10px] text-zinc-400 font-bold">စုစုပေါင်း +9,000 Ks ဆုကြေး</span>
-        </div>
+          <ChevronRight className="premium-referral-section__chevron h-4 w-4 shrink-0 text-zinc-500" />
+        </summary>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 px-4 pb-4">
           {/* Milestone Tier 1 */}
           <div className="p-4 rounded-2xl bg-zinc-900/60 border border-white/10 flex flex-col justify-between gap-3 relative overflow-hidden">
             <div className="flex items-start justify-between gap-2">
@@ -535,19 +518,20 @@ export function ReferralView({
             )}
           </div>
         </div>
-      </div>
+      </details>
 
       {/* 6. DETAILED REFERRED MEMBERS FEED */}
+      <details className="premium-referral-section">
+        <summary className="premium-referral-section__summary">
+          <div className="flex min-w-0 items-center gap-2 text-sm font-bold text-zinc-800">
+            <Users className="h-4 w-4 shrink-0 text-zinc-600" />
+            <span>ဖိတ်ခေါ်သူစာရင်း</span>
+          </div>
+          <ChevronRight className="premium-referral-section__chevron h-4 w-4 shrink-0 text-zinc-500" />
+        </summary>
       <div className="p-4 sm:p-5 rounded-3xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl flex flex-col gap-3">
         {/* Header & Segmented Filter Tabs */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-cyan-400" />
-            <span className="text-xs sm:text-sm font-black text-white">
-              ဖိတ်ခေါ်ထားသော မန်ဘာများ ({filteredMembers.length})
-            </span>
-          </div>
-
+        <div className="flex justify-end gap-2.5 pb-2 border-b border-white/10">
           <div className="flex items-center p-1 rounded-xl bg-zinc-900 border border-white/10 self-start sm:self-auto">
             <button
               onClick={() => {
@@ -592,16 +576,16 @@ export function ReferralView({
               <Clock className="w-8 h-8 text-zinc-600 stroke-[1.5]" />
               <p className="font-medium">
                 {filter === 'deposited'
-                  ? 'ငွေသွင်းထားသော မန်ဘာ မရှိသေးပါ။'
+                  ? 'ငွေသွင်းသူ မရှိသေးပါ။'
                   : filter === 'registered'
-                  ? 'ငွေမသွင်းရသေးသော မန်ဘာ မရှိပါ။'
-                  : 'ဖိတ်ခေါ်ထားသော မန်ဘာ မရှိသေးပါ။'}
+                  ? 'မသွင်းရသေးသူ မရှိပါ။'
+                  : 'ဖိတ်ခေါ်သူ မရှိသေးပါ။'}
               </p>
               <button
                 onClick={handleCopyLink}
                 className="mt-1 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-xs border border-white/10 active:scale-95"
               >
-                ဖိတ်ခေါ်လင့်ခ် ကူးယူပြီး စတင်ဖိတ်ခေါ်ပါ
+                လင့်ခ်ကူးရန်
               </button>
             </div>
           ) : (
@@ -623,12 +607,12 @@ export function ReferralView({
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
                         <span className="font-black text-white text-xs sm:text-sm">
-                          {m.fullName || `Player ${m.uid.slice(0, 6)}`}
+                          {m.fullName || `အသုံးပြုသူ ${m.uid.slice(0, 6)}`}
                         </span>
                         {m.hasSuccessfulDeposit ? (
                           <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold flex items-center gap-1">
                             <ShieldCheck className="w-2.5 h-2.5" />
-                            Active
+                            ငွေသွင်းပြီး
                           </span>
                         ) : (
                           <span className="px-1.5 py-0.5 rounded-md bg-white/5 text-zinc-400 border border-white/10 text-[10px] font-medium">
@@ -637,7 +621,7 @@ export function ReferralView({
                         )}
                       </div>
                       <span className="text-[10px] text-zinc-500 font-mono mt-0.5">
-                        Joined: {new Date(m.joinedAt).toLocaleDateString()} · UID: {m.uid.slice(0, 8)}...
+                        ကုဒ် · {m.uid.slice(0, 8)}...
                       </span>
                     </div>
                   </div>
@@ -664,6 +648,7 @@ export function ReferralView({
           )}
         </div>
       </div>
+      </details>
 
       {/* 7. QR CODE MODAL FOR IN-PERSON SCANNING */}
       {isQrModalOpen && (
@@ -685,10 +670,7 @@ export function ReferralView({
               <div className="w-10 h-10 rounded-2xl bg-amber-400/10 border border-amber-400/30 text-amber-400 flex items-center justify-center mx-auto mb-2">
                 <QrCode className="w-5 h-5 stroke-[2.5]" />
               </div>
-              <h3 className="text-base font-black text-white">ဖိတ်ခေါ် QR Code</h3>
-              <p className="text-[11px] text-zinc-400 font-medium mt-0.5">
-                သူငယ်ချင်း၏ ဖုန်းကင်မရာဖြင့် ချက်ချင်း စကင်ဖတ်နိုင်ပါသည်
-              </p>
+              <h3 className="text-base font-black text-white">ဖိတ်ခေါ် QR</h3>
             </div>
 
             {/* QR Image Box */}
@@ -696,12 +678,12 @@ export function ReferralView({
               {qrDataUrl ? (
                 <img
                   src={qrDataUrl}
-                  alt="Referral QR Code"
+                  alt="ဖိတ်ခေါ် QR"
                   className="w-48 h-48 sm:w-56 sm:h-56 object-contain"
                 />
               ) : (
                 <div className="w-48 h-48 flex items-center justify-center text-xs text-black/60 font-bold">
-                  QR Code ပြုလုပ်နေပါသည်...
+                  ပြုလုပ်နေသည်…
                 </div>
               )}
             </div>
@@ -713,7 +695,7 @@ export function ReferralView({
                 className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs transition-all active:scale-95 flex items-center justify-center gap-2 shadow-md"
               >
                 {copiedLink ? <Check className="w-4 h-4 stroke-[3]" /> : <Copy className="w-4 h-4 stroke-[2.5]" />}
-                <span>{copiedLink ? 'လင့်ခ် ကူးယူပြီးပါပြီ' : 'ဖိတ်ခေါ်လင့်ခ် ကူးယူမည်'}</span>
+                <span>{copiedLink ? 'ကူးပြီးပါပြီ' : 'လင့်ခ်ကူးရန်'}</span>
               </button>
 
               <button
