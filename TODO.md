@@ -97,3 +97,13 @@
 - [x] Remove all RTP labels/percentages and any player-facing text that says a spin is being checked or confirmed by the server. Start the reel animation immediately on tap; keep the final outcome, payout, and wallet changes server-authoritative.
 - [x] Let authenticated admins change Sakura Fortune RTP only from the admin dashboard. Accept whole-number percentages from 50 through 95, default to 80%, persist the setting, and apply it in server payout calculations without returning it in player-facing API responses.
 - [x] Ensure the standalone production output includes the public game HTML and artwork; verify the deployed-style server returns the game page and image assets successfully.
+
+
+## Premium light casino UI redesign
+
+- [x] Apply a consistent premium light theme across the existing player experience: soft pearl-white and cool-gray surfaces, charcoal text, restrained champagne-gold accents, refined borders/shadows, rounded cards, professional typography, and consistent Lucide line icons; do not use emoji as interface icons or invent unsupported application pages.
+- [x] Add a responsive casino navigation and lightweight header with working search, notification state, profile/avatar and actual signed-in status, wallet balance from existing account data, and deposit action. Desktop sidebar is collapsible; smaller screens use a polished mobile navigation with usable touch targets and no horizontal overflow. Keep navigation limited to existing application functionality.
+- [x] Improve the dashboard and lobby with accurate account data only; include applicable balance, successful deposit totals, approved-withdrawal count, latest real deposit/withdrawal records, session-scoped recently played games, existing promotional/game artwork, category filtering, search, favorites, recent synchronized round history, and clear empty states. Do not invent balances, transactions, winners, or promotion amounts.
+- [x] Upgrade the presentation of the existing Buffalo, Live Dice, Deep Sea Catch and Sakura Fortune cards using the project's real artwork, consistent proportions, refined hover/focus states, and keyboard-accessible actions. Preserve each game's actual mechanics, odds, RTP, betting/wallet calculations, APIs, authentication, and integrations.
+- [x] Preserve all existing routes, working authentication, wallet/deposit/withdrawal/transaction history, rewards/referral, profile and admin flows. Use responsive layouts and restrained transitions; do not interfere with gameplay.
+- [x] Run the existing lint and production-build commands; fix regressions attributable to this redesign and report any pre-existing check failures separately.

@@ -119,7 +119,7 @@ export function ProfileView({
   return (
     <div className="w-full flex flex-col gap-4 pb-12 animate-fadeIn">
       {/* 1. VIP MEMBER PRESTIGE CARD (Obsidian & Gold Shimmer backdrop with VIP Badge) */}
-      <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-950/90">
+      <div className="premium-member-hero relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-950/90">
         {/* Subtle Obsidian & Warm Gold Background Image Overlay */}
         <div
           className="absolute inset-0 bg-cover bg-center opacity-30 pointer-events-none"

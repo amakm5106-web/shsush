@@ -30,9 +30,7 @@ import {
   Clock,
   LogIn,
   History,
-  Coins,
   Sparkles,
-  ShieldCheck,
   Users,
   ArrowLeft,
   Play,
@@ -41,7 +39,17 @@ import {
   Crown,
   ChevronRight,
   ChevronLeft,
-  Trophy,
+  Bell,
+  Search,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  LayoutDashboard,
+  Gamepad2,
+  ReceiptText,
+  Gift,
+  Star,
+  X,
   Headphones,
   ArrowDownLeft,
   ArrowUpRight,
@@ -359,8 +367,15 @@ export default function Home() {
     setSelectedGame('lobby');
   };
 
-  const [lobbyCategory, setLobbyCategory] = useState<'all' | 'slots' | 'dice' | 'hot'>('all');
+  const [lobbyCategory, setLobbyCategory] = useState<'all' | 'slots' | 'dice' | 'hot' | 'favorites'>('all');
   const [promoIndex, setPromoIndex] = useState<number>(0);
+  const [gameSearch, setGameSearch] = useState('');
+  const [favoriteGames, setFavoriteGames] = useState<string[]>([]);
+  const [recentlyPlayed, setRecentlyPlayed] = useState<Array<'buffalo' | 'dice' | 'fishing' | 'sakura'>>([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [walletInitialTab, setWalletInitialTab] = useState<'deposit' | 'withdraw' | 'history' | 'transfer'>('deposit');
 
   // Auto-advance promo carousel every 6 seconds
   useEffect(() => {
@@ -1947,9 +1962,43 @@ export default function Home() {
   };
 
   const timerPercent = Math.max(0, Math.min(100, (timeLeft / (settings.ROUND_DURATION_SECONDS || 60)) * 100));
+  const goToWallet = (tab: 'deposit' | 'withdraw' | 'history' | 'transfer' = 'deposit') => {
+    setWalletInitialTab(tab);
+    setSelectedGame('lobby');
+    setActiveTab('wallet');
+    setMobileSidebarOpen(false);
+  };
+  const goToLobby = () => {
+    setSelectedGame('lobby');
+    setActiveTab('home');
+    setMobileSidebarOpen(false);
+  };
+  const matchesGameSearch = (terms: string) =>
+    !gameSearch.trim() || terms.toLocaleLowerCase().includes(gameSearch.trim().toLocaleLowerCase());
+  const hasBuffalo = (lobbyCategory === 'favorites' ? favoriteGames.includes('buffalo') : lobbyCategory === 'all' || lobbyCategory === 'slots' || lobbyCategory === 'hot') && matchesGameSearch('charge buffalo ကျွဲ slot');
+  const hasDice = (lobbyCategory === 'favorites' ? favoriteGames.includes('dice') : lobbyCategory === 'all' || lobbyCategory === 'dice' || lobbyCategory === 'hot') && matchesGameSearch('live dice 777 အံစာ');
+  const hasFishing = (lobbyCategory === 'favorites' ? favoriteGames.includes('fishing') : lobbyCategory === 'all' || lobbyCategory === 'hot') && matchesGameSearch('deep sea catch fishing ငါး');
+  const hasSakura = (lobbyCategory === 'favorites' ? favoriteGames.includes('sakura') : lobbyCategory === 'all' || lobbyCategory === 'slots' || lobbyCategory === 'hot') && matchesGameSearch('sakura fortune deluxe slot');
+  const recentTransactions = [
+    ...userDeposits.map((row) => ({ key: row.id || row.depositId, kind: 'deposit' as const, amount: row.amount, status: row.status, createdAt: Number(row.createdAt) || 0 })),
+    ...userWithdrawals.map((row) => ({ key: row.id || row.withdrawalId, kind: 'withdrawal' as const, amount: row.amount, status: row.status, createdAt: Number(row.createdAt) || 0 })),
+  ].sort((left, right) => right.createdAt - left.createdAt).slice(0, 4);
+  const toggleFavorite = (game: string) => {
+    setFavoriteGames((current) => current.includes(game) ? current.filter((item) => item !== game) : [...current, game]);
+  };
+  const launchGame = (game: 'buffalo' | 'dice' | 'fishing' | 'sakura') => {
+    sounds.playChip();
+    setRecentlyPlayed((current) => [game, ...current.filter((item) => item !== game)].slice(0, 4));
+    setActiveTab('home');
+    setMobileSidebarOpen(false);
+    window.scrollTo(0, 0);
+    if (game === 'buffalo') enterBuffaloGame();
+    else if (game === 'sakura') window.location.assign('/sakura-fortune');
+    else setSelectedGame(game);
+  };
 
   return (
-    <main className="app-shell w-full min-h-screen text-white flex flex-col items-center justify-between pb-24 selection:bg-white/20 selection:text-white">
+    <main className={`app-shell premium-portal ${sidebarCollapsed ? 'is-sidebar-collapsed' : ''} ${selectedGame !== 'lobby' && activeTab === 'home' ? `premium-portal--game premium-portal--${selectedGame}` : ''}`}>
       {/* Global In-Game Toast Banner (Zero blocking alerts) */}
       {globalToast && (
         <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-[#141822]/95 border border-amber-400/50 shadow-2xl shadow-black/80 rounded-2xl px-5 py-2.5 text-white text-xs sm:text-sm font-bold flex items-center gap-2.5 backdrop-blur-md pointer-events-none animate-fadeIn">
@@ -1958,16 +2007,106 @@ export default function Home() {
         </div>
       )}
 
+      {mobileSidebarOpen && <button className="premium-sidebar-scrim" aria-label="မီနူးပိတ်ရန်" onClick={() => setMobileSidebarOpen(false)} />}
+      <aside className={`premium-sidebar ${sidebarCollapsed ? 'is-collapsed' : ''} ${mobileSidebarOpen ? 'is-mobile-open' : ''}`} aria-label="ပင်မလမ်းညွှန်">
+        <div className="premium-sidebar__brand">
+          <div className="premium-brand-mark"><Crown aria-hidden="true" /></div>
+          <div className="premium-brand-copy"><strong>XSITE</strong><span>CASINOS</span></div>
+          <button className="premium-sidebar__collapse" onClick={() => setSidebarCollapsed((value) => !value)} aria-label={sidebarCollapsed ? 'မီနူးချဲ့ရန်' : 'မီနူးကျုံ့ရန်'} title={sidebarCollapsed ? 'မီနူးချဲ့ရန်' : 'မီနူးကျုံ့ရန်'}>
+            {sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+          </button>
+        </div>
+        <nav className="premium-sidebar__nav">
+          <span className="premium-sidebar__label">အဓိက</span>
+          <button className={`premium-nav-item ${activeTab === 'home' && selectedGame === 'lobby' ? 'is-active' : ''}`} onClick={goToLobby} title="ပင်မ">
+            <LayoutDashboard /><span>ပင်မစာမျက်နှာ</span>
+          </button>
+          <button className={`premium-nav-item ${activeTab === 'home' && selectedGame === 'dice' ? 'is-active' : ''}`} onClick={() => launchGame('dice')} title="တိုက်ရိုက်အံစာ">
+            <Dices /><span>တိုက်ရိုက်အံစာ</span>
+          </button>
+          <button className={`premium-nav-item ${activeTab === 'home' && selectedGame === 'buffalo' ? 'is-active' : ''}`} onClick={() => launchGame('buffalo')} title="Charge Buffalo">
+            <Gamepad2 /><span>Charge Buffalo</span>
+          </button>
+          <button className={`premium-nav-item ${activeTab === 'home' && selectedGame === 'fishing' ? 'is-active' : ''}`} onClick={() => launchGame('fishing')} title="Deep Sea Catch">
+            <Fish /><span>Deep Sea Catch</span>
+          </button>
+          <button className="premium-nav-item" onClick={() => launchGame('sakura')} title="Sakura Fortune">
+            <Sparkles /><span>Sakura Fortune</span>
+          </button>
+          <span className="premium-sidebar__label premium-sidebar__label--spaced">အကောင့်</span>
+          <button className={`premium-nav-item ${activeTab === 'wallet' && walletInitialTab !== 'history' ? 'is-active' : ''}`} onClick={() => goToWallet('deposit')} title="ပိုက်ဆံအိတ်">
+            <Wallet /><span>ပိုက်ဆံအိတ်</span>
+          </button>
+          <button className={`premium-nav-item ${activeTab === 'wallet' && walletInitialTab === 'history' ? 'is-active' : ''}`} onClick={() => goToWallet('history')} title="ငွေကြေးမှတ်တမ်း">
+            <ReceiptText /><span>ငွေကြေးမှတ်တမ်း</span>
+          </button>
+          <button className={`premium-nav-item ${activeTab === 'referral' ? 'is-active' : ''}`} onClick={() => { setSelectedGame('lobby'); setActiveTab('referral'); setMobileSidebarOpen(false); }} title="ဆုလက်ဆောင်နှင့် ဖိတ်ခေါ်မှု">
+            <Gift /><span>ဆုလက်ဆောင်များ</span>
+          </button>
+          <button className={`premium-nav-item ${activeTab === 'profile' ? 'is-active' : ''}`} onClick={() => { setSelectedGame('lobby'); setActiveTab('profile'); setMobileSidebarOpen(false); }} title="ပရိုဖိုင်">
+            <User /><span>ပရိုဖိုင်</span>
+          </button>
+          <button className="premium-nav-item" onClick={() => { openTelegramLink(CUSTOMER_SERVICE_BOT_LINK); setMobileSidebarOpen(false); }} title="အကူအညီ">
+            <Headphones /><span>အကူအညီ</span>
+          </button>
+          <button className="premium-nav-item" onClick={() => { openTelegramLink(TELEGRAM_CHANNEL_LINK); setMobileSidebarOpen(false); }} title="တရားဝင် Telegram Channel">
+            <Megaphone /><span>Telegram Channel</span>
+          </button>
+          {(userProfile?.role === 'admin' || isAdminEmail(currentUser?.email)) && <button className="premium-nav-item" onClick={() => setIsAdminOpen(true)} title="အက်ဒမင်">
+            <ShieldAlert /><span>အက်ဒမင်</span>
+          </button>}
+        </nav>
+        <div className="premium-sidebar__account">
+          <div className="premium-avatar">{(userProfile?.fullName || 'X').slice(0, 1).toUpperCase()}</div>
+          <div className="premium-sidebar__account-copy"><strong>{userProfile?.fullName || 'ဧည့်သည်'}</strong><span>{currentUser ? 'အကောင့်ဝင်ထားသည်' : 'အကောင့်မဝင်ရသေးပါ'}</span></div>
+          {!currentUser && <button className="premium-sign-in" onClick={() => setIsAuthModalOpen(true)}>ဝင်ရန်</button>}
+        </div>
+      </aside>
+
+      <div className="premium-portal__main">
+        <header className="premium-topbar">
+          <button className="premium-mobile-menu" onClick={() => setMobileSidebarOpen(true)} aria-label="လမ်းညွှန်မီနူးဖွင့်ရန်"><Menu /></button>
+          <div className="premium-search">
+            <button type="button" className="premium-search-submit" aria-label="ဂိမ်းရှာရန်" onClick={() => { setActiveTab('home'); setSelectedGame('lobby'); }}><Search aria-hidden="true" /></button>
+            <input aria-label="ဂိမ်းအမည်ဖြင့် ရှာရန်" type="search" value={gameSearch} placeholder="ဂိမ်းအမည်ဖြင့် ရှာရန်..." onChange={(event) => setGameSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { setActiveTab('home'); setSelectedGame('lobby'); } }} />
+          </div>
+          <div className="premium-topbar__actions">
+            <button className="premium-icon-button premium-support-shortcut" onClick={() => openTelegramLink(CUSTOMER_SERVICE_BOT_LINK)} title="ဖောက်သည်ဝန်ဆောင်မှု" aria-label="ဖောက်သည်ဝန်ဆောင်မှု"><Headphones /></button>
+            <div className="premium-notification-wrap">
+              <button className="premium-icon-button" onClick={() => setNotificationsOpen((value) => !value)} aria-expanded={notificationsOpen} aria-label="အသိပေးချက်များ"><Bell /></button>
+              {notificationsOpen && <div className="premium-notification-popover"><div><strong>အသိပေးချက်များ</strong><button onClick={() => setNotificationsOpen(false)} aria-label="ပိတ်ရန်"><X /></button></div><p>လတ်တလော အသိပေးချက် မရှိသေးပါ။</p></div>}
+            </div>
+            <button className="premium-profile-button" onClick={() => { if (currentUser) { setSelectedGame('lobby'); setActiveTab('profile'); } else setIsAuthModalOpen(true); }} title="ပရိုဖိုင်ဖွင့်ရန်">
+              <span className="premium-avatar premium-avatar--small">{(userProfile?.fullName || 'X').slice(0, 1).toUpperCase()}</span>
+              <span className="premium-profile-copy"><strong>{userProfile?.fullName || (currentUser ? 'အဖွဲ့ဝင်' : 'ဧည့်သည်')}</strong><small>{currentUser ? 'အဖွဲ့ဝင်အကောင့်' : 'အကောင့်ဝင်ရန်'}</small></span>
+            </button>
+            <div className="premium-wallet-chip"><span>လက်ကျန်ငွေ</span><strong>{currentUser ? formatKs(userProfile?.balance || 0) : '—'}</strong></div>
+            <button className="premium-deposit-button" onClick={() => currentUser ? goToWallet('deposit') : setIsAuthModalOpen(true)}><span>+</span> ငွေသွင်းရန်</button>
+          </div>
+        </header>
+
       {/* 2. Full-Screen Page View Router (ပင်မ, ဖိတ်ခေါ်မှု, ငွေသွင်း/ထုတ်, ပရိုဖိုင်) */}
-      <div className={`w-full flex flex-col flex-1 mt-2 transition-all ${(selectedGame === 'lobby' || activeTab === 'referral' || activeTab === 'wallet' || activeTab === 'profile') ? 'max-w-4xl px-2 sm:px-4' : selectedGame === 'dice' ? 'max-w-xl px-2 sm:px-3' : selectedGame === 'fishing' ? 'max-w-3xl px-2 sm:px-3' : 'max-w-md'}`}>
+      <div className={`premium-portal__workspace ${selectedGame !== 'lobby' && activeTab === 'home' ? 'premium-portal__workspace--game' : ''} ${activeTab !== 'home' ? 'premium-portal__workspace--account' : ''} ${(selectedGame === 'lobby' || activeTab === 'referral' || activeTab === 'wallet' || activeTab === 'profile') ? 'max-w-4xl px-2 sm:px-4' : selectedGame === 'dice' ? 'max-w-xl px-2 sm:px-3' : selectedGame === 'fishing' ? 'max-w-3xl px-2 sm:px-3' : 'max-w-md'}`}>
         {/* VIEW 1: ပင်မ (Games Lobby or Full-Screen Game Arenas) */}
         {activeTab === 'home' && (
           <div className="w-full flex flex-col gap-3.5 animate-fadeIn pb-6">
             {/* LOBBY VIEW: VIP Header, Promo Carousel, Category Bar & 2-Column Game Posters */}
             {selectedGame === 'lobby' && (
               <div className="flex flex-col gap-3.5">
+                <section className="premium-overview" aria-label="အကောင့်အကျဉ်းချုပ်">
+                  <div className="premium-overview__intro">
+                    <span className="premium-eyebrow">XSITE · CASINO LOBBY</span>
+                    <h1>{userProfile?.fullName ? `${userProfile.fullName} မင်္ဂလာပါ` : 'ကစားရန် ဂိမ်းတစ်ခု ရွေးချယ်ပါ'}</h1>
+                    <p>သင့်ဂိမ်းများနှင့် ပိုက်ဆံအိတ်ကို တစ်နေရာတည်းမှ ကြည့်ရှုပါ။</p>
+                  </div>
+                  <div className="premium-metrics">
+                    <article className="premium-metric premium-metric--balance"><span>လက်ကျန်ငွေ</span><strong>{currentUser ? formatKs(userProfile?.balance || 0) : '—'}</strong><Wallet /></article>
+                    <article className="premium-metric"><span>စုစုပေါင်း အောင်မြင်ငွေသွင်း</span><strong>{currentUser ? formatKs(userProfile?.totalSuccessfulDeposit || 0) : '—'}</strong><ArrowDownLeft /></article>
+                    <article className="premium-metric"><span>အတည်ပြုငွေထုတ်မှု အကြိမ်</span><strong>{currentUser ? String(userProfile?.withdrawalCount || 0) : '—'}</strong><ArrowUpRight /></article>
+                  </div>
+                </section>
                 {/* 1. TOP LUXURY VIP APP BAR */}
-                <header className="ledger-header relative w-full flex items-center justify-between py-2.5 px-3 sm:px-4 backdrop-blur-2xl">
+                <header className="legacy-lobby-header ledger-header relative w-full flex items-center justify-between py-2.5 px-3 sm:px-4 backdrop-blur-2xl">
                   {/* Brand Wordmark */}
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-black shadow-md shrink-0">
@@ -2067,30 +2206,30 @@ export default function Home() {
                   {promoIndex === 0 && (
                     <div className="relative w-full h-full flex flex-col justify-end p-4 sm:p-6 animate-fadeIn">
                       <img
-                        src="/assets/casino/promo_deposit.jpg"
-                        alt="Deposit Promotion"
+                        src="/assets/casino/obsidian_bg.jpg"
+                        alt="Casino wallet information"
                         className="absolute inset-0 w-full h-full object-cover"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
                       <div className="relative z-10 flex flex-col gap-1 max-w-lg">
                         <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">
-                          VIP WELCOME PROMOTION
+                          WALLET & PAYMENTS
                         </span>
                         <h2 className="text-sm sm:text-lg md:text-xl font-black text-white leading-tight">
-                          ၅,၀၀၀ Ks သွင်းပါက +၂,၀၀၀ Ks အပိုဆု ရယူပါ
+                          ငွေသွင်း၊ ငွေထုတ်နှင့် မှတ်တမ်းများကို ပိုက်ဆံအိတ်မှ စီမံပါ
                         </h2>
                         <p className="text-[10px] sm:text-xs text-white/70 line-clamp-1">
-                          KPay & Wave ဖြင့် ၂၄ နာရီ ငွေသွင်းငွေထုတ် လျင်မြန်စွာ ဆောင်ရွက်နိုင်သည်
+                          KPay နှင့် Wave ငွေပေးချေမှုဆိုင်ရာ ရရှိနိုင်သောရွေးချယ်စရာများကို စစ်ဆေးပါ
                         </p>
                         <div className="pt-1.5">
                           <button
                             onClick={() => {
                               sounds.playChip();
-                              setActiveTab('wallet');
+                              goToWallet('deposit');
                             }}
                             className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs active:scale-95 transition-all shadow-lg flex items-center gap-1.5 w-fit"
                           >
-                            <span>အပိုဆု ရယူရန်</span>
+                            <span>ပိုက်ဆံအိတ်ဖွင့်ရန်</span>
                             <ChevronRight className="w-3.5 h-3.5 stroke-[2.5]" />
                           </button>
                         </div>
@@ -2119,10 +2258,7 @@ export default function Home() {
                         </p>
                         <div className="pt-1.5">
                           <button
-                            onClick={() => {
-                              sounds.playChip();
-                              enterBuffaloGame();
-                            }}
+                            onClick={() => launchGame('buffalo')}
                             className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs active:scale-95 transition-all shadow-lg flex items-center gap-1.5 w-fit"
                           >
                             <Play className="w-3 h-3 fill-black stroke-black" />
@@ -2154,10 +2290,7 @@ export default function Home() {
                         </p>
                         <div className="pt-1.5">
                           <button
-                            onClick={() => {
-                              sounds.playChip();
-                              setSelectedGame('dice');
-                            }}
+                            onClick={() => launchGame('dice')}
                             className="px-3.5 py-1.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-black font-black text-xs active:scale-95 transition-all shadow-lg flex items-center gap-1.5 w-fit"
                           >
                             <Play className="w-3 h-3 fill-black stroke-black" />
@@ -2183,13 +2316,21 @@ export default function Home() {
                   </div>
                 </div>
 
+                {recentlyPlayed.length > 0 && <section className="premium-recent-games" aria-label="လတ်တလော ကစားခဲ့သောဂိမ်းများ">
+                  <div className="premium-recent-games__heading"><div><span className="premium-eyebrow">RECENTLY PLAYED</span><h2>လတ်တလော ကစားခဲ့သောဂိမ်းများ</h2></div><span>ဤ session အတွင်း</span></div>
+                  <div className="premium-recent-games__list">{recentlyPlayed.map((game) => <button type="button" className="premium-recent-game" key={game} onClick={() => launchGame(game)}>
+                    <span className="premium-recent-game__icon">{game === 'dice' ? <Dices /> : game === 'fishing' ? <Fish /> : game === 'sakura' ? <Sparkles /> : <Gamepad2 />}</span>
+                    <span className="premium-recent-game__copy"><small>ထပ်မံကစားရန်</small><strong>{game === 'buffalo' ? 'Charge Buffalo' : game === 'dice' ? 'Live Dice 777' : game === 'fishing' ? 'Deep Sea Catch' : 'Sakura Fortune'}</strong></span>
+                    <ChevronRight />
+                  </button>)}</div>
+                </section>}
+
                 {/* 2.5 PROMINENT QUICK DEPOSIT & WITHDRAW BAR */}
-                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="premium-quick-actions grid grid-cols-2 gap-2 sm:gap-3">
                   <button
                     onClick={() => {
                       sounds.playChip();
-                      setSelectedGame('lobby');
-                      setActiveTab('wallet');
+                      goToWallet('deposit');
                     }}
                     className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/25 via-amber-600/20 to-amber-700/25 border border-amber-400/40 hover:border-amber-400 text-amber-300 font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg shadow-amber-500/10 group"
                   >
@@ -2200,8 +2341,7 @@ export default function Home() {
                   <button
                     onClick={() => {
                       sounds.playChip();
-                      setSelectedGame('lobby');
-                      setActiveTab('wallet');
+                      goToWallet('withdraw');
                     }}
                     className="p-3 sm:p-3.5 rounded-2xl bg-zinc-900/90 border border-white/15 hover:border-white/30 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 transition-all shadow-lg group"
                   >
@@ -2211,7 +2351,7 @@ export default function Home() {
                 </div>
 
                 {/* 3. CATEGORY FILTER TABS */}
-                <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-zinc-950/80 border border-white/10 backdrop-blur-xl overflow-x-auto no-scrollbar">
+                <div className="premium-categories flex items-center gap-1.5 p-1 rounded-2xl bg-zinc-950/80 border border-white/10 backdrop-blur-xl overflow-x-auto no-scrollbar" aria-label="ဂိမ်းအမျိုးအစား ရွေးရန်">
                   <button
                     onClick={() => {
                       sounds.playChip();
@@ -2264,18 +2404,29 @@ export default function Home() {
                   >
                     လူကြိုက်များ (Hot)
                   </button>
+                  <button
+                    onClick={() => {
+                      sounds.playChip();
+                      setLobbyCategory('favorites');
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${lobbyCategory === 'favorites' ? 'bg-amber-100 text-amber-950 shadow-md' : 'text-white/60 hover:text-white'}`}
+                  >
+                    စိတ်ကြိုက်
+                  </button>
                 </div>
 
                 {/* 4. 2-COLUMN PORTRAIT GAME POSTERS (STAKE & PGSOFT STYLE) */}
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-5">
+                <div className="premium-library-heading"><div><span className="premium-eyebrow">GAME COLLECTION</span><h2>ဂိမ်းများကို စူးစမ်းပါ</h2><p>လက်ရှိအသုံးပြုနိုင်သော ဂိမ်းများ</p></div><span>{[hasBuffalo, hasDice, hasFishing, hasSakura].filter(Boolean).length} games</span></div>
+                <div className="premium-games-grid grid grid-cols-2 gap-3 sm:gap-4 md:gap-5">
                   {/* GAME CARD 1: Charge Buffalo Slot */}
-                  {(lobbyCategory === 'all' || lobbyCategory === 'slots' || lobbyCategory === 'hot') && (
+                  {hasBuffalo && (
                     <div
-                      onClick={() => {
-                        sounds.playChip();
-                        enterBuffaloGame();
-                      }}
-                      className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[3/4] border border-amber-500/25 hover:border-amber-400/70 transition-all duration-300 shadow-2xl cursor-pointer active:scale-[0.98] bg-zinc-950 flex flex-col justify-between"
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Charge Buffalo тоглох"
+                      onClick={() => launchGame('buffalo')}
+                      onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); launchGame('buffalo'); } }}
+                      className="premium-game-card group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[3/4] border border-amber-500/25 hover:border-amber-400/70 transition-all duration-300 shadow-2xl cursor-pointer active:scale-[0.98] bg-zinc-950 flex flex-col justify-between"
                     >
                       {/* Cover Art */}
                       <img
@@ -2290,9 +2441,7 @@ export default function Home() {
                         <span className="text-[9px] sm:text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-amber-500 text-black shadow-md">
                           HOT
                         </span>
-                        <span className="text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-amber-300 border border-amber-400/30">
-                          4,096 Ways
-                        </span>
+                        <div className="flex items-center gap-2"><span className="text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-amber-300 border border-amber-400/30">4,096 Ways</span><button type="button" className="premium-favorite-button" aria-label={favoriteGames.includes('buffalo') ? 'Charge Buffalo ကို စိတ်ကြိုက်မှ ဖယ်ရန်' : 'Charge Buffalo ကို စိတ်ကြိုက်ထည့်ရန်'} aria-pressed={favoriteGames.includes('buffalo')} onClick={(event) => { event.stopPropagation(); toggleFavorite('buffalo'); }}><Star fill={favoriteGames.includes('buffalo') ? 'currentColor' : 'none'} /></button></div>
                       </div>
 
                       {/* Hover / Tap Center Play Overlay */}
@@ -2319,13 +2468,14 @@ export default function Home() {
                   )}
 
                   {/* GAME CARD 2: Live Dice 777 */}
-                  {(lobbyCategory === 'all' || lobbyCategory === 'dice' || lobbyCategory === 'hot') && (
+                  {hasDice && (
                     <div
-                      onClick={() => {
-                        sounds.playChip();
-                        setSelectedGame('dice');
-                      }}
-                      className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[3/4] border border-emerald-500/25 hover:border-emerald-400/70 transition-all duration-300 shadow-2xl cursor-pointer active:scale-[0.98] bg-zinc-950 flex flex-col justify-between"
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Live Dice тоглох"
+                      onClick={() => launchGame('dice')}
+                      onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); launchGame('dice'); } }}
+                      className="premium-game-card group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[3/4] border border-emerald-500/25 hover:border-emerald-400/70 transition-all duration-300 shadow-2xl cursor-pointer active:scale-[0.98] bg-zinc-950 flex flex-col justify-between"
                     >
                       {/* Cover Art */}
                       <img
@@ -2343,9 +2493,7 @@ export default function Home() {
                             LIVE
                           </span>
                         </div>
-                        <span className="text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-emerald-300 border border-emerald-400/30">
-                          ဆုကြေး 32×
-                        </span>
+                        <div className="flex items-center gap-2"><span className="text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-emerald-300 border border-emerald-400/30">ဆုကြေး 32×</span><button type="button" className="premium-favorite-button" aria-label={favoriteGames.includes('dice') ? 'Live Dice ကို စိတ်ကြိုက်မှ ဖယ်ရန်' : 'Live Dice ကို စိတ်ကြိုက်ထည့်ရန်'} aria-pressed={favoriteGames.includes('dice')} onClick={(event) => { event.stopPropagation(); toggleFavorite('dice'); }}><Star fill={favoriteGames.includes('dice') ? 'currentColor' : 'none'} /></button></div>
                       </div>
 
                       {/* Hover / Tap Center Play Overlay */}
@@ -2372,33 +2520,32 @@ export default function Home() {
                   )}
 
                   {/* GAME CARD 3: Deep Sea Catch Fishing */}
-                  {(lobbyCategory === 'all' || lobbyCategory === 'hot') && (
+                  {hasFishing && (
                     <div
-                      onClick={() => {
-                        sounds.playChip();
-                        window.scrollTo(0, 0);
-                        setSelectedGame('fishing');
-                      }}
-                      className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/20 bg-zinc-950 shadow-2xl transition-all duration-300 hover:border-white/60 active:scale-[0.98] sm:rounded-3xl"
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Deep Sea Catch тоглох"
+                      onClick={() => launchGame('fishing')}
+                      onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); launchGame('fishing'); } }}
+                      className="premium-game-card group relative cursor-pointer overflow-hidden rounded-2xl border border-white/20 bg-zinc-950 shadow-2xl transition-all duration-300 hover:border-white/60 active:scale-[0.98] sm:rounded-3xl"
                     >
                       <img src="/assets/casino/fishing_card.jpg" alt="Deep Sea Catch" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/5" />
                       <div className="relative z-10 flex aspect-[3/4] flex-col justify-between p-2.5 sm:p-3">
-                        <div className="flex items-center justify-between"><span className="rounded-md bg-white px-2 py-0.5 text-[9px] font-black uppercase text-black">NEW</span><span className="rounded-md border border-white/25 bg-black/60 px-2 py-0.5 text-[9px] font-black text-white/85">ARCADE</span></div>
+                        <div className="flex items-center justify-between"><span className="rounded-md bg-white px-2 py-0.5 text-[9px] font-black uppercase text-black">ARCADE</span><button type="button" className="premium-favorite-button" aria-label={favoriteGames.includes('fishing') ? 'Deep Sea Catch ကို စိတ်ကြိုက်မှ ဖယ်ရန်' : 'Deep Sea Catch ကို စိတ်ကြိုက်ထည့်ရန်'} aria-pressed={favoriteGames.includes('fishing')} onClick={(event) => { event.stopPropagation(); toggleFavorite('fishing'); }}><Star fill={favoriteGames.includes('fishing') ? 'currentColor' : 'none'} /></button></div>
                         <div><div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-white text-black shadow-xl transition-transform group-hover:scale-105"><Fish className="h-5 w-5 fill-black stroke-black" /></div><span className="block truncate text-xs font-black tracking-tight text-white sm:text-sm">Deep Sea Catch</span><div className="mt-0.5 flex items-center justify-between text-[10px] font-medium text-white/65"><span>ငါးပစ်ဂိမ်း</span><span className="font-bold text-white">ကစားမည်</span></div></div>
                       </div>
                     </div>
                   )}
                   {/* GAME CARD 4: Sakura Fortune Deluxe */}
-                  {(lobbyCategory === 'all' || lobbyCategory === 'slots' || lobbyCategory === 'hot') && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        sounds.playChip();
-                        window.location.assign('/sakura-fortune');
-                      }}
-                      className="group relative cursor-pointer overflow-hidden rounded-2xl border border-pink-400/30 bg-[#24111e] text-left shadow-2xl transition-all duration-300 hover:border-pink-300/80 active:scale-[0.98] sm:rounded-3xl"
-                      aria-label="Play Sakura Fortune Deluxe"
+                  {hasSakura && (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => launchGame('sakura')}
+                      onKeyDown={(event) => { if (event.target !== event.currentTarget) return; if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); launchGame('sakura'); } }}
+                      className="premium-game-card group relative cursor-pointer overflow-hidden rounded-2xl border border-pink-400/30 bg-[#24111e] text-left shadow-2xl transition-all duration-300 hover:border-pink-300/80 active:scale-[0.98] sm:rounded-3xl"
+                      aria-label="Sakura Fortune Deluxe тоглох"
                     >
                       <img
                         src="/games/sakura-fortune/assets/lobby-poster.webp"
@@ -2409,8 +2556,8 @@ export default function Home() {
                       <div className="absolute inset-0 bg-gradient-to-t from-[#170b14] via-[#170b14]/55 to-[#170b14]/10" />
                       <div className="relative z-10 flex aspect-[3/4] flex-col justify-between p-2.5 sm:p-3">
                         <div className="flex items-center justify-between">
-                          <span className="rounded-md bg-pink-300 px-2 py-0.5 text-[9px] font-black uppercase text-[#321323] shadow-md">NEW</span>
-                          <span className="rounded-md border border-pink-200/30 bg-black/60 px-2 py-0.5 text-[9px] font-black text-pink-100/90 backdrop-blur-md">MMK</span>
+                          <span className="rounded-md bg-pink-300 px-2 py-0.5 text-[9px] font-black uppercase text-[#321323] shadow-md">SLOT</span>
+                          <button type="button" className="premium-favorite-button" aria-label={favoriteGames.includes('sakura') ? 'Sakura Fortune ကို စိတ်ကြိုက်မှ ဖယ်ရန်' : 'Sakura Fortune ကို စိတ်ကြိုက်ထည့်ရန်'} aria-pressed={favoriteGames.includes('sakura')} onClick={(event) => { event.stopPropagation(); toggleFavorite('sakura'); }}><Star fill={favoriteGames.includes('sakura') ? 'currentColor' : 'none'} /></button>
                         </div>
                         <div>
                           <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-pink-200 text-[#321323] shadow-[0_0_25px_rgba(249,127,186,0.5)] transition-transform group-hover:scale-105">
@@ -2419,50 +2566,33 @@ export default function Home() {
                           <span className="block truncate text-xs font-black tracking-tight text-white sm:text-sm">Sakura Fortune</span>
                           <div className="mt-0.5 flex items-center justify-between text-[10px] font-medium text-white/70">
                             <span>Deluxe Slot</span>
-                            <span className="font-bold text-pink-200">🌸 ကစားမည်</span>
+                            <span className="font-bold text-pink-200"><Sparkles className="inline h-3 w-3" aria-hidden="true" /> ကစားမည်</span>
                           </div>
                         </div>
                       </div>
-                    </button>
+                    </div>
                   )}
                 </div>
 
-                {/* 5. LIVE RECENT WINS TICKER (SOCIAL PROOF) */}
-                <div className="w-full py-2.5 px-3.5 rounded-2xl bg-zinc-950/80 border border-white/10 backdrop-blur-xl flex items-center gap-2 overflow-hidden shadow-lg">
-                  <div className="flex items-center gap-1.5 text-amber-400 shrink-0 font-black text-xs uppercase tracking-wide">
-                    <Trophy className="w-3.5 h-3.5 stroke-[2.5]" />
-                    <span className="hidden sm:inline">တိုက်ရိုက်အနိုင်ဆုများ</span>
+                {[hasBuffalo, hasDice, hasFishing, hasSakura].every((visible) => !visible) && <div className="premium-empty-state premium-empty-state--games">ဂိမ်း မတွေ့ပါ။ စကားလုံး သို့မဟုတ် အမျိုးအစားကို ပြောင်းရှာကြည့်ပါ။</div>}
+                <section className="premium-activity-panel" aria-label="လတ်တလော အံစာရလဒ်များ">
+                  <div className="premium-activity-panel__heading"><div><span className="premium-eyebrow">ROUND HISTORY</span><h2>လတ်တလော အံစာရလဒ်များ</h2></div><span className="premium-live-indicator"><i /> Live</span></div>
+                  <div className="premium-round-strip">
+                    {recentRounds.slice(0, 4).map((round) => <article className="premium-round-item" key={round.id || round.roundId}><span>ပွဲစဉ် #{round.roundId}</span><strong>{round.totalResult ?? '—'}</strong><small>{round.resultClass === 'small' ? 'အသေး' : round.resultClass === 'big' ? 'အကြီး' : round.resultClass === 'common' ? 'အလယ်' : 'စောင့်ဆိုင်းဆဲ'}</small></article>)}
+                    {recentRounds.length === 0 && <p className="premium-empty-state">အံစာရလဒ်များ မရရှိသေးပါ။</p>}
                   </div>
-                  <div className="overflow-hidden whitespace-nowrap flex-1">
-                    <div className="animate-marquee inline-block text-[11px] font-bold text-white/80">
-                      <span className="mx-3 text-emerald-400">Player 09***581 · Charge Buffalo +Ks 36,000</span>
-                      <span className="mx-2 text-white/30">•</span>
-                      <span className="mx-3 text-amber-300">Player 09***419 · အံစာဂိမ်း +Ks 19,000</span>
-                      <span className="mx-2 text-white/30">•</span>
-                      <span className="mx-3 text-emerald-400">Player 09***882 · Charge Buffalo +Ks 50,000</span>
-                      <span className="mx-2 text-white/30">•</span>
-                      <span className="mx-3 text-cyan-300">Player 09***204 · အံစာဂိမ်း +Ks 8,000</span>
-                      <span className="mx-2 text-white/30">•</span>
-                      <span className="mx-3 text-emerald-400">Player 09***713 · Charge Buffalo +Ks 24,000</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 6. TRUST & SERVICE BADGES */}
-                <div className="grid grid-cols-3 gap-2 pt-1 text-center">
-                  <div className="p-2 rounded-xl bg-zinc-950/60 border border-white/5 flex flex-col items-center gap-1">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400 stroke-[2]" />
-                    <span className="text-[10px] font-bold text-white/80">စက္ကန့် ၃၀ ငွေသွင်း/ထုတ်</span>
-                  </div>
-                  <div className="p-2 rounded-xl bg-zinc-950/60 border border-white/5 flex flex-col items-center gap-1">
-                    <Coins className="w-4 h-4 text-amber-400 stroke-[2]" />
-                    <span className="text-[10px] font-bold text-white/80">အမြင့်ဆုံး ဆုကြေးများ</span>
-                  </div>
-                  <div className="p-2 rounded-xl bg-zinc-950/60 border border-white/5 flex flex-col items-center gap-1">
-                    <Users className="w-4 h-4 text-cyan-400 stroke-[2]" />
-                    <span className="text-[10px] font-bold text-white/80">၂၄ နာရီ ဝန်ဆောင်မှု</span>
-                  </div>
-                </div>
+                </section>
+                <section className="premium-activity-panel premium-transactions-panel" aria-label="လတ်တလော ငွေကြေးမှတ်တမ်း">
+                  <div className="premium-activity-panel__heading"><div><span className="premium-eyebrow">ACCOUNT ACTIVITY</span><h2>လတ်တလော ငွေကြေးမှတ်တမ်း</h2></div>{currentUser && <button className="premium-view-history" onClick={() => goToWallet('history')}>မှတ်တမ်းအားလုံး <ChevronRight /></button>}</div>
+                  {!currentUser ? <button className="premium-empty-state premium-transactions-empty" onClick={() => setIsAuthModalOpen(true)}>အကောင့်ဝင်ပြီး သင့်ငွေကြေးမှတ်တမ်းများကို ကြည့်ပါ။</button> : recentTransactions.length === 0 ? <p className="premium-empty-state">လတ်တလော ငွေကြေးမှတ်တမ်း မရှိသေးပါ။</p> : <div className="premium-transaction-list">
+                    {recentTransactions.map((transaction) => <article className="premium-transaction-row" key={transaction.key}>
+                      <span className={`premium-transaction-icon ${transaction.kind === 'deposit' ? 'is-deposit' : 'is-withdrawal'}`}>{transaction.kind === 'deposit' ? <ArrowDownLeft /> : <ArrowUpRight />}</span>
+                      <span className="premium-transaction-copy"><strong>{transaction.kind === 'deposit' ? 'ငွေသွင်း' : 'ငွေထုတ်'}</strong><small>{new Date(transaction.createdAt).toLocaleDateString('my-MM', { day: '2-digit', month: 'short' })}</small></span>
+                      <strong className="premium-transaction-amount">{formatKs(transaction.amount)}</strong>
+                      <span className={`premium-transaction-status ${transaction.status === 'approved' || transaction.status === 'completed' ? 'is-approved' : transaction.status === 'pending' ? 'is-pending' : 'is-other'}`}>{transaction.status === 'approved' || transaction.status === 'completed' ? 'အောင်မြင်' : transaction.status === 'pending' ? 'ဆိုင်းငံ့' : transaction.status === 'declined' ? 'ပယ်ချ' : 'စစ်ဆေးရန်'}</span>
+                    </article>)}
+                  </div>}
+                </section>
               </div>
             )}
 
@@ -2637,21 +2767,22 @@ export default function Home() {
 
         {/* VIEW 2: ဖိတ်ခေါ်မှု (Full-Screen Referral & Team Commission View) */}
         {activeTab === 'referral' && (
-          <ReferralView
+          <div className="premium-account-view"><ReferralView
             user={userProfile || createFallbackUser(currentUser?.uid || 'guest', currentUser?.email || 'guest@gmail.com', currentUser?.displayName || 'မန်ဘာ')}
             settings={settings}
             referralMembers={referralMembers}
             onTransferReferral={handleTransferReferral}
             onClaimMilestone={handleClaimMilestone}
-            onGoToWallet={() => setActiveTab('wallet')}
-          />
+            onGoToWallet={() => goToWallet('deposit')}
+          /></div>
         )}
 
         {/* VIEW 3: ငွေသွင်း/ထုတ် (Full-Screen Deposit, Withdrawal & Bank Binding View) */}
         {activeTab === 'wallet' && (
-          <WalletView
+          <div className="premium-account-view"><WalletView
             user={userProfile || createFallbackUser(currentUser?.uid || 'guest', currentUser?.email || 'guest@gmail.com', currentUser?.displayName || 'မန်ဘာ')}
             settings={settings}
+            initialTab={walletInitialTab}
             userWithdrawals={userWithdrawals}
             userDeposits={userDeposits}
             onSubmitDeposit={handleSubmitDeposit}
@@ -2668,12 +2799,12 @@ export default function Home() {
               sounds.playChip();
               setIsAuthModalOpen(true);
             }}
-          />
+          /></div>
         )}
 
         {/* VIEW 4: ပရိုဖိုင် (Full-Screen User Profile & Comprehensive Betting History Records) */}
         {activeTab === 'profile' && (
-          <ProfileView
+          <div className="premium-account-view"><ProfileView
             user={userProfile}
             settings={settings}
             bets={myBetsHistory}
@@ -2688,8 +2819,9 @@ export default function Home() {
                 if (snap.exists()) setUserProfile(snap.data() as UserProfile);
               }
             }}
-          />
+          /></div>
         )}
+      </div>
       </div>
 
       {/* 3. Persistent Bottom Main Navigation Menu (Hidden inside Buffalo Slot for full-screen immersive landscape) */}
@@ -2698,7 +2830,7 @@ export default function Home() {
           <button
             onClick={() => {
               sounds.playChip();
-              setActiveTab('home');
+              goToLobby();
             }}
             className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-2xl transition-all ${
               activeTab === 'home'
@@ -2713,6 +2845,7 @@ export default function Home() {
           <button
             onClick={() => {
               sounds.playChip();
+              setSelectedGame('lobby');
               setActiveTab('referral');
             }}
             className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-2xl transition-all ${
@@ -2728,8 +2861,7 @@ export default function Home() {
           <button
             onClick={() => {
               sounds.playChip();
-              setSelectedGame('lobby');
-              setActiveTab('wallet');
+              goToWallet('deposit');
             }}
             className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-2xl transition-all ${
               activeTab === 'wallet'
@@ -2744,6 +2876,7 @@ export default function Home() {
           <button
             onClick={() => {
               sounds.playChip();
+              setSelectedGame('lobby');
               setActiveTab('profile');
             }}
             className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-2xl transition-all ${

@@ -99,3 +99,23 @@ Candidate styles: editorial finance console (0.07), obsidian operations desk (0.
 - Generate and commit a new portrait Sakura Fortune lobby poster that matches the supplied game's art, and use it in the lobby card instead of the generic wide header artwork.
 - If simulation cannot substantiate the target or live settlement cannot be proven idempotent/atomic, keep real-money spins disabled rather than fall back to client-side demo outcomes.
 - Validation: a deterministic simulator calls the same TypeScript outcome engine for 1,000,000 paid rounds at each of the eight permitted MMK bets. It includes paid-spin payout, up to five non-retriggering free spins, all cascade multipliers, whole-kyat rounding, and payout caps. Observed estimates were 80.427% (20), 79.765% (50), 79.898% (100), 80.018% (300), 79.736% (500), 79.960% (1,000), 80.295% (3,000), and 80.373% (5,000 MMK). These are per-step Monte Carlo estimates, not a guarantee for any player or individual spin. Local-only API tests verified all wager steps, rejection of legacy paid stakes, existing free-spin stake compatibility, no wallet credit during individual free spins, final bonus collection and replay idempotency, cross-origin rejection, and successful standalone delivery of the game page/poster. All wallet tests used temporary SQLite data; no production wallet was accessed.
+
+
+## Premium light casino UI redesign
+
+### Implementation approach
+
+Refresh the existing Next.js App Router player experience in place. Keep the Firestore/Turso-backed account session, wallet, payment request handlers, transaction history, referral flows, and all four existing games intact. Reuse the current casino artwork under `public/assets/casino/` and `public/games/sakura-fortune/assets/`; do not fabricate account balances, transaction records, recent wins, or unsupported promotion terms. Build the main navigation shell and responsive lobby in `app/page.tsx`, apply the luxury light design tokens and mobile/desktop layouts in `app/globals.css`, and set the pearl theme metadata in `app/layout.tsx`. Keep user transaction and account subviews wired to their existing components with a scoped light-surface treatment. The static route manifest stays aligned with the existing `/`, admin and `/sakura-fortune` routes.
+
+### Design
+
+- **Design movement:** quiet luxury fintech dashboard with the clarity of a pearl-white portfolio console and the polish of a premium casino lobby.
+- **Core principles:** factual account data; calm hierarchy and spacing; consistent Lucide line icons; preserve game identity and operations.
+- **Color philosophy:** pearl white and cool gray form a reassuring canvas, charcoal carries essential information, champagne gold signals focus and primary action, and muted green/red remain reserved for status semantics.
+- **Layout paradigm:** fixed-width desktop navigation rail with an airy utility header and broad content canvas; on mobile, a compact search header, slide-in navigation and touch-friendly bottom bar.
+- **Signature elements:** champagne-edged logo tile, quiet metric cards with tabular money, and portrait casino artwork framed by soft card elevation.
+- **Interaction philosophy:** direct, reversible navigation; live search and category filters; explicit favorite controls; preserve existing wallet and game actions.
+- **Animation:** brief elevation and color transitions, reduced-motion support, and no motion added to live game mechanics.
+- **Typography:** existing system sans with Myanmar fallbacks; clear heading hierarchy and tabular numerals for MMK values.
+- **Brand essence:** a polished Myanmar-facing casino lobby for players who want their games and account tools organized in one calm, premium place; composed, clear, trustworthy.
+- **Brand voice:** concise Burmese navigation and account status copy. Examples: “ဂိမ်းများကို စူးစမ်းပါ” and “လက်ကျန်ငွေ”.
