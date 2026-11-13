@@ -16,6 +16,7 @@ import {
   Search,
   Users,
   Wallet,
+  CreditCard,
   AlertTriangle,
   ShieldCheck,
   Crown,
@@ -476,7 +477,7 @@ export function AdminModal({
   const forcedColor = classifyDiceColor(forcedTotal);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fadeIn">
+    <div className="admin-modal-monochrome fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-xl animate-fadeIn">
       <div className="relative w-full max-w-6xl dark-glass admin-console-shell rounded-3xl p-3 sm:p-5 shadow-[0_20px_60px_rgba(0,0,0,0.85)] border border-white/20 flex flex-col max-h-[94vh] overflow-hidden">
         {adminAuthRequired && (
           <div className="absolute inset-0 z-[80] flex items-center justify-center rounded-3xl bg-[#050914]/95 p-4 backdrop-blur-xl" role="dialog" aria-modal="true" aria-labelledby="admin-auth-title">
@@ -700,7 +701,7 @@ export function AdminModal({
 
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-mono font-bold flex items-center gap-2">
-                      <span>💳 ငွေလွှဲ ID (နောက်ဆုံး ၅ လုံး):</span>
+                      <span className="inline-flex items-center gap-1.5"><CreditCard className="h-3.5 w-3.5" aria-hidden="true" />ငွေလွှဲ ID (နောက်ဆုံး ၅ လုံး):</span>
                       <span className="text-white text-sm font-black bg-black/60 px-2 py-0.5 rounded border border-white/20 tracking-widest">
                         {dep.trxLast5 || (!dep.receiptImage?.startsWith('data:image') ? dep.receiptImage : null) || 'မပါရှိပါ'}
                       </span>

@@ -124,3 +124,21 @@
 - Browser-checked the lobby, wallet, referral/rewards, guest profile, sign-in modal, admin login, and referral QR dialog; the QR dialog stays centered and spans the viewport.
 - A temporary 390px mobile viewport reported no horizontal overflow in the lobby, wallet, referral, or profile views; the QR dialog bounds remained inside the viewport.
 - `npm run lint` completed with 0 errors (18 warnings) and `npm run build` completed successfully; existing routes/game assets were preserved.
+
+
+## Strict iOS Gray-Light glass pass
+
+- [x] Restyle every existing non-game player view, administrator route, and 404 fallback using the reference only as a material/color cue; do not add a new dashboard, widgets, metrics, charts, or routes.
+- [x] Use only white, black, and neutral grays for UI surfaces, text, borders, actions, selected states, and statuses; keep a restrained iOS-style translucent glass treatment with soft shadows and thin borders.
+- [x] Remove gold/saturated color accents, decorative radial gradients, glowing dots, bulbs/orbs, and lighting decorations from non-game UI.
+- [x] Use PNG assets where existing assets fit and monochrome line-action icons for icon controls; remove emoji, colorful glyphs, and filled pictograms from icon buttons while keeping labels and actions clear.
+- [x] Preserve every existing non-game route, layout structure, data source, form, payment/admin/referral behavior and responsive navigation; do not change game pages, embeds, game artwork, odds, RTP, settlement, wallet calculations, or gameplay behavior.
+- [x] Validate the production build, lint, desktop rendering, 390px horizontal overflow, and confirm the changed-file list contains no game implementation files.
+
+
+### Final iOS Gray-Light QA evidence
+
+- The final production preview was checked on the lobby, compact wallet-information banner, wallet, referral and QR dialog, guest profile/sign-in, administrator login, and 404 fallback.
+- The 390px test frame showed no horizontal overflow on lobby, wallet, referral, or profile; the referral QR dialog stayed inside the viewport.
+- `npm run lint` completed with 0 errors and 18 warnings; the final `npm run build` completed successfully.
+- The working diff contains no game implementation paths; gameplay toast markup, game posters, and game behavior remain unchanged.

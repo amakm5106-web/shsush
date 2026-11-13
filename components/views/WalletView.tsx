@@ -463,7 +463,7 @@ export function WalletView({
             </div>
 
             <p className="text-[11px] text-zinc-400 leading-relaxed">
-              💡 အထက်ပါဖုန်းနံပါတ်သို့ ငွေလွှဲပြီးပါက ရရှိလာသော ငွေလွှဲ ID ၏ နောက်ဆုံး ၅ လုံးကို အောက်တွင် ထည့်သွင်းပေးပါရန် (ပုံတင်ရန် မလိုပါ)။
+              အထက်ပါဖုန်းနံပါတ်သို့ ငွေလွှဲပြီးပါက ရရှိလာသော ငွေလွှဲ ID ၏ နောက်ဆုံး ၅ လုံးကို အောက်တွင် ထည့်သွင်းပေးပါရန် (ပုံတင်ရန် မလိုပါ)။
             </p>
           </div>
 
@@ -537,7 +537,7 @@ export function WalletView({
               </div>
 
               <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 text-[10px] text-zinc-400 text-center">
-                💡 ဓာတ်ပုံရိုက်ပြီး တင်ရန်မလိုတော့ပါ။ ငွေလွှဲပြေစာမှ နံပါတ်နောက်ဆုံး ၅ လုံးဖြင့် စက္ကန့် ၃၀ အတွင်း အတည်ပြုပေးပါမည်။
+                ဓာတ်ပုံရိုက်ပြီး တင်ရန်မလိုတော့ပါ။ ငွေလွှဲပြေစာမှ နံပါတ်နောက်ဆုံး ၅ လုံးဖြင့် စက္ကန့် ၃၀ အတွင်း အတည်ပြုပေးပါမည်။
               </div>
             </div>
           </div>
@@ -549,7 +549,7 @@ export function WalletView({
             className="w-full py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm transition-all active:scale-95 shadow-xl shadow-amber-500/10 flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? (
-              <span className="animate-spin text-lg">⏳</span>
+              <RefreshCw className="w-5 h-5 animate-spin" aria-hidden="true" />
             ) : (
               <ArrowDownLeft className="w-5 h-5 stroke-[2.5]" />
             )}
@@ -743,7 +743,7 @@ export function WalletView({
             className="w-full py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-black font-black text-sm transition-all active:scale-95 shadow-xl shadow-amber-500/10 flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? (
-              <span className="animate-spin text-lg">⏳</span>
+              <RefreshCw className="w-5 h-5 animate-spin" aria-hidden="true" />
             ) : (
               <ArrowUpRight className="w-5 h-5 stroke-[2.5]" />
             )}
@@ -948,7 +948,7 @@ export function WalletView({
             className="w-full py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs sm:text-sm transition-all active:scale-95 shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {transferring ? (
-              <span className="animate-spin text-lg">⏳</span>
+              <RefreshCw className="w-5 h-5 animate-spin" aria-hidden="true" />
             ) : (
               <Coins className="w-4 h-4 stroke-[2.5]" />
             )}

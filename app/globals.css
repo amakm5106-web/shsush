@@ -1555,3 +1555,321 @@ body::before { background: radial-gradient(ellipse at 84% 0%,rgba(221,204,168,.1
   .premium-portal:not(.premium-portal--game) .premium-wallet-feature::after { right: -22px; width: 148px; opacity: .65; }
   .premium-portal:not(.premium-portal--game) .premium-wallet-feature p { max-width: 90%; font-size: 10px; }
 }
+
+
+/* iOS Gray-Light glass pass: monochrome UI, no colored accents or decorative light/dot motifs. */
+.premium-portal:not(.premium-portal--game) {
+  --portal-bg: #f0f1f3;
+  --portal-surface: rgba(255,255,255,.76);
+  --portal-ink: #141518;
+  --portal-muted: #666970;
+  --portal-border: rgba(20,21,24,.1);
+  --portal-gold: #191a1d;
+  --portal-shadow: 0 12px 30px rgba(16,18,22,.055), inset 0 1px 0 rgba(255,255,255,.88);
+  color: #17181b !important;
+  background: linear-gradient(180deg,#f8f9fa 0%,#eff0f2 58%,#f5f6f7 100%) !important;
+}
+.premium-portal:not(.premium-portal--game) .premium-sidebar,
+.premium-portal:not(.premium-portal--game) .premium-topbar,
+.premium-portal:not(.premium-portal--game) .premium-notification-popover,
+.premium-portal:not(.premium-portal--game) .premium-account-view,
+.premium-portal:not(.premium-portal--game) .premium-recent-games,
+.premium-portal:not(.premium-portal--game) .premium-activity-panel,
+.premium-portal:not(.premium-portal--game) .premium-metric,
+.premium-portal:not(.premium-portal--game) .premium-empty-state,
+.premium-portal:not(.premium-portal--game) .premium-promo-showcase--wallet {
+  border-color: rgba(20,21,24,.09) !important;
+  background-color: rgba(255,255,255,.72) !important;
+  background-image: linear-gradient(145deg,rgba(255,255,255,.94),rgba(242,243,245,.78)) !important;
+  box-shadow: 0 10px 28px rgba(18,20,23,.055), inset 0 1px 0 rgba(255,255,255,.94) !important;
+  backdrop-filter: blur(26px) saturate(115%);
+  -webkit-backdrop-filter: blur(26px) saturate(115%);
+}
+.premium-portal:not(.premium-portal--game) .premium-sidebar { border-right-color: rgba(20,21,24,.08) !important; }
+.premium-portal:not(.premium-portal--game) .premium-sidebar__brand,
+.premium-portal:not(.premium-portal--game) .premium-sidebar__account { border-color: rgba(20,21,24,.08) !important; }
+.premium-portal:not(.premium-portal--game) .premium-brand-mark,
+.premium-portal:not(.premium-portal--game) .premium-avatar,
+.premium-portal:not(.premium-portal--game) .premium-recent-game__icon,
+.premium-portal:not(.premium-portal--game) .premium-transaction-icon {
+  border-color: rgba(20,21,24,.12) !important;
+  background: linear-gradient(145deg,#fff,#eceef0) !important;
+  color: #202125 !important;
+  box-shadow: 0 3px 10px rgba(16,18,22,.04) !important;
+}
+.premium-portal:not(.premium-portal--game) .premium-brand-copy span,
+.premium-portal:not(.premium-portal--game) .premium-sidebar__label,
+.premium-portal:not(.premium-portal--game) .premium-sidebar__account-copy span,
+.premium-portal:not(.premium-portal--game) .premium-profile-copy small,
+.premium-portal:not(.premium-portal--game) .premium-profile-copy strong { color: #62656b !important; }
+.premium-portal:not(.premium-portal--game) .premium-nav-item { color: #4b4e54 !important; }
+.premium-portal:not(.premium-portal--game) .premium-nav-item:hover { border-color: rgba(20,21,24,.08) !important; background: rgba(20,21,24,.045) !important; color: #111214 !important; }
+.premium-portal:not(.premium-portal--game) .premium-nav-item.is-active {
+  border-color: rgba(20,21,24,.12) !important;
+  background: linear-gradient(145deg,#17181b,#383a3e) !important;
+  color: #fff !important;
+  box-shadow: 0 5px 14px rgba(15,16,18,.12) !important;
+}
+.premium-portal:not(.premium-portal--game) .premium-nav-item.is-active svg { color: #fff !important; }
+.premium-portal:not(.premium-portal--game) .premium-sidebar__collapse,
+.premium-portal:not(.premium-portal--game) .premium-mobile-menu,
+.premium-portal:not(.premium-portal--game) .premium-icon-button,
+.premium-portal:not(.premium-portal--game) .premium-search-submit { color: #25262a !important; }
+.premium-portal:not(.premium-portal--game) .premium-search,
+.premium-portal:not(.premium-portal--game) .premium-search input,
+.premium-portal:not(.premium-portal--game) .premium-notification-popover,
+.premium-portal:not(.premium-portal--game) .premium-categories {
+  border-color: rgba(20,21,24,.1) !important;
+  background: rgba(255,255,255,.78) !important;
+  color: #17181b !important;
+}
+.premium-portal:not(.premium-portal--game) .premium-search input::placeholder { color: #777a80 !important; }
+.premium-portal:not(.premium-portal--game) .premium-topbar { border-bottom-color: rgba(20,21,24,.08) !important; background: rgba(248,249,250,.76) !important; }
+.premium-portal:not(.premium-portal--game) .premium-wallet-chip,
+.premium-portal:not(.premium-portal--game) .premium-wallet-chip span { border-color: rgba(20,21,24,.1) !important; color: #5c5f65 !important; }
+.premium-portal:not(.premium-portal--game) .premium-wallet-chip strong,
+.premium-portal:not(.premium-portal--game) .premium-overview h1,
+.premium-portal:not(.premium-portal--game) .premium-library-heading h2,
+.premium-portal:not(.premium-portal--game) .premium-activity-panel h2,
+.premium-portal:not(.premium-portal--game) .premium-recent-games__heading h2,
+.premium-portal:not(.premium-portal--game) .premium-metric strong { color: #151619 !important; }
+.premium-portal:not(.premium-portal--game) .premium-overview p,
+.premium-portal:not(.premium-portal--game) .premium-library-heading p,
+.premium-portal:not(.premium-portal--game) .premium-recent-games__heading>span,
+.premium-portal:not(.premium-portal--game) .premium-metric>span,
+.premium-portal:not(.premium-portal--game) .premium-round-item span,
+.premium-portal:not(.premium-portal--game) .premium-transaction-copy small { color: #666970 !important; }
+.premium-portal:not(.premium-portal--game) .premium-eyebrow { color: #55585e !important; }
+.premium-portal:not(.premium-portal--game) .premium-metric--balance { border-color: rgba(20,21,24,.1) !important; background: linear-gradient(145deg,#fff,#f0f1f3) !important; }
+.premium-portal:not(.premium-portal--game) .premium-metric>svg { color: #25262a !important; }
+.premium-portal:not(.premium-portal--game) .ledger-panel,
+.premium-portal:not(.premium-portal--game) .premium-activity-panel,
+.premium-portal:not(.premium-portal--game) .premium-round-item,
+.premium-portal:not(.premium-portal--game) .premium-recent-game,
+.premium-portal:not(.premium-portal--game) .premium-categories,
+.premium-portal:not(.premium-portal--game) .premium-library-heading>span,
+.premium-portal:not(.premium-portal--game) .premium-view-history {
+  border-color: rgba(20,21,24,.09) !important;
+  background-color: rgba(255,255,255,.76) !important;
+  background-image: linear-gradient(145deg,rgba(255,255,255,.9),rgba(242,243,245,.76)) !important;
+  color: #242529 !important;
+  box-shadow: 0 7px 20px rgba(18,20,23,.045), inset 0 1px 0 rgba(255,255,255,.88) !important;
+}
+.premium-portal:not(.premium-portal--game) .premium-quick-actions button,
+.premium-portal:not(.premium-portal--game) .premium-categories button,
+.premium-portal:not(.premium-portal--game) .premium-view-history,
+.premium-portal:not(.premium-portal--game) .premium-sidebar__account button { border-color: rgba(20,21,24,.12) !important; color: #222327 !important; }
+.premium-portal:not(.premium-portal--game) .premium-quick-actions button:first-child,
+.premium-portal:not(.premium-portal--game) .premium-deposit-button {
+  border-color: #16171a !important;
+  background: linear-gradient(145deg,#17181b,#36383c) !important;
+  color: #fff !important;
+  box-shadow: 0 7px 16px rgba(16,18,22,.12) !important;
+}
+.premium-portal:not(.premium-portal--game) .premium-deposit-button span { color: #fff !important; }
+.premium-portal:not(.premium-portal--game) .premium-quick-actions button:hover,
+.premium-portal:not(.premium-portal--game) .premium-icon-button:hover,
+.premium-portal:not(.premium-portal--game) .premium-profile-button:hover,
+.premium-portal:not(.premium-portal--game) .premium-view-history:hover { background: #e9eaec !important; color: #111214 !important; }
+.premium-portal:not(.premium-portal--game) .premium-categories button { color: #53565c !important; }
+.premium-portal:not(.premium-portal--game) .premium-categories button[class*="bg-white"],
+.premium-portal:not(.premium-portal--game) .premium-categories button[class*="bg-amber"],
+.premium-portal:not(.premium-portal--game) .premium-categories button[class*="bg-emerald"],
+.premium-portal:not(.premium-portal--game) .premium-categories button[class*="bg-red"] { border-color: #191a1d !important; background: #191a1d !important; color: #fff !important; box-shadow: none !important; }
+.premium-portal:not(.premium-portal--game) .premium-game-card { border-color: rgba(255,255,255,.28) !important; }
+.premium-portal:not(.premium-portal--game) .premium-favorite-button { border-color: rgba(255,255,255,.55) !important; background: rgba(18,19,21,.72) !important; color: #fff !important; }
+.premium-portal:not(.premium-portal--game) .premium-favorite-button:hover,
+.premium-portal:not(.premium-portal--game) .premium-favorite-button[aria-pressed="true"] { background: rgba(255,255,255,.96) !important; color: #111214 !important; }
+.premium-portal:not(.premium-portal--game) .premium-favorite-button svg { fill: none !important; stroke: currentColor !important; }
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="bg-amber-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="bg-emerald-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="bg-cyan-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="bg-red-"] { border-color: rgba(255,255,255,.22) !important; background: rgba(16,17,19,.88) !important; color: #fff !important; }
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="text-amber-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="text-emerald-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="text-cyan-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="text-red-"] { color: #fff !important; }
+.premium-portal:not(.premium-portal--game) .premium-round-item,
+.premium-portal:not(.premium-portal--game) .premium-transaction-status,
+.premium-portal:not(.premium-portal--game) .premium-transaction-icon { background: #f0f1f3 !important; color: #25262a !important; }
+.premium-portal:not(.premium-portal--game) .premium-round-item strong,
+.premium-portal:not(.premium-portal--game) .premium-transaction-copy strong,
+.premium-portal:not(.premium-portal--game) .premium-transaction-amount,
+.premium-portal:not(.premium-portal--game) .premium-transaction-status { color: #27282c !important; }
+.premium-portal:not(.premium-portal--game) .premium-round-item small { color: #4d5056 !important; }
+.premium-portal:not(.premium-portal--game) .premium-live-indicator { color: #34363b !important; }
+.premium-portal:not(.premium-portal--game) .premium-live-indicator i,
+.premium-portal:not(.premium-portal--game) .premium-toast-dot { display: none !important; }
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature::before,
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature::after { display: none !important; content: none !important; }
+.premium-portal:not(.premium-portal--game) .premium-promo-showcase--wallet { background: linear-gradient(145deg,#fff,#eceef1) !important; }
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature { min-height: 250px; justify-content: center !important; }
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature > .relative { width: 100%; max-width: 720px !important; }
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature > .relative > span,
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature h2,
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature p { color: #17181b !important; }
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature button { border-color: #17181b !important; background: #17181b !important; color: #fff !important; box-shadow: none !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view {
+  border-color: rgba(20,21,24,.1) !important;
+  background: rgba(255,255,255,.64) !important;
+  color: #17181b !important;
+  box-shadow: 0 14px 32px rgba(17,19,22,.055), inset 0 1px 0 rgba(255,255,255,.96) !important;
+  backdrop-filter: blur(30px) saturate(120%);
+  -webkit-backdrop-filter: blur(30px) saturate(120%);
+}
+.premium-portal:not(.premium-portal--game) .premium-account-view :is([class*="bg-amber-"],[class*="bg-emerald-"],[class*="bg-red-"],[class*="bg-cyan-"],[class*="bg-blue-"],[class*="bg-purple-"],[class*="bg-pink-"],[class*="bg-rose-"]) {
+  border-color: rgba(20,21,24,.1) !important;
+  background-color: #eff0f2 !important;
+  background-image: none !important;
+  color: #242529 !important;
+  box-shadow: none !important;
+}
+.premium-portal:not(.premium-portal--game) .premium-account-view :is([class*="text-amber-"],[class*="text-emerald-"],[class*="text-red-"],[class*="text-cyan-"],[class*="text-blue-"],[class*="text-purple-"],[class*="text-pink-"],[class*="text-rose-"]) { color: #25262a !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view :is([class*="border-amber-"],[class*="border-emerald-"],[class*="border-red-"],[class*="border-cyan-"],[class*="border-blue-"],[class*="border-purple-"],[class*="border-pink-"],[class*="border-rose-"],[class*="border-white/"]) { border-color: rgba(20,21,24,.12) !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view :is([class*="bg-zinc-950"],[class*="bg-zinc-900"],[class*="bg-black/"],[class*="from-zinc-"],[class*="via-zinc-"],[class*="to-black"]) { border-color: rgba(20,21,24,.1) !important; background: rgba(255,255,255,.68) !important; background-image: none !important; color: #17181b !important; box-shadow: 0 6px 20px rgba(17,19,22,.035) !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view :is([class*="text-white"],[class*="text-zinc-"],[class*="text-slate-"],[class*="text-gray-"]) { color: #37393e !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view :is(input,textarea,select) { border-color: rgba(20,21,24,.14) !important; background: rgba(255,255,255,.86) !important; color: #17181b !important; color-scheme: light; }
+.premium-portal:not(.premium-portal--game) .premium-account-view :is(input,textarea,select)::placeholder { color: #676a70 !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view :is(button[class*="bg-amber-"],button[class*="bg-emerald-"],button[class*="bg-red-"],button[class*="bg-cyan-"],a[class*="bg-amber-"]) { border-color: #17181b !important; background: linear-gradient(145deg,#17181b,#36383c) !important; color: #fff !important; box-shadow: 0 6px 16px rgba(17,19,22,.12) !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view :is(.premium-wallet-hero,.premium-referral-hero,.premium-member-hero) { border-color: rgba(20,21,24,.1) !important; background: linear-gradient(145deg,rgba(255,255,255,.94),rgba(237,239,242,.78)) !important; color: #17181b !important; box-shadow: 0 10px 26px rgba(17,19,22,.05),inset 0 1px 0 #fff !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view :is(.premium-wallet-hero,.premium-referral-hero,.premium-member-hero) > .absolute { display: none !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view .premium-member-hero :is([class*="text-white"],[class*="text-amber-"],[class*="text-emerald-"],[class*="text-zinc-"]) { color: #222327 !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view .premium-member-hero img { filter: grayscale(1) contrast(.96); }
+.premium-portal:not(.premium-portal--game) .premium-referral-hero > .absolute { display: none !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view :is(input,textarea,select,button,a):focus-visible { outline: 2px solid #25262a !important; outline-offset: 3px; box-shadow: 0 0 0 4px rgba(20,21,24,.08) !important; }
+.premium-portal:not(.premium-portal--game) .premium-sidebar-scrim { background: rgba(18,19,21,.32) !important; backdrop-filter: blur(12px); }
+.premium-portal:not(.premium-portal--game) :is(button,a):focus-visible,
+.admin-light-shell :is(button,a,input,textarea,select):focus-visible { outline: 2px solid #25262a !important; outline-offset: 3px; box-shadow: 0 0 0 4px rgba(20,21,24,.08) !important; }
+.premium-portal:not(.premium-portal--game) :is(button,svg) { color: currentColor; }
+.premium-portal:not(.premium-portal--game) svg,
+.admin-light-shell svg { fill: none !important; }
+.premium-portal:not(.premium-portal--game) div.fixed[class*="top-12"][class*="bg-[#141822]"] { border-color: rgba(20,21,24,.1) !important; background: rgba(255,255,255,.88) !important; color: #17181b !important; box-shadow: 0 10px 28px rgba(17,19,22,.1) !important; filter: grayscale(1); }
+.premium-portal:not(.premium-portal--game) div.fixed[class*="top-12"][class*="bg-[#141822]"] > span:first-child { display: none !important; }
+.premium-portal:not(.premium-portal--game) .ledger-nav { border-color: rgba(20,21,24,.1) !important; background: rgba(255,255,255,.82) !important; box-shadow: 0 10px 26px rgba(17,19,22,.11) !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .ledger-nav button { color: #46494f !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .ledger-nav button[class*="bg-white"] { border-color: #17181b !important; background: #17181b !important; color: #fff !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .ledger-nav button[class*="bg-white"] svg { stroke: #fff !important; color: #fff !important; }
+
+/* Standalone administration routes share the same grayscale glass material. */
+.admin-light-shell { background: linear-gradient(180deg,#f8f9fa,#eff0f2 58%,#f5f6f7) !important; color: #17181b !important; }
+.admin-light-shell header,
+.admin-light-shell :is(.ledger-panel,section,form.w-full.max-w-sm) { border-color: rgba(20,21,24,.1) !important; background: rgba(255,255,255,.75) !important; color: #17181b !important; box-shadow: 0 10px 28px rgba(17,19,22,.05),inset 0 1px 0 rgba(255,255,255,.92) !important; backdrop-filter: blur(26px) saturate(115%); }
+.admin-light-shell :is([class*="bg-amber-"],[class*="bg-emerald-"],[class*="bg-cyan-"],[class*="bg-red-"],[class*="bg-rose-"],[class*="bg-pink-"],[class*="bg-purple-"],[class*="bg-blue-"]) { border-color: rgba(20,21,24,.1) !important; background-color: #eff0f2 !important; background-image: none !important; color: #25262a !important; box-shadow: none !important; }
+.admin-light-shell :is([class*="text-amber-"],[class*="text-emerald-"],[class*="text-cyan-"],[class*="text-red-"],[class*="text-rose-"],[class*="text-pink-"],[class*="text-purple-"],[class*="text-blue-"]) { color: #27282c !important; }
+.admin-light-shell :is([class*="border-amber-"],[class*="border-emerald-"],[class*="border-cyan-"],[class*="border-red-"],[class*="border-rose-"],[class*="border-pink-"],[class*="border-purple-"],[class*="border-blue-"],[class*="border-white/"]) { border-color: rgba(20,21,24,.12) !important; }
+.admin-light-shell :is([class*="bg-zinc-950"],[class*="bg-zinc-900"],[class*="bg-black/"],[class*="bg-slate-950"],[class*="bg-[#070a12]"]) { border-color: rgba(20,21,24,.1) !important; background: rgba(255,255,255,.78) !important; background-image: none !important; color: #1a1b1e !important; }
+.admin-light-shell :is([class*="text-white"],[class*="text-zinc-"],[class*="text-slate-"],[class*="text-gray-"]) { color: #33353a !important; }
+.admin-light-shell input,
+.admin-light-shell textarea,
+.admin-light-shell select { border-color: rgba(20,21,24,.14) !important; background: rgba(255,255,255,.9) !important; color: #17181b !important; color-scheme: light; }
+.admin-light-shell input::placeholder,
+.admin-light-shell textarea::placeholder { color: #676a70 !important; }
+.admin-light-shell nav a[aria-current="page"] { border-color: #17181b !important; background: linear-gradient(145deg,#17181b,#37393d) !important; color: #fff !important; }
+.admin-light-shell nav a[aria-current="page"] span { color: #fff !important; }
+.admin-light-shell table thead { background: #e8e9eb !important; color: #25262a !important; }
+.admin-light-shell table tbody tr { border-color: rgba(20,21,24,.1) !important; }
+.admin-light-shell :is(button[class*="bg-amber-"],button[class*="bg-emerald-"],button[class*="bg-cyan-"],button[class*="bg-red-"],button[class*="bg-rose-"],button[class*="bg-pink-"],button[class*="bg-blue-"]) { border-color: #17181b !important; background: linear-gradient(145deg,#17181b,#36383c) !important; color: #fff !important; box-shadow: 0 6px 16px rgba(17,19,22,.1) !important; }
+.admin-light-shell button[class*="bg-white/"],
+.admin-light-shell a[class*="bg-white/"] { background: rgba(255,255,255,.72) !important; color: #27282c !important; }
+.admin-light-shell svg { color: currentColor; }
+
+/* The global administrator overlay is monochrome only when opened from a non-game player view. */
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome { background: rgba(17,18,20,.42) !important; backdrop-filter: blur(18px) saturate(105%); }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome > .admin-console-shell { border-color: rgba(20,21,24,.1) !important; background: rgba(248,249,250,.96) !important; color: #17181b !important; box-shadow: 0 24px 70px rgba(17,19,22,.2) !important; backdrop-filter: blur(30px) saturate(120%); }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome :is([class*="bg-amber-"],[class*="bg-emerald-"],[class*="bg-cyan-"],[class*="bg-red-"],[class*="bg-rose-"],[class*="bg-purple-"],[class*="bg-pink-"],[class*="bg-blue-"]) { border-color: rgba(20,21,24,.1) !important; background-color: #eff0f2 !important; background-image: none !important; color: #222327 !important; box-shadow: none !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome :is([class*="text-amber-"],[class*="text-emerald-"],[class*="text-cyan-"],[class*="text-red-"],[class*="text-rose-"],[class*="text-purple-"],[class*="text-pink-"],[class*="text-blue-"]) { color: #25262a !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome :is([class*="border-amber-"],[class*="border-emerald-"],[class*="border-cyan-"],[class*="border-red-"],[class*="border-rose-"],[class*="border-purple-"],[class*="border-pink-"],[class*="border-blue-"],[class*="border-white/"]) { border-color: rgba(20,21,24,.13) !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome :is([class*="bg-slate-950"],[class*="bg-zinc-950"],[class*="bg-black/"],[class*="bg-[#050914]"]) { border-color: rgba(20,21,24,.1) !important; background: rgba(255,255,255,.9) !important; background-image: none !important; color: #1a1b1e !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome :is([class*="text-white"],[class*="text-zinc-"],[class*="text-slate-"],[class*="text-gray-"]) { color: #33353a !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome :is(button[class*="bg-amber-"],button[class*="bg-emerald-"],button[class*="bg-cyan-"],button[class*="bg-red-"],button[class*="bg-rose-"],button[class*="bg-purple-"],button[class*="bg-pink-"],button[class*="bg-blue-"]) { border-color: #17181b !important; background: #17181b !important; color: #fff !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome svg { fill: none !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome img { filter: grayscale(1); }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome :is(button,input,textarea,select):focus-visible { outline: 2px solid #25262a !important; outline-offset: 3px; }
+
+.not-found-page { background: linear-gradient(180deg,#f8f9fa,#eff0f2) !important; color: #17181b !important; }
+.not-found-code { border-color: rgba(20,21,24,.1) !important; background: rgba(255,255,255,.72) !important; color: #17181b !important; box-shadow: 0 10px 26px rgba(17,19,22,.06),inset 0 1px 0 #fff; backdrop-filter: blur(22px); }
+.not-found-page span,.not-found-page h2,.not-found-page p { color: #222327 !important; }
+.not-found-page a { border: 1px solid #17181b !important; background: #17181b !important; color: #fff !important; box-shadow: 0 6px 16px rgba(17,19,22,.1) !important; }
+.not-found-page a:hover { background: #36383c !important; }
+
+@media (max-width:760px) {
+  .premium-portal:not(.premium-portal--game) .premium-wallet-feature { min-height: 220px; }
+  .premium-portal:not(.premium-portal--game) .premium-account-view { border-radius: 20px; }
+}
+
+
+/* Complete the monochrome glass treatment for auth and admin overlays without crossing into games. */
+.premium-portal:not(.premium-portal--game) .auth-backdrop { background: rgba(18,19,21,.42) !important; backdrop-filter: blur(20px) saturate(105%) !important; }
+.premium-portal:not(.premium-portal--game) .auth-shell { border-color: rgba(20,21,24,.12) !important; background: rgba(250,251,252,.94) !important; color: #17181b !important; box-shadow: 0 24px 72px rgba(17,19,22,.2),inset 0 1px 0 #fff !important; backdrop-filter: blur(30px) saturate(120%); }
+.premium-portal:not(.premium-portal--game) .auth-visual { border-color: rgba(20,21,24,.09) !important; background: linear-gradient(145deg,#f8f9fa,#e9ebee) !important; color: #17181b !important; }
+.premium-portal:not(.premium-portal--game) .auth-visual > div.absolute { display: none !important; }
+.premium-portal:not(.premium-portal--game) .auth-shell :is([class*="text-white"],[class*="text-amber-"],[class*="text-zinc-"]) { color: #34363b !important; }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-label,
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-tab { color: #51545a !important; }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-tab-active { border-color: #17181b !important; background: #17181b !important; color: #fff !important; box-shadow: none !important; }
+.premium-portal:not(.premium-portal--game) .auth-shell :is(.auth-input,input) { border-color: rgba(20,21,24,.15) !important; background: rgba(255,255,255,.9) !important; color: #17181b !important; }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-input::placeholder { color: #686b71 !important; }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-input:focus { border-color: #17181b !important; box-shadow: 0 0 0 3px rgba(20,21,24,.09) !important; }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-submit { border: 1px solid #17181b !important; background: #17181b !important; color: #fff !important; box-shadow: 0 7px 17px rgba(17,19,22,.12) !important; }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-submit:hover { background: #36383c !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view img { filter: grayscale(1) contrast(.98); }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome :is([class*="blur-3xl"],[class*="blur-[80px]"]) { display: none !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome :is(input,textarea,select) { border-color: rgba(20,21,24,.15) !important; background: rgba(255,255,255,.9) !important; color: #17181b !important; color-scheme: light; }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome :is(input,textarea,select)::placeholder { color: #686b71 !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome .status-chip { border-color: rgba(20,21,24,.12) !important; background: #eceef0 !important; color: #2a2b2f !important; }
+
+
+/* Catch remaining semantic utility colors on lobby shell controls; card art and play surfaces stay intact. */
+.premium-portal:not(.premium-portal--game) :is([class*="bg-amber-"],[class*="bg-yellow-"],[class*="bg-orange-"],[class*="bg-emerald-"],[class*="bg-green-"],[class*="bg-red-"],[class*="bg-rose-"],[class*="bg-pink-"],[class*="bg-cyan-"],[class*="bg-blue-"],[class*="bg-indigo-"],[class*="bg-purple-"],[class*="bg-violet-"]) { border-color: rgba(20,21,24,.12) !important; background-color: #eff0f2 !important; background-image: none !important; color: #242529 !important; box-shadow: none !important; }
+.premium-portal:not(.premium-portal--game) :is([class*="text-amber-"],[class*="text-yellow-"],[class*="text-orange-"],[class*="text-emerald-"],[class*="text-green-"],[class*="text-red-"],[class*="text-rose-"],[class*="text-pink-"],[class*="text-cyan-"],[class*="text-blue-"],[class*="text-indigo-"],[class*="text-purple-"],[class*="text-violet-"]) { color: #27282c !important; }
+.premium-portal:not(.premium-portal--game) :is([class*="border-amber-"],[class*="border-yellow-"],[class*="border-orange-"],[class*="border-emerald-"],[class*="border-green-"],[class*="border-red-"],[class*="border-rose-"],[class*="border-pink-"],[class*="border-cyan-"],[class*="border-blue-"],[class*="border-indigo-"],[class*="border-purple-"],[class*="border-violet-"]) { border-color: rgba(20,21,24,.12) !important; }
+.premium-portal:not(.premium-portal--game) :is(button[class*="bg-amber-"],button[class*="bg-yellow-"],button[class*="bg-orange-"],button[class*="bg-emerald-"],button[class*="bg-green-"],button[class*="bg-red-"],button[class*="bg-rose-"],button[class*="bg-pink-"],button[class*="bg-cyan-"],button[class*="bg-blue-"],button[class*="bg-indigo-"],button[class*="bg-purple-"],button[class*="bg-violet-"],a[class*="bg-amber-"],a[class*="bg-emerald-"]) { border-color: #17181b !important; background: linear-gradient(145deg,#17181b,#36383c) !important; color: #fff !important; box-shadow: 0 6px 16px rgba(17,19,22,.1) !important; }
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="bg-amber-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="bg-yellow-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="bg-orange-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="bg-emerald-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="bg-green-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="bg-red-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="bg-rose-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="bg-cyan-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="bg-blue-"] { border-color: rgba(255,255,255,.22) !important; background: rgba(16,17,19,.88) !important; color: #fff !important; }
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="text-amber-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="text-yellow-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="text-orange-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="text-emerald-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="text-green-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="text-red-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="text-rose-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="text-cyan-"],
+.premium-portal:not(.premium-portal--game) .premium-game-card [class*="text-blue-"] { color: #fff !important; }
+.premium-portal:not(.premium-portal--game) div.fixed[class*="top-12"][class*="bg-[#141822]"] { filter: grayscale(1); }
+
+
+/* Hue gradients and the Telegram brand CTA are UI surfaces too; keep them grayscale outside games. */
+.premium-portal:not(.premium-portal--game) :is([class*="bg-sky-"],[class*="bg-teal-"],[class*="bg-lime-"],[class*="text-sky-"],[class*="text-teal-"],[class*="text-lime-"]) { border-color: rgba(20,21,24,.12) !important; background-color: #eff0f2 !important; background-image: none !important; color: #27282c !important; box-shadow: none !important; }
+.premium-portal:not(.premium-portal--game) :is([class*="from-amber-"],[class*="via-amber-"],[class*="to-amber-"],[class*="from-yellow-"],[class*="via-yellow-"],[class*="to-yellow-"],[class*="from-orange-"],[class*="via-orange-"],[class*="to-orange-"],[class*="from-emerald-"],[class*="via-emerald-"],[class*="to-emerald-"],[class*="from-green-"],[class*="via-green-"],[class*="to-green-"],[class*="from-red-"],[class*="via-red-"],[class*="to-red-"],[class*="from-rose-"],[class*="via-rose-"],[class*="to-rose-"],[class*="from-pink-"],[class*="via-pink-"],[class*="to-pink-"],[class*="from-cyan-"],[class*="via-cyan-"],[class*="to-cyan-"],[class*="from-sky-"],[class*="via-sky-"],[class*="to-sky-"],[class*="from-blue-"],[class*="via-blue-"],[class*="to-blue-"],[class*="from-purple-"],[class*="via-purple-"],[class*="to-purple-"],[class*="from-violet-"],[class*="via-violet-"],[class*="to-violet-"],[class*="from-indigo-"],[class*="via-indigo-"],[class*="to-indigo-"]) { border-color: rgba(20,21,24,.12) !important; background-color: #eff0f2 !important; background-image: none !important; color: #28292d !important; box-shadow: none !important; }
+.premium-portal:not(.premium-portal--game) :is([class*="text-sky-"],[class*="text-teal-"],[class*="text-lime-"]) { color: #27282c !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view :is([class*="bg-slate-"],[class*="from-slate-"],[class*="via-slate-"],[class*="to-slate-"]) { border-color: rgba(20,21,24,.12) !important; background-color: #eff0f2 !important; background-image: none !important; color: #292a2e !important; box-shadow: none !important; }
+.premium-portal:not(.premium-portal--game) .premium-account-view :is([class*="bg-[#2AABEE]"],[class*="border-[#2AABEE]"],[class*="text-[#2AABEE]"]) { border-color: rgba(20,21,24,.12) !important; background-color: #eff0f2 !important; background-image: none !important; color: #25262a !important; box-shadow: none !important; }
+.premium-portal:not(.premium-portal--game) :is(button[class*="bg-sky-"],button[class*="bg-teal-"],button[class*="bg-lime-"],button[class*="from-amber-"],button[class*="from-emerald-"],button[class*="from-blue-"],button[class*="from-cyan-"]) { border-color: #17181b !important; background: #17181b !important; color: #fff !important; box-shadow: 0 6px 16px rgba(17,19,22,.1) !important; }
+.premium-portal:not(.premium-portal--game) .premium-game-card :is([class*="from-amber-"],[class*="via-amber-"],[class*="to-amber-"],[class*="from-emerald-"],[class*="from-blue-"],[class*="from-cyan-"]) { border-color: rgba(255,255,255,.2) !important; background: rgba(16,17,19,.88) !important; background-image: none !important; color: #fff !important; }
+.admin-light-shell :is([class*="bg-sky-"],[class*="bg-teal-"],[class*="bg-lime-"],[class*="from-amber-"],[class*="via-amber-"],[class*="to-amber-"],[class*="from-emerald-"],[class*="from-cyan-"],[class*="from-blue-"],[class*="from-red-"],[class*="from-purple-"],[class*="from-rose-"]) { border-color: rgba(20,21,24,.12) !important; background-color: #eff0f2 !important; background-image: none !important; color: #27282c !important; box-shadow: none !important; }
+.admin-light-shell :is(button[class*="bg-sky-"],button[class*="bg-teal-"],button[class*="bg-lime-"],button[class*="from-amber-"],button[class*="from-emerald-"],button[class*="from-cyan-"],button[class*="from-blue-"]) { border-color: #17181b !important; background: #17181b !important; color: #fff !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome :is([class*="bg-sky-"],[class*="bg-teal-"],[class*="bg-lime-"],[class*="from-amber-"],[class*="via-amber-"],[class*="to-amber-"],[class*="from-emerald-"],[class*="from-cyan-"],[class*="from-blue-"],[class*="from-red-"],[class*="from-purple-"],[class*="from-rose-"]) { border-color: rgba(20,21,24,.12) !important; background-color: #eff0f2 !important; background-image: none !important; color: #27282c !important; box-shadow: none !important; }
+body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome :is(button[class*="bg-sky-"],button[class*="bg-teal-"],button[class*="from-amber-"],button[class*="from-emerald-"],button[class*="from-cyan-"],button[class*="from-blue-"]) { border-color: #17181b !important; background: #17181b !important; color: #fff !important; }
+
+
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature { min-height: clamp(175px,17vw,220px) !important; }
+@media (max-width:760px) {
+  .premium-portal:not(.premium-portal--game) .premium-wallet-feature { min-height: 164px !important; padding: 20px 18px !important; }
+}
+
+
+/* The wallet slide is an information card, not a second game-poster panel. */
+.premium-portal:not(.premium-portal--game) .premium-promo-showcase--wallet { aspect-ratio: auto !important; height: clamp(184px,16vw,228px) !important; min-height: 0 !important; background: linear-gradient(145deg,#fff,#eceef1) !important; }
+.premium-portal:not(.premium-portal--game) .premium-promo-showcase--wallet .premium-wallet-feature { height: 100% !important; min-height: 0 !important; }
+.premium-portal:not(.premium-portal--game) .premium-promo-showcase--wallet .premium-wallet-feature > img,
+.premium-portal:not(.premium-portal--game) .premium-promo-showcase--wallet .premium-wallet-feature > div.absolute { display: none !important; }
+@media (max-width:760px) {
+  .premium-portal:not(.premium-portal--game) .premium-promo-showcase--wallet { height: 164px !important; }
+}

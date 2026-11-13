@@ -1337,14 +1337,14 @@ export default function Home() {
     // 0. Anti-Bot & Automation Detection
     const botCheck = detectBotOrAutomation();
     if (botCheck.isBot) {
-      alert(`⚠️ လုံခြုံရေးသတိပေးချက်: တရားမဝင် Bot ခေါ်ဆိုမှုဖြစ်သဖြင့် ငြင်းပယ်ပါသည် (${botCheck.reason})။`);
+      alert(`လုံခြုံရေးသတိပေးချက်: တရားမဝင် Bot ခေါ်ဆိုမှုဖြစ်သဖြင့် ငြင်းပယ်ပါသည် (${botCheck.reason})။`);
       return false;
     }
 
     // 1. Velocity Rate Limiting
     const velocityCheck = verifyActionVelocity();
     if (!velocityCheck.allowed) {
-      alert(`⚠️ ${velocityCheck.reason}`);
+      alert(`${velocityCheck.reason}`);
       return false;
     }
 
@@ -1352,7 +1352,7 @@ export default function Home() {
     const securityToken = generateEphemeralToken(currentUser.uid, 'deposit');
     const tokenCheck = isTokenValid(securityToken, 'deposit', currentUser.uid);
     if (!tokenCheck.valid) {
-      alert(`⚠️ လုံခြုံရေး Token အမှား: ${tokenCheck.error}`);
+      alert(`လုံခြုံရေး Token အမှား: ${tokenCheck.error}`);
       return false;
     }
 
@@ -1435,14 +1435,14 @@ export default function Home() {
     // 0. Anti-Bot & Automation Detection
     const botCheck = detectBotOrAutomation();
     if (botCheck.isBot) {
-      alert(`⚠️ လုံခြုံရေးသတိပေးချက်: တရားမဝင် Bot ခေါ်ဆိုမှုဖြစ်သဖြင့် ငြင်းပယ်ပါသည် (${botCheck.reason})။`);
+      alert(`လုံခြုံရေးသတိပေးချက်: တရားမဝင် Bot ခေါ်ဆိုမှုဖြစ်သဖြင့် ငြင်းပယ်ပါသည် (${botCheck.reason})။`);
       return false;
     }
 
     // 1. Velocity Rate Limiting
     const velocityCheck = verifyActionVelocity();
     if (!velocityCheck.allowed) {
-      alert(`⚠️ ${velocityCheck.reason}`);
+      alert(`${velocityCheck.reason}`);
       return false;
     }
 
@@ -1450,7 +1450,7 @@ export default function Home() {
     const securityToken = generateEphemeralToken(currentUser.uid, 'withdraw');
     const tokenCheck = isTokenValid(securityToken, 'withdraw', currentUser.uid);
     if (!tokenCheck.valid) {
-      alert(`⚠️ လုံခြုံရေး Token အမှား: ${tokenCheck.error}`);
+      alert(`လုံခြုံရေး Token အမှား: ${tokenCheck.error}`);
       return false;
     }
 
@@ -1545,14 +1545,14 @@ export default function Home() {
     // Anti-Bot & Automation Check
     const botCheck = detectBotOrAutomation();
     if (botCheck.isBot) {
-      alert(`⚠️ လုံခြုံရေးသတိပေးချက်: တရားမဝင် Bot ခေါ်ဆိုမှုဖြစ်သဖြင့် ငြင်းပယ်ပါသည် (${botCheck.reason})။`);
+      alert(`လုံခြုံရေးသတိပေးချက်: တရားမဝင် Bot ခေါ်ဆိုမှုဖြစ်သဖြင့် ငြင်းပယ်ပါသည် (${botCheck.reason})။`);
       return false;
     }
 
     // Ephemeral Security Token
     const securityToken = generateEphemeralToken(currentUser.uid, 'claim');
     if (!isTokenValid(securityToken, 'claim', currentUser.uid).valid) {
-      alert('⚠️ လုံခြုံရေး Token သက်တမ်းကုန်ဆုံးသွားပါပြီ။');
+      alert('လုံခြုံရေး Token သက်တမ်းကုန်ဆုံးသွားပါပြီ။');
       return false;
     }
     await consumeSecurityToken(securityToken);
