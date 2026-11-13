@@ -163,7 +163,7 @@
 - [x] Make the existing casino UI feel closer to current iOS Liquid Glass: create a distinct floating frosted layer for sidebars, top/search/navigation bars, icon controls, popovers, and transient actions; keep forms, wallet balances, bet records, headings, and other reading content on clearer neutral standard-material surfaces. Use glass selectively, not as a blur on every card, and do not add an iOS-style dashboard or new routes.
 - [x] Keep the established white/black/neutral-gray palette and the existing non-game functionality; use adaptive blur, thin inner-edge highlights, refined continuous rounded corners, careful spacing, and restrained interaction feedback without introducing color accents, glowing dots/orbs, or game-page changes.
 - [x] Keep every visible string within its own card, input, button, dialog, and viewport, including long Burmese copy, usernames, email/UID, referral links, transaction details, and action labels. Allow long text to wrap, shrink flex/grid children safely, preserve readable line-height and padding, avoid clipped text and accidental horizontal overflow, and reflow at 390px mobile width.
-- [ ] Validate the player views and existing admin/404 surfaces at desktop and 390px widths; keep gameplay pages untouched and push the focused UI changes to `origin/main`.
+- [x] Validate the player views and existing admin/404 surfaces at desktop and 390px widths; keep gameplay pages untouched and push the focused UI changes to `origin/main` (confirmed at commit `f1c6466`).
 
 
 ### Final iOS Liquid Glass QA evidence
