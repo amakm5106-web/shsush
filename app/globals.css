@@ -1873,3 +1873,110 @@ body:has(.premium-portal:not(.premium-portal--game)) .admin-modal-monochrome :is
 @media (max-width:760px) {
   .premium-portal:not(.premium-portal--game) .premium-promo-showcase--wallet { height: 164px !important; }
 }
+
+
+/* Profile refinement: stronger identity hierarchy, calmer spacing, and one clear sign-in action. */
+.premium-portal:not(.premium-portal--game) .premium-account-view:has(.premium-profile-view--guest) { padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.premium-portal:not(.premium-portal--game) .premium-profile-view--guest {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 64px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  min-height: 232px;
+  margin-inline: auto;
+  padding: clamp(24px,4vw,42px);
+  border: 1px solid rgba(20,21,24,.1);
+  border-radius: 28px;
+  background: linear-gradient(145deg,rgba(255,255,255,.96),rgba(237,239,242,.8));
+  color: #17181b;
+  box-shadow: 0 16px 38px rgba(17,19,22,.06),inset 0 1px 0 rgba(255,255,255,.98);
+  backdrop-filter: blur(26px) saturate(112%);
+  -webkit-backdrop-filter: blur(26px) saturate(112%);
+}
+.premium-portal:not(.premium-portal--game) .premium-profile-guest-mark,
+.premium-portal:not(.premium-portal--game) .premium-profile-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(20,21,24,.1);
+  background: linear-gradient(145deg,#fff,#e9eaed);
+  color: #202125;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.96),0 6px 16px rgba(17,19,22,.045);
+}
+.premium-portal:not(.premium-portal--game) .premium-profile-guest-mark { width: 64px; height: 64px; border-radius: 22px; }
+.premium-portal:not(.premium-portal--game) .premium-profile-guest-copy { min-width: 0; }
+.premium-portal:not(.premium-portal--game) .premium-profile-eyebrow { display: block; margin-bottom: 8px; color: #686b71; font-size: 10px; font-weight: 800; letter-spacing: .16em; }
+.premium-portal:not(.premium-portal--game) .premium-profile-guest-copy h2 { margin: 0; color: #17181b; font-size: clamp(19px,2.1vw,25px); font-weight: 800; letter-spacing: -.025em; line-height: 1.25; }
+.premium-portal:not(.premium-portal--game) .premium-profile-guest-copy p { max-width: 520px; margin: 9px 0 0; color: #63666d; font-size: 13px; line-height: 1.75; }
+.premium-portal:not(.premium-portal--game) .premium-profile-guest-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 46px;
+  max-width: 100%;
+  padding: 0 16px;
+  border: 1px solid rgba(20,21,24,.12);
+  border-radius: 15px;
+  background: rgba(255,255,255,.76);
+  color: #242529;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(17,19,22,.055),inset 0 1px 0 rgba(255,255,255,.95);
+  transition: background-color .18s ease,border-color .18s ease,transform .18s ease,box-shadow .18s ease;
+}
+.premium-portal:not(.premium-portal--game) .premium-profile-guest-cta:hover { border-color: rgba(20,21,24,.2); background: #fff; box-shadow: 0 9px 20px rgba(17,19,22,.075); transform: translateY(-1px); }
+.premium-portal:not(.premium-portal--game) .premium-profile-view--signed-in { max-width: 1080px; margin-inline: auto; gap: 15px; }
+.premium-portal:not(.premium-portal--game) .premium-profile-member-card { border-radius: 27px !important; overflow: hidden; }
+.premium-portal:not(.premium-portal--game) .premium-profile-avatar { width: 58px; height: 58px; border-radius: 19px; }
+.premium-portal:not(.premium-portal--game) .premium-profile-signout { border-color: rgba(20,21,24,.12) !important; background: #f0f1f3 !important; color: #36383d !important; box-shadow: none !important; }
+.premium-portal:not(.premium-portal--game) .premium-profile-signout:hover { background: #e6e7ea !important; }
+.premium-portal:not(.premium-portal--game) .premium-profile-contact-grid { gap: 12px; }
+.premium-portal:not(.premium-portal--game) .premium-profile-contact {
+  min-width: 0;
+  border: 1px solid rgba(20,21,24,.1) !important;
+  background: rgba(255,255,255,.72) !important;
+  color: #27282c !important;
+  box-shadow: 0 7px 18px rgba(17,19,22,.045),inset 0 1px 0 rgba(255,255,255,.94) !important;
+  backdrop-filter: blur(20px) saturate(110%);
+  -webkit-backdrop-filter: blur(20px) saturate(110%);
+}
+.premium-portal:not(.premium-portal--game) .premium-profile-contact:hover { border-color: rgba(20,21,24,.2) !important; background: rgba(255,255,255,.96) !important; }
+.premium-portal:not(.premium-portal--game) .premium-profile-contact__icon,
+.premium-portal:not(.premium-portal--game) .premium-cs-action__icon { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 34px; height: 34px; border: 1px solid rgba(20,21,24,.08); border-radius: 12px; background: #eceef0 !important; color: #303238 !important; }
+.premium-portal:not(.premium-portal--game) .premium-profile-contact__title { color: #25262a !important; font-size: 11px; font-weight: 750; }
+.premium-portal:not(.premium-portal--game) .premium-profile-contact__detail { color: #65686e !important; font-family: ui-monospace,SFMono-Regular,Menlo,monospace; font-size: 10px; }
+
+/* Customer Service controls use pale frosted glass rather than a contrasting accent chip. */
+.premium-portal:not(.premium-portal--game) .premium-cs-action {
+  border: 1px solid rgba(20,21,24,.11) !important;
+  background: rgba(255,255,255,.78) !important;
+  color: #292a2e !important;
+  box-shadow: 0 7px 20px rgba(17,19,22,.065),inset 0 1px 0 rgba(255,255,255,.96) !important;
+  backdrop-filter: blur(24px) saturate(112%);
+  -webkit-backdrop-filter: blur(24px) saturate(112%);
+}
+.premium-portal:not(.premium-portal--game) .premium-cs-action:hover { border-color: rgba(20,21,24,.19) !important; background: rgba(255,255,255,.96) !important; color: #17181b !important; box-shadow: 0 10px 24px rgba(17,19,22,.09),inset 0 1px 0 #fff !important; }
+.premium-portal:not(.premium-portal--game) .premium-cs-action--compact { min-height: 34px; }
+.premium-portal:not(.premium-portal--game) .premium-cs-action--floating { border-radius: 17px !important; }
+.premium-portal:not(.premium-portal--game) .premium-cs-action__glyph,
+.premium-portal:not(.premium-portal--game) .premium-cs-action__label,
+.premium-portal:not(.premium-portal--game) .premium-cs-action__handle { color: #303238 !important; }
+.premium-portal:not(.premium-portal--game) .premium-cs-action__handle { opacity: .72; }
+@media (max-width: 700px) {
+  .premium-portal:not(.premium-portal--game) .premium-profile-view--guest { grid-template-columns: 54px minmax(0,1fr); gap: 15px; min-height: unset; padding: 22px 18px; border-radius: 23px; }
+  .premium-portal:not(.premium-portal--game) .premium-profile-guest-mark { width: 54px; height: 54px; border-radius: 18px; }
+  .premium-portal:not(.premium-portal--game) .premium-profile-guest-copy h2 { font-size: 19px; }
+  .premium-portal:not(.premium-portal--game) .premium-profile-guest-copy p { margin-top: 7px; font-size: 12px; }
+  .premium-portal:not(.premium-portal--game) .premium-profile-guest-cta { grid-column: 2; justify-self: start; min-height: 42px; padding-inline: 13px; white-space: normal; text-align: left; }
+  .premium-portal:not(.premium-portal--game) .premium-profile-contact-grid { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 380px) {
+  .premium-portal:not(.premium-portal--game) .premium-profile-view--guest { grid-template-columns: 46px minmax(0,1fr); gap: 12px; padding: 19px 14px; }
+  .premium-portal:not(.premium-portal--game) .premium-profile-guest-mark { width: 46px; height: 46px; border-radius: 15px; }
+  .premium-portal:not(.premium-portal--game) .premium-profile-guest-cta { grid-column: 1 / -1; justify-self: stretch; }
+}

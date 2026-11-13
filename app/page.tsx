@@ -2179,10 +2179,10 @@ export default function Home() {
                         openTelegramLink(CUSTOMER_SERVICE_BOT_LINK);
                         showToast(`Customer Service Bot (${CUSTOMER_SERVICE_BOT_HANDLE}) သို့ ဖွင့်လှစ်နေပါသည်...`, 'info');
                       }}
-                      className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-xs active:scale-95 transition-all shadow-sm shrink-0"
+                      className="premium-cs-action premium-cs-action--compact flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl font-bold text-xs active:scale-[.98] transition-all shrink-0"
                       title="Customer Service (@xsitecasinobot)"
                     >
-                      <Headphones className="w-3.5 h-3.5 text-amber-400 stroke-[2.2]" />
+                      <Headphones className="premium-cs-action__glyph w-3.5 h-3.5 stroke-[2]" />
                       <span className="hidden xs:inline sm:inline">CS Bot</span>
                     </button>
 
@@ -2995,15 +2995,15 @@ export default function Home() {
               openTelegramLink(CUSTOMER_SERVICE_BOT_LINK);
               showToast(`Customer Service Bot (${CUSTOMER_SERVICE_BOT_HANDLE}) သို့ ဖွင့်လှစ်နေပါသည်...`, 'info');
             }}
-            className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full bg-gradient-to-r from-zinc-950 via-zinc-900 to-black border border-amber-400/40 text-white shadow-[0_8px_25px_rgba(245,158,11,0.3)] hover:border-amber-400 hover:scale-105 active:scale-95 transition-all"
+            className="premium-cs-action premium-cs-action--floating flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full active:scale-[.98] transition-all"
             title="Customer Service Bot (@xsitecasinobot)"
           >
-            <div className="relative">
-              <Headphones className="w-4 h-4 text-amber-400 stroke-[2.3]" />
+            <div className="premium-cs-action__icon">
+              <Headphones className="premium-cs-action__glyph w-4 h-4 stroke-[2]" />
             </div>
-            <span className="text-xs font-black text-amber-300 tracking-wide font-sans flex items-center gap-1">
+            <span className="premium-cs-action__label text-xs font-black tracking-wide font-sans flex items-center gap-1">
               CS Bot
-              <span className="text-[10px] text-amber-400/70 font-mono font-normal">(@xsitecasinobot)</span>
+              <span className="premium-cs-action__handle text-[10px] font-mono font-normal">(@xsitecasinobot)</span>
             </span>
           </button>
         </aside>

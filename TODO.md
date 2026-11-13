@@ -142,3 +142,17 @@
 - The 390px test frame showed no horizontal overflow on lobby, wallet, referral, or profile; the referral QR dialog stayed inside the viewport.
 - `npm run lint` completed with 0 errors and 18 warnings; the final `npm run build` completed successfully.
 - The working diff contains no game implementation paths; gameplay toast markup, game posters, and game behavior remain unchanged.
+
+
+## Profile page and Customer Service refinement
+
+- [x] Improve the existing guest and signed-in profile layouts with clearer identity, action, VIP-progress, linked-account, and bet-history hierarchy; keep the current data, actions, and mobile behavior, and do not add dashboard widgets or invented metrics.
+- [x] Restyle all visible CS/Customer Service buttons and profile links as restrained translucent white/gray glass with monochrome line icons; remove disliked accent colors while preserving the existing Telegram destinations, labels, and click behavior.
+- [x] Keep every game page and game-only UI untouched; validate the profile at desktop and 390px mobile width, then push only the focused UI changes to `origin/main`.
+
+
+### Profile/CS QA
+
+- The refreshed guest profile was visually reviewed; the CS Bot header and floating controls both compute to translucent white with neutral charcoal text/borders.
+- A 390px mobile preview reported no horizontal overflow; the profile card and sign-in CTA stayed within the viewport.
+- `npm run lint` completed with 0 errors (17 warnings), and `npm run build` completed successfully.

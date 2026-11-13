@@ -95,21 +95,22 @@ export function ProfileView({
 
   if (!user) {
     return (
-      <div className="premium-profile-view w-full flex flex-col items-center justify-center py-16 px-4 gap-4 animate-fadeIn">
-        <div className="w-16 h-16 rounded-3xl bg-zinc-900/90 border border-white/10 flex items-center justify-center text-zinc-400 shadow-xl">
-          <User className="w-8 h-8 stroke-[1.8]" />
+      <div className="premium-profile-view premium-profile-view--guest w-full animate-fadeIn">
+        <div className="premium-profile-guest-mark" aria-hidden="true">
+          <User className="w-7 h-7 stroke-[1.7]" />
         </div>
-        <div className="text-center">
-          <h2 className="text-base font-black text-white">အကောင့် မဝင်ရသေးပါ</h2>
-          <p className="text-xs text-zinc-400 mt-1 max-w-xs">
-            သင့်အကောင့်အချက်အလက်များနှင့် လောင်းကြေးမှတ်တမ်းများ ကြည့်ရှုရန် အကောင့်ဝင်ရောက်ပေးပါ။
+        <div className="premium-profile-guest-copy">
+          <span className="premium-profile-eyebrow">PROFILE ACCESS</span>
+          <h2>ကိုယ်ပိုင်အကောင့်သို့ ဝင်ရောက်ပါ</h2>
+          <p>
+            သင့်အကောင့်အချက်အလက်များနှင့် လောင်းကြေးမှတ်တမ်းများကို ဤနေရာတွင် ကြည့်ရှုစီမံနိုင်ပါသည်။
           </p>
         </div>
         <button
           onClick={onSignIn}
-          className="mt-2 px-6 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs transition-all active:scale-95 shadow-lg flex items-center gap-2"
+          className="premium-profile-guest-cta"
         >
-          <LogIn className="w-4 h-4 stroke-[2.5]" />
+          <LogIn className="w-4 h-4 stroke-[2]" />
           <span>အကောင့်ဝင်ရန် / အကောင့်ဖွင့်ရန်</span>
         </button>
       </div>
@@ -117,27 +118,15 @@ export function ProfileView({
   }
 
   return (
-    <div className="premium-profile-view w-full flex flex-col gap-4 pb-12 animate-fadeIn">
-      {/* 1. VIP MEMBER PRESTIGE CARD (Obsidian & Gold Shimmer backdrop with VIP Badge) */}
-      <div className="premium-member-hero relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-950/90">
-        {/* Subtle Obsidian & Warm Gold Background Image Overlay */}
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-30 pointer-events-none"
-          style={{ backgroundImage: `url('/assets/casino/obsidian_bg.jpg')` }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent pointer-events-none" />
-
+    <div className="premium-profile-view premium-profile-view--signed-in w-full flex flex-col gap-4 pb-12 animate-fadeIn">
+      {/* VIP identity, account actions, progression, and the existing profile summary */}
+      <div className="premium-member-hero premium-profile-member-card relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-950/90">
         <div className="relative z-10 p-5 sm:p-6 flex flex-col gap-4">
           {/* Header Row: Avatar, VIP Badge, Name, Signout */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3.5">
-              {/* VIP Badge Image */}
-              <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 border border-amber-400/40 shadow-xl shadow-amber-500/10 bg-black">
-                <img
-                  src="/assets/casino/vip_badge.jpg"
-                  alt="VIP Badge"
-                  className="w-full h-full object-cover"
-                />
+              <div className="premium-profile-avatar" aria-hidden="true">
+                <User className="w-6 h-6 stroke-[1.7]" />
               </div>
 
               <div className="flex flex-col">
@@ -190,7 +179,7 @@ export function ProfileView({
                     onSignOut();
                   }
                 }}
-                className="p-2 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/20 text-red-300 transition-all active:scale-95"
+                className="premium-profile-signout p-2 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/20 text-red-300 transition-all active:scale-95"
                 title="အကောင့်ထွက်မည်"
               >
                 <LogOut className="w-4 h-4 stroke-[2]" />
@@ -282,19 +271,19 @@ export function ProfileView({
       </div>
 
       {/* Official Telegram Channel & Customer Service Bot */}
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="premium-profile-contact-grid grid grid-cols-2 gap-2.5">
         <a
           href="https://t.me/dicemyanmar1"
           target="_blank"
           rel="noopener noreferrer"
-          className="p-3 rounded-2xl bg-sky-950/40 border border-sky-500/30 hover:border-sky-400/60 flex items-center gap-2.5 transition-all active:scale-95 group shadow-sm"
+          className="premium-profile-contact p-3 rounded-2xl flex items-center gap-2.5 transition-all active:scale-[.99]"
         >
-          <div className="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-            <Megaphone className="w-4 h-4 stroke-[2.3]" />
+          <div className="premium-profile-contact__icon">
+            <Megaphone className="w-4 h-4 stroke-[2]" />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[11px] font-black text-white truncate">တရားဝင် Channel</span>
-            <span className="text-[10px] text-sky-300 font-mono">@dicemyanmar1</span>
+            <span className="premium-profile-contact__title truncate">တရားဝင် Channel</span>
+            <span className="premium-profile-contact__detail">@dicemyanmar1</span>
           </div>
         </a>
 
@@ -302,14 +291,14 @@ export function ProfileView({
           href="https://t.me/xsitecasinobot"
           target="_blank"
           rel="noopener noreferrer"
-          className="p-3 rounded-2xl bg-amber-950/40 border border-amber-500/30 hover:border-amber-400/60 flex items-center gap-2.5 transition-all active:scale-95 group shadow-sm"
+          className="premium-cs-action premium-cs-action--profile premium-profile-contact p-3 rounded-2xl flex items-center gap-2.5 transition-all active:scale-[.99]"
         >
-          <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-            <Headphones className="w-4 h-4 stroke-[2.3]" />
+          <div className="premium-profile-contact__icon premium-cs-action__icon">
+            <Headphones className="w-4 h-4 stroke-[2]" />
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[11px] font-black text-white truncate">Customer Service</span>
-            <span className="text-[10px] text-amber-300 font-mono">@xsitecasinobot</span>
+            <span className="premium-profile-contact__title truncate">Customer Service</span>
+            <span className="premium-profile-contact__detail">@xsitecasinobot</span>
           </div>
         </a>
       </div>
