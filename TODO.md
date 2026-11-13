@@ -39,6 +39,13 @@
 - [x] Keep `LoginGame` as a wallet-gated, anonymous Cocos readiness handshake only; source `LoginfreeCount` from the authenticated parent wallet state, and route `lottery` requests/results exclusively through the authenticated MMK server bridge. The game must render server-returned spin outcomes and must not fall back to demo balance/results.
 - [x] Validate the Cocos-to-host bridge and packaged source, run lint/production build, and push the completed fix to GitHub without touching a live account balance.
 
+## Buffalo scatter and admin RTP control
+
+- [x] A spin (paid or Free Spin) with at least 3 Scatters awards exactly 3 Free Spins; Free Spin retriggers inherit the original paid feature's RTP snapshot.
+- [x] Add a server-validated, admin-only Buffalo RTP setting: default 80%, integer 50–95%, stored in `settings` and editable beside Sakura RTP.
+- [x] Define RTP as all paid/free payouts divided by paid MMK stake; calibrate every legal stake so the setting changes actual server payouts, not only a displayed percentage.
+- [x] Snapshot the RTP target for a paid round and its Free Spins; record applied RTP/math version per spin; remove loss-streak-dependent odds.
+
 ## Verification
 
 - [x] Run lint and production build; resolve actionable errors.

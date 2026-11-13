@@ -25,6 +25,9 @@ export default function AdminDashboard({ section }: { section: DashboardSection 
   const [sakuraRtp, setSakuraRtp] = useState('80');
   const [sakuraRtpBusy, setSakuraRtpBusy] = useState(false);
   const [sakuraRtpNotice, setSakuraRtpNotice] = useState('');
+  const [buffaloRtp, setBuffaloRtp] = useState('80');
+  const [buffaloRtpBusy, setBuffaloRtpBusy] = useState(false);
+  const [buffaloRtpNotice, setBuffaloRtpNotice] = useState('');
 
   const load = async (q = query) => {
     const response = await fetch(`/api/admin/overview${q ? `?q=${encodeURIComponent(q)}` : ''}`, { cache: 'no-store', credentials: 'include' });
@@ -54,6 +57,21 @@ export default function AdminDashboard({ section }: { section: DashboardSection 
         setSakuraRtpNotice('');
       })
       .catch((error) => { if (active) setSakuraRtpNotice(error instanceof Error ? error.message : 'Sakura ဆက်တင်ကို မဖတ်နိုင်ပါ။'); });
+    return () => { active = false; };
+  }, [section, authenticated]);
+
+  useEffect(() => {
+    if (section !== 'settings' || !authenticated) return;
+    let active = true;
+    fetch('/api/admin/buffalo-rtp', { credentials: 'include', cache: 'no-store' })
+      .then(async (response) => ({ response, data: await response.json() }))
+      .then(({ response, data }) => {
+        if (!active) return;
+        if (!response.ok || !data.success) throw new Error(data.error || 'Buffalo RTP ဆက်တင်ကို မဖတ်နိုင်ပါ။');
+        setBuffaloRtp(String(data.rtpPercent));
+        setBuffaloRtpNotice('');
+      })
+      .catch((error) => { if (active) setBuffaloRtpNotice(error instanceof Error ? error.message : 'Buffalo RTP ဆက်တင်ကို မဖတ်နိုင်ပါ။'); });
     return () => { active = false; };
   }, [section, authenticated]);
 
@@ -94,6 +112,31 @@ export default function AdminDashboard({ section }: { section: DashboardSection 
       setSakuraRtpNotice(error instanceof Error ? error.message : 'Sakura ဆက်တင်ကို သိမ်း၍မရပါ။');
     } finally {
       setSakuraRtpBusy(false);
+    }
+  };
+
+  const saveBuffaloRtp = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const value = Number(buffaloRtp);
+    if (!Number.isInteger(value) || value < 50 || value > 95) {
+      setBuffaloRtpNotice('50 မှ 95 အတွင်း ကိန်းပြည့်တန်ဖိုး ထည့်ပါ။');
+      return;
+    }
+    setBuffaloRtpBusy(true);
+    setBuffaloRtpNotice('');
+    try {
+      const response = await fetch('/api/admin/buffalo-rtp', {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rtpPercent: value }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Buffalo RTP ဆက်တင်ကို သိမ်း၍မရပါ။');
+      setBuffaloRtp(String(result.rtpPercent));
+      setBuffaloRtpNotice('Buffalo RTP ဆက်တင်ကို သိမ်းပြီးပါပြီ။');
+    } catch (error) {
+      setBuffaloRtpNotice(error instanceof Error ? error.message : 'Buffalo RTP ဆက်တင်ကို သိမ်း၍မရပါ။');
+    } finally {
+      setBuffaloRtpBusy(false);
     }
   };
 
@@ -167,7 +210,7 @@ export default function AdminDashboard({ section }: { section: DashboardSection 
     { key: 'users', href: '/phyophyolover/users', title: 'အသုံးပြုသူများ', subtitle: 'အကောင့်ရှာရန်နှင့် စီမံရန်', tone: 'cyan' },
     { key: 'deposits', href: '/phyophyolover/deposits', title: 'ငွေသွင်း', subtitle: 'ငွေသွင်းတောင်းဆိုမှုများ', tone: 'emerald' },
     { key: 'withdrawals', href: '/phyophyolover/withdrawals', title: 'ငွေထုတ်', subtitle: 'ငွေထုတ်တောင်းဆိုမှုများ', tone: 'rose' },
-    { key: 'settings', href: '/phyophyolover/settings', title: 'ဆက်တင်နှင့် ပရိုမိုးရှင်း', subtitle: 'နေ့စဉ်ဘောနပ်စ်နှင့် Sakura', tone: 'pink' },
+    { key: 'settings', href: '/phyophyolover/settings', title: 'ဆက်တင်နှင့် ပရိုမိုးရှင်း', subtitle: 'ဘောနပ်စ်၊ Sakura နှင့် Buffalo RTP', tone: 'pink' },
   ];
   const pageTitle = navItems.find((item) => item.key === section)?.title || 'Overview';
 
@@ -240,6 +283,17 @@ export default function AdminDashboard({ section }: { section: DashboardSection 
               <button type="submit" disabled={sakuraRtpBusy} className="min-h-12 rounded-xl bg-pink-300 px-6 text-sm font-black text-zinc-950 disabled:opacity-50">{sakuraRtpBusy ? 'သိမ်းဆည်းနေသည်…' : 'Sakura ဆက်တင် သိမ်းမည်'}</button>
             </form>
             {sakuraRtpNotice && <p role="status" className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/80">{sakuraRtpNotice}</p>}
+          </section>
+          <section className="rounded-2xl border border-cyan-400/20 bg-cyan-950/20 p-5 sm:p-7">
+            <h2 className="text-lg font-black text-cyan-100">Buffalo RTP (%)</h2>
+            <p className="mt-2 text-sm leading-6 text-white/60">Spin တစ်ခုတွင် Scatter 3 ခုထွက်လျှင် Free Spin 3 ကြိမ်ရပြီး Free Spin ထဲတွင်လည်း Scatter 3 ခုထပ်ထွက်လျှင် retrigger လုပ်သည်။ Paid stake စုစုပေါင်းအပေါ် paid နှင့် Free Spin payout အားလုံး၏ ရေရှည်ပြန်ပေးနှုန်း target ဖြစ်သည်။ 50% မှ 95% အတွင်း သတ်မှတ်နိုင်သည်။ သိမ်းပြီးနောက် စမည့် paid round အသစ်များတွင် သက်ရောက်ပြီး ထို round မှရသော Free Spins များသည် RTP တူညီစွာအသုံးပြုမည်။ တစ်လှည့်ချင်းအတွက် အနိုင်အရှုံးအာမခံချက် မဟုတ်ပါ။</p>
+            <form onSubmit={saveBuffaloRtp} className="mt-5 flex flex-wrap items-end gap-3">
+              <label className="block text-sm font-bold text-white/70">RTP ရာခိုင်နှုန်း
+                <input type="number" min={50} max={95} step={1} value={buffaloRtp} onChange={(event) => setBuffaloRtp(event.target.value)} className="mt-2 block w-40 rounded-xl border border-white/15 bg-black/40 px-4 py-3 font-mono text-xl text-white outline-none focus:border-cyan-300" />
+              </label>
+              <button type="submit" disabled={buffaloRtpBusy} className="min-h-12 rounded-xl bg-cyan-300 px-6 text-sm font-black text-zinc-950 disabled:opacity-50">{buffaloRtpBusy ? 'သိမ်းဆည်းနေသည်…' : 'Buffalo RTP သိမ်းမည်'}</button>
+            </form>
+            {buffaloRtpNotice && <p role="status" className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white/80">{buffaloRtpNotice}</p>}
           </section>
         </div>}
       </div>

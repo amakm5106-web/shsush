@@ -1,6 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { createBuffaloOutcome, ensureBuffaloSchema, isBuffaloStake } from '@/lib/buffaloSlotServer';
+import {
+  BUFFALO_RTP_VERSION,
+  DEFAULT_BUFFALO_RTP_PERCENT,
+  createBuffaloOutcome,
+  ensureBuffaloSchema,
+  getBuffaloFreeSpinAward,
+  isBuffaloRtpPercent,
+  isBuffaloStake,
+} from '@/lib/buffaloSlotServer';
 import { getTursoClient } from '@/lib/turso';
 import { getSessionUser } from '@/lib/tursoAuth';
 
@@ -133,7 +141,7 @@ export async function POST(req: NextRequest) {
     }
 
     const stateResult = await tx.execute({
-      sql: 'SELECT freeSpinsRemaining, freeSpinStake, lossStreak FROM buffalo_player_state WHERE userId = ? LIMIT 1',
+      sql: 'SELECT freeSpinsRemaining, freeSpinStake, freeSpinRtpPercent, freeSpinFeatureId FROM buffalo_player_state WHERE userId = ? LIMIT 1',
       args: [user.uid],
     });
     const playerState = stateResult.rows[0] as DbRow | undefined;
@@ -145,6 +153,28 @@ export async function POST(req: NextRequest) {
       await tx.rollback();
       return json({ success: false, code: 'INVALID_SERVER_STATE', error: 'လှည့်မှုကို ယခု မစတင်နိုင်ပါ။ ပြန်ကြိုးစားပါ။' }, 409);
     }
+
+    const storedFeatureRtp = playerState?.freeSpinRtpPercent == null
+      ? DEFAULT_BUFFALO_RTP_PERCENT
+      : Number(playerState.freeSpinRtpPercent);
+    if (isFreeSpin && !isBuffaloRtpPercent(storedFeatureRtp)) {
+      await tx.rollback();
+      return json({ success: false, code: 'INVALID_SERVER_STATE', error: 'Free Spin ဆက်တင် မမှန်ကန်ပါ။ အကူအညီတောင်းပါ။' }, 409);
+    }
+    let configuredRtp = DEFAULT_BUFFALO_RTP_PERCENT;
+    if (!isFreeSpin) {
+      const rtpConfig = await tx.execute({
+        sql: 'SELECT value FROM settings WHERE key = ? LIMIT 1',
+        args: ['buffalo_rtp_percent'],
+      });
+      const savedRtpValue = rtpConfig.rows[0]?.value;
+      configuredRtp = savedRtpValue == null ? DEFAULT_BUFFALO_RTP_PERCENT : Number(savedRtpValue);
+      if (!isBuffaloRtpPercent(configuredRtp)) {
+        await tx.rollback();
+        return json({ success: false, code: 'RTP_CONFIG_INVALID', error: 'ဂိမ်းဆက်တင်ကို စစ်ဆေးပြီးမှ ပြန်ကြိုးစားပါ။' }, 503);
+      }
+    }
+    const appliedRtpPercent = isFreeSpin ? storedFeatureRtp : configuredRtp;
 
     let charged = 0;
     if (!isFreeSpin) {
@@ -170,17 +200,17 @@ export async function POST(req: NextRequest) {
       await tx.execute({ sql: 'UPDATE users SET updatedAt = ? WHERE uid = ?', args: [Date.now(), user.uid] });
     }
 
-    const lossStreak = Math.max(0, Number(playerState?.lossStreak || 0));
-    const outcome = createBuffaloOutcome(stake, isFreeSpin, lossStreak);
-    let freeSpinsAwarded = 0;
-    if (outcome.scatterCount >= 3) {
-      freeSpinsAwarded = outcome.scatterCount >= 5 ? 25 : outcome.scatterCount === 4 ? 15 : 8;
-    }
+    const outcome = createBuffaloOutcome(stake, isFreeSpin, appliedRtpPercent);
+    const freeSpinsAwarded = getBuffaloFreeSpinAward(outcome.scatterCount);
     const freeSpinsRemaining = (isFreeSpin ? freeSpinsBefore - 1 : 0) + freeSpinsAwarded;
     const freeSpinStake = freeSpinsRemaining > 0
       ? (isFreeSpin ? storedFreeSpinStake : stake)
       : 0;
-    const nextLossStreak = outcome.payout > 0 ? 0 : lossStreak + 1;
+    const featureId = isFreeSpin
+      ? String(playerState?.freeSpinFeatureId || `buffalo_feature_legacy_${randomUUID()}`)
+      : freeSpinsAwarded > 0 ? `buffalo_feature_${randomUUID()}` : '';
+    const nextFeatureId = freeSpinsRemaining > 0 ? featureId : '';
+    const nextFeatureRtp = freeSpinsRemaining > 0 ? appliedRtpPercent : 0;
     const createdAt = Date.now();
     const spinId = `buffalo_${randomUUID()}`;
 
@@ -193,11 +223,14 @@ export async function POST(req: NextRequest) {
     }
 
     await tx.execute({
-      sql: `INSERT INTO buffalo_player_state (userId, freeSpinsRemaining, freeSpinStake, lossStreak, updatedAt)
-        VALUES (?, ?, ?, ?, ?)
+      sql: `INSERT INTO buffalo_player_state (
+        userId, freeSpinsRemaining, freeSpinStake, lossStreak, freeSpinRtpPercent, freeSpinFeatureId, updatedAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(userId) DO UPDATE SET freeSpinsRemaining = excluded.freeSpinsRemaining,
-          freeSpinStake = excluded.freeSpinStake, lossStreak = excluded.lossStreak, updatedAt = excluded.updatedAt`,
-      args: [user.uid, freeSpinsRemaining, freeSpinStake, nextLossStreak, createdAt],
+          freeSpinStake = excluded.freeSpinStake, lossStreak = excluded.lossStreak,
+          freeSpinRtpPercent = excluded.freeSpinRtpPercent, freeSpinFeatureId = excluded.freeSpinFeatureId,
+          updatedAt = excluded.updatedAt`,
+      args: [user.uid, freeSpinsRemaining, freeSpinStake, 0, nextFeatureRtp, nextFeatureId, createdAt],
     });
 
     const balanceResult = await tx.execute({ sql: 'SELECT balance FROM users WHERE uid = ? LIMIT 1', args: [user.uid] });
@@ -207,11 +240,12 @@ export async function POST(req: NextRequest) {
     await tx.execute({
       sql: `INSERT INTO buffalo_spins (
         id, userId, requestId, requestedStake, stake, charged, payout, balanceAfter, isFreeSpin,
-        freeSpinsAwarded, freeSpinsRemaining, symbolsJson, winningCellsJson, scatterPositionsJson, multiplier, createdAt
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        freeSpinsAwarded, freeSpinsRemaining, featureId, rtpPercent, rtpVersion,
+        symbolsJson, winningCellsJson, scatterPositionsJson, multiplier, createdAt
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         spinId, user.uid, requestId, requestedStake, stake, charged, outcome.payout, balance,
-        isFreeSpin ? 1 : 0, freeSpinsAwarded, freeSpinsRemaining,
+        isFreeSpin ? 1 : 0, freeSpinsAwarded, freeSpinsRemaining, featureId, appliedRtpPercent, BUFFALO_RTP_VERSION,
         JSON.stringify(outcome.symbols), JSON.stringify(outcome.winningCells),
         JSON.stringify(outcome.scatterPositions), outcome.multiplier, createdAt,
       ],

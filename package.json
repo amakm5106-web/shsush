@@ -8,6 +8,7 @@
     "postbuild": "node scripts/copy-next-standalone-assets.mjs",
     "start": "next start",
     "lint": "eslint .",
+    "validate:buffalo-rtp": "node scripts/validate-buffalo-rtp.mjs",
     "clean": "next clean"
   },
   "dependencies": {

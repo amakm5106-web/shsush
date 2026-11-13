@@ -41,6 +41,43 @@ export function isBuffaloStake(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && LEGAL_STAKES.has(value) && value <= 40_000;
 }
 
+export const DEFAULT_BUFFALO_RTP_PERCENT = 80;
+export const MIN_BUFFALO_RTP_PERCENT = 50;
+export const MAX_BUFFALO_RTP_PERCENT = 95;
+export const BUFFALO_RTP_VERSION = 'buffalo-rtp-calibrated-v1';
+export const BUFFALO_FREE_SPINS_PER_TRIGGER = 3;
+
+// Calibrated from 1,000,000 paid features per legal stake with Free Spin retriggers modeled.
+// Scale applies after the base cap, so the configured RTP remains achievable across stake bands.
+export const BUFFALO_PAYOUT_SCALE_AT_80: Readonly<Record<number, number>> = {
+  80: 1.465577388, 160: 1.464923639, 240: 1.465679153, 320: 1.465675931, 400: 1.466332502,
+  480: 1.464589744, 560: 1.470007798, 640: 1.466652672, 720: 1.465339814, 800: 1.465878964,
+  1200: 1.464882062, 1600: 1.464990034, 2000: 1.758073920, 2400: 1.756456282, 2800: 1.761165961,
+  3200: 1.759243793, 3600: 1.757962445, 4000: 1.756385664, 4800: 1.755505321,
+  5600: 2.040916225, 6400: 2.035002100, 7200: 2.037912821, 8000: 2.038598635, 9600: 2.038156584,
+  11200: 2.346379268, 12000: 2.346459307, 12800: 2.346756989, 14400: 2.343130026, 16000: 2.343500694,
+  20000: 2.826793793, 24000: 2.832416193, 28000: 2.826981938, 32000: 2.825833280,
+  36000: 2.837016429, 40000: 2.830409563,
+};
+
+export function isBuffaloRtpPercent(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) &&
+    value >= MIN_BUFFALO_RTP_PERCENT && value <= MAX_BUFFALO_RTP_PERCENT;
+}
+
+export function getBuffaloPayoutScale(stake: number, rtpPercent: number) {
+  if (!isBuffaloStake(stake) || !isBuffaloRtpPercent(rtpPercent)) throw new Error('Invalid Buffalo RTP configuration');
+  const calibration = BUFFALO_PAYOUT_SCALE_AT_80[stake];
+  if (!Number.isFinite(calibration) || calibration <= 0) throw new Error('Missing Buffalo RTP calibration');
+  return calibration * (rtpPercent / DEFAULT_BUFFALO_RTP_PERCENT);
+}
+
+export function getBuffaloFreeSpinAward(scatterCount: number) {
+  return Number.isInteger(scatterCount) && scatterCount >= 3
+    ? BUFFALO_FREE_SPINS_PER_TRIGGER
+    : 0;
+}
+
 export type BuffaloOutcome = {
   reels: ReelSymbol[][];
   wildMultipliers: Record<string, number>;
@@ -66,12 +103,10 @@ function randomRow(random: RandomSource) {
 /** Ports the existing Shsush Buffalo outcome generator, excluding all engagement telemetry. */
 export function generateBuffaloOutcome(
   isFreeSpin: boolean,
-  lossStreak: number,
   stake: number,
   random: RandomSource = secureRandom,
 ): Pick<BuffaloOutcome, 'reels' | 'wildMultipliers' | 'scatterCount'> {
   let hitProbability = isFreeSpin ? 0.18 : 0.09;
-  if (!isFreeSpin && lossStreak >= 12) hitProbability = 0.14;
 
   if (!isFreeSpin) {
     if (stake >= 20_000) hitProbability = Math.min(hitProbability, 0.05);
@@ -85,21 +120,14 @@ export function generateBuffaloOutcome(
   let scatterCount = 0;
 
   if (isWinningSpin) {
-    const isRecoveryBonus = !isFreeSpin && lossStreak >= 12;
     let winSymbol: RegularSymbol;
-    let winLength = 3;
-
-    if (isRecoveryBonus) {
-      winSymbol = random() < 0.6 ? 'wolf' : 'bear';
-    } else {
-      const symbolRoll = random();
-      if (symbolRoll < 0.02) winSymbol = 'buffalo';
-      else if (symbolRoll < 0.07) winSymbol = 'eagle';
-      else if (symbolRoll < 0.28) winSymbol = 'bear';
-      else if (symbolRoll < 0.62) winSymbol = 'wolf';
-      else winSymbol = 'moose';
-      winLength = random() < 0.94 ? 3 : 4;
-    }
+    const symbolRoll = random();
+    if (symbolRoll < 0.02) winSymbol = 'buffalo';
+    else if (symbolRoll < 0.07) winSymbol = 'eagle';
+    else if (symbolRoll < 0.28) winSymbol = 'bear';
+    else if (symbolRoll < 0.62) winSymbol = 'wolf';
+    else winSymbol = 'moose';
+    const winLength = random() < 0.94 ? 3 : 4;
 
     const triggerBonus = random() < 0.01;
     for (let col = 0; col < 5; col += 1) {
@@ -278,13 +306,13 @@ export function evaluateBuffaloOutcome(
   };
 }
 
-export function createBuffaloOutcome(
+export function createBuffaloBaseOutcome(
   stake: number,
   isFreeSpin: boolean,
-  lossStreak: number,
   random: RandomSource = secureRandom,
 ): BuffaloOutcome {
-  const generated = generateBuffaloOutcome(isFreeSpin, lossStreak, stake, random);
+  if (!isBuffaloStake(stake)) throw new Error('Invalid Buffalo stake');
+  const generated = generateBuffaloOutcome(isFreeSpin, stake, random);
   const evaluated = evaluateBuffaloOutcome(generated.reels, generated.wildMultipliers, stake, isFreeSpin);
   const winningCells = Array<number>(20).fill(0);
   const symbols = Array<number>(20).fill(0);
@@ -310,14 +338,54 @@ export function createBuffaloOutcome(
   };
 }
 
+export function createBuffaloOutcome(
+  stake: number,
+  isFreeSpin: boolean,
+  rtpPercent = DEFAULT_BUFFALO_RTP_PERCENT,
+  random: RandomSource = secureRandom,
+): BuffaloOutcome {
+  if (!isBuffaloRtpPercent(rtpPercent)) throw new Error('Invalid Buffalo RTP setting');
+  const base = createBuffaloBaseOutcome(stake, isFreeSpin, random);
+  const payout = Math.round(base.payout * getBuffaloPayoutScale(stake, rtpPercent));
+  return {
+    ...base,
+    payout,
+    multiplier: payout > 0 ? Number((payout / stake).toFixed(2)) : 1,
+  };
+}
+
 const buffaloSchemaTasks = new WeakMap<Client, Promise<void>>();
+
+async function ensureBuffaloColumn(
+  client: Client,
+  table: 'buffalo_player_state' | 'buffalo_spins',
+  column: 'freeSpinRtpPercent' | 'freeSpinFeatureId' | 'featureId' | 'rtpPercent' | 'rtpVersion',
+  declaration: string,
+) {
+  const hasColumn = async () => {
+    const result = await client.execute(`PRAGMA table_info(${table})`);
+    return result.rows.some((row) => String(row.name) === column);
+  };
+  if (await hasColumn()) return;
+  try {
+    await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${declaration}`);
+  } catch (error) {
+    if (!(await hasColumn())) throw error;
+  }
+}
 
 /** Lazily provisions only the Buffalo state/settlement tables and the compatible bets table. */
 export async function ensureBuffaloSchema(client: Client) {
   const pending = buffaloSchemaTasks.get(client);
   if (pending) return pending;
 
-  const task = client.batch([
+  const task = (async () => {
+    await client.batch([
+    `CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updatedAt INTEGER
+    );`,
     `CREATE TABLE IF NOT EXISTS bets (
       id TEXT PRIMARY KEY,
       betId TEXT,
@@ -340,6 +408,8 @@ export async function ensureBuffaloSchema(client: Client) {
       freeSpinsRemaining INTEGER NOT NULL DEFAULT 0,
       freeSpinStake INTEGER NOT NULL DEFAULT 0,
       lossStreak INTEGER NOT NULL DEFAULT 0,
+      freeSpinRtpPercent INTEGER NOT NULL DEFAULT 80,
+      freeSpinFeatureId TEXT NOT NULL DEFAULT '',
       updatedAt INTEGER NOT NULL
     );`,
     `CREATE TABLE IF NOT EXISTS buffalo_spins (
@@ -354,6 +424,9 @@ export async function ensureBuffaloSchema(client: Client) {
       isFreeSpin INTEGER NOT NULL DEFAULT 0,
       freeSpinsAwarded INTEGER NOT NULL DEFAULT 0,
       freeSpinsRemaining INTEGER NOT NULL DEFAULT 0,
+      featureId TEXT NOT NULL DEFAULT '',
+      rtpPercent INTEGER NOT NULL DEFAULT 80,
+      rtpVersion TEXT NOT NULL DEFAULT 'buffalo-rtp-calibrated-v1',
       symbolsJson TEXT NOT NULL,
       winningCellsJson TEXT NOT NULL,
       scatterPositionsJson TEXT NOT NULL,
@@ -362,7 +435,13 @@ export async function ensureBuffaloSchema(client: Client) {
       UNIQUE(userId, requestId)
     );`,
     'CREATE INDEX IF NOT EXISTS idx_buffalo_spins_user_created ON buffalo_spins(userId, createdAt DESC);',
-  ], 'write').then(() => undefined);
+    ], 'write');
+    await ensureBuffaloColumn(client, 'buffalo_player_state', 'freeSpinRtpPercent', 'INTEGER NOT NULL DEFAULT 80');
+    await ensureBuffaloColumn(client, 'buffalo_player_state', 'freeSpinFeatureId', "TEXT NOT NULL DEFAULT ''");
+    await ensureBuffaloColumn(client, 'buffalo_spins', 'featureId', "TEXT NOT NULL DEFAULT ''");
+    await ensureBuffaloColumn(client, 'buffalo_spins', 'rtpPercent', 'INTEGER NOT NULL DEFAULT 80');
+    await ensureBuffaloColumn(client, 'buffalo_spins', 'rtpVersion', "TEXT NOT NULL DEFAULT 'buffalo-rtp-calibrated-v1'");
+  })();
 
   buffaloSchemaTasks.set(client, task);
   try {
