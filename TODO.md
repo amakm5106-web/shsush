@@ -107,3 +107,20 @@
 - [x] Upgrade the presentation of the existing Buffalo, Live Dice, Deep Sea Catch and Sakura Fortune cards using the project's real artwork, consistent proportions, refined hover/focus states, and keyboard-accessible actions. Preserve each game's actual mechanics, odds, RTP, betting/wallet calculations, APIs, authentication, and integrations.
 - [x] Preserve all existing routes, working authentication, wallet/deposit/withdrawal/transaction history, rewards/referral, profile and admin flows. Use responsive layouts and restrained transitions; do not interfere with gameplay.
 - [x] Run the existing lint and production-build commands; fix regressions attributable to this redesign and report any pre-existing check failures separately.
+
+
+## Pearl glass UI/UX across non-game pages
+
+- [x] Use the supplied dashboard image only as a light-color/material reference (pearl white, cool light gray, subtle glass, fine borders, soft shadow, restrained champagne-gold accent); do not copy its dashboard layout, add a large dashboard, charts, metric panels, or new pages.
+- [x] Apply one responsive visual language to all existing non-game player views: lobby, wallet deposit/withdrawal/referral transfer, transaction history, profile/bet history, referral/rewards, notifications, navigation, forms, empty states, and dialogs; preserve each view's current information architecture and working behavior.
+- [x] Carry the light visual treatment through the existing admin login, overview, users, deposits, withdrawals, and settings pages without adding admin widgets or changing authorization, route, review, account-adjustment, or setting-save behavior.
+- [x] Leave the live dice, Buffalo, fishing, and Sakura Fortune game screens/embeds, game art, odds, RTP, settlement, wallet calculations, and gameplay behavior unchanged.
+- [x] Keep text/control contrast, keyboard focus, accessible targets, mobile spacing, and horizontal overflow in check across non-game views; keep all existing routes and data sourced from the existing application.
+- [x] Run existing lint and production build, review the rendered non-game screens, then commit/push only the intended UI changes to `origin/main`.
+
+
+### QA evidence for Pearl-glass UI pass
+
+- Browser-checked the lobby, wallet, referral/rewards, guest profile, sign-in modal, admin login, and referral QR dialog; the QR dialog stays centered and spans the viewport.
+- A temporary 390px mobile viewport reported no horizontal overflow in the lobby, wallet, referral, or profile views; the QR dialog bounds remained inside the viewport.
+- `npm run lint` completed with 0 errors (18 warnings) and `npm run build` completed successfully; existing routes/game assets were preserved.

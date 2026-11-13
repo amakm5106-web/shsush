@@ -2201,10 +2201,10 @@ export default function Home() {
                 </header>
 
                 {/* 2. PROMOTIONAL SHOWCASE CAROUSEL */}
-                <div className="ledger-panel relative w-full overflow-hidden shadow-2xl bg-zinc-950 aspect-[16/8] sm:aspect-[16/7] md:aspect-[16/6]">
-                  {/* Slide 1: Welcome Deposit Bonus */}
+                <div className={`premium-promo-showcase ledger-panel relative w-full overflow-hidden shadow-2xl bg-zinc-950 aspect-[16/8] sm:aspect-[16/7] md:aspect-[16/6] ${promoIndex === 0 ? 'premium-promo-showcase--wallet' : ''}`}>
+                  {/* Slide 1: Wallet and payment information */}
                   {promoIndex === 0 && (
-                    <div className="relative w-full h-full flex flex-col justify-end p-4 sm:p-6 animate-fadeIn">
+                    <div className="premium-wallet-feature relative w-full h-full flex flex-col justify-end p-4 sm:p-6 animate-fadeIn">
                       <img
                         src="/assets/casino/obsidian_bg.jpg"
                         alt="Casino wallet information"

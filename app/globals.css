@@ -1343,3 +1343,215 @@ body::before { background: radial-gradient(ellipse at 84% 0%,rgba(221,204,168,.1
 @media (max-width:420px) { .premium-search { padding-inline:8px; } .premium-topbar__actions { gap:1px; } .premium-deposit-button { padding-inline:7px; } .premium-overview h1 { font-size:20px; } .premium-metrics { gap:5px; } .premium-metric { padding-inline:7px; } .premium-metric strong { font-size:11px; } .premium-games-grid { gap:9px!important; } .premium-round-item { padding:9px; } }
 @media (max-width:400px) { .premium-transaction-status { min-width:auto; padding:4px 5px; font-size:7px; } .premium-transaction-row { gap:6px; } }
 @media (prefers-reduced-motion:reduce) { .premium-sidebar,.premium-nav-item,.premium-topbar *,.premium-game-card,.premium-favorite-button,.premium-deposit-button { transition:none!important; } .premium-game-card:hover { transform:none!important; } }
+
+
+/* Pearl-glass treatment for the existing account and administration screens.
+   These selectors are deliberately scoped: embedded/live game experiences keep their original art and colors. */
+.premium-account-view {
+  border-color: rgba(224,228,233,.92);
+  background: rgba(255,255,255,.78);
+  box-shadow: 0 16px 42px rgba(48,58,72,.065), inset 0 1px 0 rgba(255,255,255,.96);
+}
+.premium-account-view :is([class*="bg-zinc-950"],[class*="bg-zinc-900"],[class*="bg-zinc-800"],[class*="bg-black/"],[class*="from-zinc-"],[class*="via-zinc-"],[class*="to-black"]):not(.premium-member-hero):not(.premium-member-hero *) {
+  border-color: #e4e7eb !important;
+  background-color: rgba(255,255,255,.88) !important;
+  background-image: none !important;
+  box-shadow: 0 6px 18px rgba(42,52,65,.045) !important;
+}
+.premium-account-view :is([class~="text-white"],[class~="text-white/95"],[class~="text-white/90"],[class~="text-white/85"],[class~="text-white/80"],[class~="text-white/75"],[class~="text-white/70"],[class~="text-white/60"],[class~="text-white/50"],[class~="text-white/40"],[class~="text-white/30"]):not(.premium-member-hero):not(.premium-member-hero *) { color: #35404d !important; }
+.premium-account-view [class*="border-white/"]:not(.premium-member-hero):not(.premium-member-hero *) { border-color: #e4e8ec !important; }
+.premium-account-view :is([class*="text-zinc-"],[class*="text-slate-"],[class*="text-gray-"]):not(.premium-member-hero):not(.premium-member-hero *) { color: #697482 !important; }
+.premium-account-view :is([class*="text-amber-400"],[class*="text-amber-300"],[class*="text-amber-200"]):not(.premium-member-hero):not(.premium-member-hero *) { color: #86652d !important; }
+.premium-account-view :is([class*="text-emerald-400"],[class*="text-emerald-300"],[class*="text-emerald-200"]):not(.premium-member-hero):not(.premium-member-hero *) { color: #47765a !important; }
+.premium-account-view :is([class*="text-red-400"],[class*="text-red-300"],[class*="text-red-200"]):not(.premium-member-hero):not(.premium-member-hero *) { color: #a85852 !important; }
+.premium-account-view :is([class*="text-blue-300"],[class*="text-blue-400"],[class*="text-cyan-400"]):not(.premium-member-hero):not(.premium-member-hero *) { color: #4b7297 !important; }
+.premium-account-view :is([class*="text-purple-300"],[class*="text-purple-400"]):not(.premium-member-hero):not(.premium-member-hero *) { color: #786392 !important; }
+.premium-account-view :is([class*="bg-white/"],[class*="bg-white/["],[class*="bg-zinc-800/"],[class*="bg-zinc-700/"]):not(.premium-member-hero):not(.premium-member-hero *) { background-color: #f5f6f7 !important; }
+.premium-account-view :is([class*="bg-red-950"],[class*="bg-red-900"]):not(.premium-member-hero):not(.premium-member-hero *) { background-color: #fff3f1 !important; }
+.premium-account-view :is([class*="bg-emerald-950"],[class*="bg-emerald-900"]):not(.premium-member-hero):not(.premium-member-hero *) { background-color: #eef6f0 !important; }
+.premium-account-view :is([class*="bg-blue-950"],[class*="bg-blue-900"]):not(.premium-member-hero):not(.premium-member-hero *) { background-color: #eff5fb !important; }
+.premium-account-view :is([class*="bg-amber-950"],[class*="bg-amber-900"]):not(.premium-member-hero):not(.premium-member-hero *) { background-color: #faf5e9 !important; }
+.premium-account-view input,
+.premium-account-view textarea,
+.premium-account-view select {
+  border-color: #dfe4e9 !important;
+  background-color: rgba(255,255,255,.94) !important;
+  color: #303a47 !important;
+  color-scheme: light;
+  box-shadow: inset 0 1px 2px rgba(40,50,64,.025);
+}
+.premium-account-view input::placeholder,
+.premium-account-view textarea::placeholder { color: #626d7a !important; }
+.premium-account-view :is([class*="stroke-white"]) { stroke: #626d7a !important; }
+.premium-account-view button[class*="bg-amber-400"] [class*="stroke-white"] { stroke: #624b22 !important; }
+.premium-account-view :is(input,textarea,select,button,a):focus-visible { outline: 3px solid rgba(181,138,69,.32); outline-offset: 2px; }
+.premium-account-view button[class*="bg-amber-400"],
+.premium-account-view a[class*="bg-amber-400"] {
+  border-color: rgba(181,138,69,.3) !important;
+  background: linear-gradient(140deg,#f3e5c7,#e4cc9d) !important;
+  color: #624b22 !important;
+  box-shadow: 0 5px 14px rgba(181,138,69,.12) !important;
+}
+.premium-account-view button[class*="bg-amber-400"]:hover,
+.premium-account-view a[class*="bg-amber-400"]:hover { background: linear-gradient(140deg,#ecdbb5,#ddc38d) !important; }
+.premium-wallet-hero,
+.premium-referral-hero,
+.premium-member-hero {
+  border-color: #e4e7eb !important;
+  background: linear-gradient(145deg,rgba(255,255,255,.98),rgba(246,247,249,.96)) !important;
+  color: #35404d !important;
+  box-shadow: 0 11px 28px rgba(42,52,65,.055), inset 0 1px 0 #fff !important;
+}
+.premium-wallet-hero > .absolute.inset-0,
+.premium-member-hero > .absolute.inset-0 { display: none !important; }
+.premium-referral-hero { background: linear-gradient(145deg,#fffdf8,#f5f6f8) !important; }
+.premium-referral-hero > .absolute { opacity: .32; }
+.premium-account-view .premium-member-hero [class*="text-white"],
+.premium-account-view .premium-member-hero [class*="text-zinc-"],
+.premium-account-view .premium-member-hero [class*="text-amber-"] { color: #35404d !important; }
+.premium-account-view .premium-member-hero [class*="border-white/"] { border-color: #e4e7eb !important; }
+.premium-account-view .premium-referral-view > div,
+.premium-account-view .premium-profile-view > div,
+.premium-account-view .premium-wallet-view > div { border-color: #e4e7eb; }
+.premium-account-view .premium-referral-view [class*="fixed"][class*="bg-black/"] {
+  background: rgba(27,34,43,.52) !important;
+  background-image: none !important;
+  backdrop-filter: blur(12px);
+}
+.premium-account-view .premium-referral-view [class*="fixed"] > div { background: #fff !important; color: #35404d !important; }
+.premium-account-view .premium-referral-view [class*="fixed"] > div [class*="text-white"],
+.premium-account-view .premium-referral-view [class*="fixed"] > div [class*="text-zinc-"] { color: #596574 !important; }
+
+/* Apply the same light surfaces to the existing admin login and admin routes; no dashboard structure is added. */
+.admin-light-shell {
+  min-height: 100svh;
+  background: radial-gradient(ellipse at 82% 0%,rgba(226,211,181,.22),transparent 34%),linear-gradient(145deg,#f6f7f9,#eef1f5) !important;
+  color: #303a47 !important;
+  color-scheme: light;
+}
+.admin-light-shell header {
+  border-color: rgba(224,228,233,.92) !important;
+  background: rgba(255,255,255,.84) !important;
+  color: #303a47 !important;
+  box-shadow: 0 5px 18px rgba(42,52,65,.035);
+  backdrop-filter: blur(22px);
+}
+.admin-light-shell :is(.ledger-panel,section,form.w-full.max-w-sm) {
+  border-color: #e3e7eb !important;
+  background: rgba(255,255,255,.86) !important;
+  color: #303a47 !important;
+  box-shadow: 0 9px 26px rgba(42,52,65,.05), inset 0 1px 0 rgba(255,255,255,.96);
+}
+.admin-light-shell :is([class*="bg-[#070a12]"],[class*="bg-zinc-950"],[class*="bg-zinc-900"],[class*="bg-black/"],[class*="bg-white/"],[class*="bg-white/["],[class*="bg-emerald-950"],[class*="bg-cyan-950"],[class*="bg-rose-950"],[class*="bg-pink-950"],[class*="bg-amber-950"]) {
+  border-color: #e3e7eb !important;
+  background-color: rgba(255,255,255,.88) !important;
+  background-image: none !important;
+  color: #35404d;
+}
+.admin-light-shell :is([class*="text-white"],[class*="text-amber-100"],[class*="text-amber-200"],[class*="text-cyan-100"],[class*="text-cyan-200"],[class*="text-emerald-100"],[class*="text-emerald-200"],[class*="text-rose-100"],[class*="text-rose-200"],[class*="text-pink-100"],[class*="text-pink-200"]) { color: #4d5866 !important; }
+.admin-light-shell :is([class*="text-white/40"],[class*="text-white/50"],[class*="text-white/60"],[class*="text-white/70"]) { color: #626d7a !important; }
+.admin-light-shell :is([class*="text-amber-400"],[class*="text-amber-300"]) { color: #86652d !important; }
+.admin-light-shell :is([class*="text-emerald-300"],[class*="text-emerald-400"]) { color: #47765a !important; }
+.admin-light-shell :is([class*="text-cyan-300"],[class*="text-cyan-400"]) { color: #4b7297 !important; }
+.admin-light-shell :is([class*="text-red-200"],[class*="text-red-300"],[class*="text-rose-200"]) { color: #a85852 !important; }
+.admin-light-shell :is([class*="border-white/"]) { border-color: #e3e7eb !important; }
+.admin-light-shell input,
+.admin-light-shell textarea,
+.admin-light-shell select { border-color: #dfe4e9 !important; background-color: #fff !important; color: #303a47 !important; color-scheme: light; }
+.admin-light-shell input::placeholder,
+.admin-light-shell textarea::placeholder { color: #626d7a !important; }
+.admin-light-shell nav a { min-height: 78px; border-radius: 16px !important; box-shadow: 0 5px 16px rgba(42,52,65,.04); }
+.admin-light-shell nav a[aria-current="page"] { border-color: rgba(181,138,69,.3) !important; background: linear-gradient(130deg,#f7efdf,#fffdf9) !important; }
+.admin-light-shell table thead { background: #f5f6f8 !important; color: #66717e !important; }
+.admin-light-shell table tbody tr { border-color: #e8ebef !important; }
+.admin-light-shell :is(button,a):focus-visible { outline: 3px solid rgba(181,138,69,.34); outline-offset: 2px; }
+@media (max-width:760px) {
+  .premium-account-view { padding: 12px; border-radius: 18px; }
+  .premium-account-view .premium-wallet-hero > div[class*="p-5"],
+  .premium-account-view .premium-member-hero > div[class*="p-5"] { padding: 16px !important; }
+  .admin-light-shell header > div { align-items: flex-start; flex-direction: column; }
+  .admin-light-shell nav a { min-height: 68px; }
+  .admin-light-shell table th,.admin-light-shell table td { padding: 10px 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .premium-account-view *, .admin-light-shell * { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+
+
+/* The player authentication dialog inherits Pearl styling on browsing/account screens only. */
+.premium-portal:not(.premium-portal--game) .auth-backdrop { background: rgba(62,70,81,.38) !important; backdrop-filter: blur(18px); }
+.premium-portal:not(.premium-portal--game) .auth-shell {
+  border-color: rgba(223,227,232,.96) !important;
+  background: rgba(255,255,255,.96) !important;
+  color: #303a47 !important;
+  box-shadow: 0 28px 84px rgba(35,43,54,.2), inset 0 1px 0 #fff !important;
+}
+.premium-portal:not(.premium-portal--game) .auth-visual { border-color: #e2e5e9 !important; background: linear-gradient(145deg,#f8f3e8,#edf0f4) !important; }
+.premium-portal:not(.premium-portal--game) .auth-visual > div.absolute:first-child { background: linear-gradient(145deg,rgba(248,243,232,.92),rgba(232,237,243,.96)) !important; }
+.premium-portal:not(.premium-portal--game) .auth-visual > div.absolute:nth-child(2) { opacity: .12 !important; }
+.premium-portal:not(.premium-portal--game) .auth-shell :is([class*="text-white"],[class*="text-white/"]) { color: #46515f !important; }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-label { color: #65717f !important; }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-tab { color: #626d7a; }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-tab:hover { color: #55482f; }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-tab-active { background: linear-gradient(140deg,#f1e4c8,#dfc796); color: #60491f; box-shadow: 0 5px 14px rgba(181,138,69,.15); }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-input { border-color: #dfe4e9; background: rgba(248,249,250,.94); color: #303a47; }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-input::placeholder { color: #626d7a; }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-input:focus { border-color: rgba(181,138,69,.6); background: #fff; box-shadow: 0 0 0 3px rgba(181,138,69,.1); }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-input-icon,
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-eye { color: #626d7a; }
+.premium-portal:not(.premium-portal--game) .auth-shell [class*="stroke-white"] { stroke: #626d7a !important; }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-submit { border: 1px solid rgba(181,138,69,.3); background: linear-gradient(140deg,#f3e5c7,#e4cc9d); color: #624b22; box-shadow: 0 9px 22px rgba(181,138,69,.16); }
+.premium-portal:not(.premium-portal--game) .auth-shell .auth-submit:hover { background: linear-gradient(140deg,#ecdbb5,#ddc38d); box-shadow: 0 12px 28px rgba(181,138,69,.2); }
+.premium-account-view .premium-member-hero [class*="text-amber-"] { color: #86652d !important; }
+.premium-account-view .premium-member-hero [class*="text-emerald-"] { color: #47765a !important; }
+@media (max-width:760px) {
+  .ledger-nav button:not([class*="bg-white"]) svg { color: #7c8590 !important; stroke: #7c8590 !important; }
+  .ledger-nav button[class*="bg-white"] svg { color: #72531c !important; stroke: #72531c !important; }
+}
+
+
+/* Lobby wallet information uses the reference palette; other carousel slides retain their original game art. */
+.premium-portal:not(.premium-portal--game) .premium-promo-showcase--wallet {
+  border-color: #e3e6ea !important;
+  background: radial-gradient(ellipse at 82% 50%,rgba(224,207,170,.22),transparent 34%),linear-gradient(135deg,#fff,#f1f3f6) !important;
+  box-shadow: 0 14px 36px rgba(42,52,65,.065),inset 0 1px 0 #fff !important;
+}
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature {
+  min-height: 250px;
+  justify-content: center !important;
+  padding: clamp(22px,4vw,58px) !important;
+}
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature > img,
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature > .absolute.inset-0 { display: none !important; }
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature::after {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  right: clamp(24px,9%,110px);
+  width: clamp(130px,20vw,245px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(181,138,69,.26);
+  border-radius: 48% 52% 46% 54%;
+  background: radial-gradient(ellipse at 34% 30%,rgba(255,255,255,.86),rgba(236,226,204,.2) 54%,rgba(255,255,255,.06) 72%);
+  box-shadow: inset 0 0 34px rgba(181,138,69,.1),0 10px 35px rgba(181,138,69,.07);
+  content: "";
+  pointer-events: none;
+  transform: translateY(-50%) rotate(-16deg);
+}
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature > .relative { max-width: min(62%,650px); }
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature > .relative > span { color: #86652d !important; letter-spacing: .16em; }
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature h2 { color: #293440 !important; font-size: clamp(18px,2.2vw,29px) !important; letter-spacing: -.035em; }
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature p { color: #626d7a !important; font-size: 12px; }
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature button {
+  border: 1px solid rgba(181,138,69,.3);
+  background: linear-gradient(140deg,#f3e5c7,#e4cc9d) !important;
+  color: #624b22 !important;
+  box-shadow: 0 7px 18px rgba(181,138,69,.14);
+}
+.premium-portal:not(.premium-portal--game) .premium-wallet-feature button:hover { background: linear-gradient(140deg,#ecdbb5,#ddc38d) !important; }
+@media (max-width:760px) {
+  .premium-portal:not(.premium-portal--game) .premium-wallet-feature { min-height: 225px; padding: 22px 18px !important; }
+  .premium-portal:not(.premium-portal--game) .premium-wallet-feature > .relative { max-width: 75%; }
+  .premium-portal:not(.premium-portal--game) .premium-wallet-feature::after { right: -22px; width: 148px; opacity: .65; }
+  .premium-portal:not(.premium-portal--game) .premium-wallet-feature p { max-width: 90%; font-size: 10px; }
+}

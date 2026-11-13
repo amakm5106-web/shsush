@@ -159,7 +159,7 @@ export function ReferralView({
   });
 
   return (
-    <div className="w-full flex flex-col gap-4 pb-12 animate-fadeIn">
+    <div className="premium-referral-view w-full flex flex-col gap-4 pb-12 animate-fadeIn">
       {/* 1. TOP VIP REFERRAL HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-3xl bg-zinc-950/80 border border-white/10 backdrop-blur-2xl shadow-xl">
         <div className="flex items-center gap-3">
@@ -195,7 +195,7 @@ export function ReferralView({
       </div>
 
       {/* 2. AFFILIATE HERO CARD (Instant Link, QR Code & Share) */}
-      <div className="p-4 sm:p-6 rounded-3xl bg-gradient-to-br from-zinc-900/90 via-zinc-950/95 to-black border border-white/10 backdrop-blur-2xl shadow-2xl relative overflow-hidden">
+      <div className="premium-referral-hero p-4 sm:p-6 rounded-3xl bg-gradient-to-br from-zinc-900/90 via-zinc-950/95 to-black border border-white/10 backdrop-blur-2xl shadow-2xl relative overflow-hidden">
         {/* Ambient Glow */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 

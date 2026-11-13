@@ -105,15 +105,15 @@ Candidate styles: editorial finance console (0.07), obsidian operations desk (0.
 
 ### Implementation approach
 
-Refresh the existing Next.js App Router player experience in place. Keep the Firestore/Turso-backed account session, wallet, payment request handlers, transaction history, referral flows, and all four existing games intact. Reuse the current casino artwork under `public/assets/casino/` and `public/games/sakura-fortune/assets/`; do not fabricate account balances, transaction records, recent wins, or unsupported promotion terms. Build the main navigation shell and responsive lobby in `app/page.tsx`, apply the luxury light design tokens and mobile/desktop layouts in `app/globals.css`, and set the pearl theme metadata in `app/layout.tsx`. Keep user transaction and account subviews wired to their existing components with a scoped light-surface treatment. The static route manifest stays aligned with the existing `/`, admin and `/sakura-fortune` routes.
+Refresh the existing Next.js App Router casino experience in place, using the user's dashboard image only as a palette/material reference—not as a request to add a new dashboard, metrics, or information architecture. Restyle all existing non-game player views (lobby, wallet, transaction history, referral/rewards, profile, notices, and their responsive navigation) and the existing administrative pages without adding pages or summary widgets. Preserve the existing page hierarchy, Firestore/Turso account session, payment handlers, forms, transaction history, referrals, admin review/settings actions, and route destinations. Exclude the live dice, Buffalo, fishing, and Sakura game screens/embeds and do not change their gameplay, artwork, or settlement logic. Reuse the existing casino/payment artwork. Apply the Pearl glass palette and responsive surfaces in `app/globals.css`, add narrowly scoped theme hooks to existing view/admin roots if needed, and preserve `app/layout.tsx` metadata and `public/manus-routes.json` route coverage.
 
 ### Design
 
-- **Design movement:** quiet luxury fintech dashboard with the clarity of a pearl-white portfolio console and the polish of a premium casino lobby.
-- **Core principles:** factual account data; calm hierarchy and spacing; consistent Lucide line icons; preserve game identity and operations.
-- **Color philosophy:** pearl white and cool gray form a reassuring canvas, charcoal carries essential information, champagne gold signals focus and primary action, and muted green/red remain reserved for status semantics.
-- **Layout paradigm:** fixed-width desktop navigation rail with an airy utility header and broad content canvas; on mobile, a compact search header, slide-in navigation and touch-friendly bottom bar.
-- **Signature elements:** champagne-edged logo tile, quiet metric cards with tabular money, and portrait casino artwork framed by soft card elevation.
+- **Design movement:** soft Pearl glass—cool pearl-white surfaces, subtle translucency and polished champagne details, adapted to the existing casino pages rather than copying a dashboard template.
+- **Core principles:** keep the current page structures and functions; extend the same calm visual language to every non-game screen; use clear contrast and responsive spacing; leave game experiences intact.
+- **Color philosophy:** airy pearl, mist gray and translucent white create a clean canvas; charcoal anchors text; champagne gold highlights focus and primary action; restrained green/red/blue continue to communicate functional statuses.
+- **Layout paradigm:** retain the existing player shell, lobby, account forms/history and existing admin navigation; improve alignment, surfaces, density and mobile behavior without adding dashboard widgets, charts, or invented sections.
+- **Signature elements:** soft glass-like panels with fine cool-gray edges, bright surfaces with gentle layered shadows, and small champagne-gold interaction accents.
 - **Interaction philosophy:** direct, reversible navigation; live search and category filters; explicit favorite controls; preserve existing wallet and game actions.
 - **Animation:** brief elevation and color transitions, reduced-motion support, and no motion added to live game mechanics.
 - **Typography:** existing system sans with Myanmar fallbacks; clear heading hierarchy and tabular numerals for MMK values.

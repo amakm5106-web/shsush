@@ -243,9 +243,9 @@ export function WalletView({
   const quickWithdrawPresets = [3000, 5000, 10000, 30000, 50000, 100000];
 
   return (
-    <div className="w-full flex flex-col gap-4 pb-12 animate-fadeIn">
+    <div className="premium-wallet-view w-full flex flex-col gap-4 pb-12 animate-fadeIn">
       {/* 1. TOP VIP BALANCE & WALLET HERO */}
-      <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-950/90">
+      <div className="premium-wallet-hero relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-950/90">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-30 pointer-events-none"
           style={{ backgroundImage: `url('/assets/casino/obsidian_bg.jpg')` }}

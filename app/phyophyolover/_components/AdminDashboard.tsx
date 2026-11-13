@@ -192,9 +192,9 @@ export default function AdminDashboard({ section }: { section: DashboardSection 
 
   const logout = async () => { await fetch('/api/admin/session', { method: 'DELETE', credentials: 'include' }); setAuthenticated(false); };
 
-  if (authenticated === null) return <main className="min-h-screen bg-[#070a12] text-white grid place-items-center">Loading...</main>;
+  if (authenticated === null) return <main className="admin-light-shell min-h-screen bg-[#070a12] text-white grid place-items-center">Loading...</main>;
   if (!authenticated) return (
-    <main className="min-h-screen bg-[#070a12] text-white grid place-items-center p-4">
+    <main className="admin-light-shell min-h-screen bg-[#070a12] text-white grid place-items-center p-4">
       <form onSubmit={login} className="w-full max-w-sm rounded-3xl border border-amber-400/20 bg-zinc-950 p-6 shadow-2xl">
         <div className="mb-6"><p className="text-xs font-bold uppercase tracking-[0.3em] text-amber-400">X-SITE CONTROL</p><h1 className="mt-2 text-2xl font-black">Admin Dashboard</h1><p className="mt-1 text-xs text-white/50">Authorized operators only</p></div>
         <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" autoComplete="username" className="mb-3 w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-amber-400" />
@@ -215,7 +215,7 @@ export default function AdminDashboard({ section }: { section: DashboardSection 
   const pageTitle = navItems.find((item) => item.key === section)?.title || 'Overview';
 
   return (
-    <main className="min-h-screen bg-[#070a12] text-white">
+    <main className="admin-light-shell min-h-screen bg-[#070a12] text-white">
       <header className="border-b border-white/10 bg-zinc-950/90 px-4 py-4 backdrop-blur sm:px-8">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
           <div className="flex items-center gap-3">
