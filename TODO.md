@@ -156,3 +156,21 @@
 - The refreshed guest profile was visually reviewed; the CS Bot header and floating controls both compute to translucent white with neutral charcoal text/borders.
 - A 390px mobile preview reported no horizontal overflow; the profile card and sign-in CTA stayed within the viewport.
 - `npm run lint` completed with 0 errors (17 warnings), and `npm run build` completed successfully.
+
+
+## iOS Liquid Glass hierarchy and text containment
+
+- [x] Make the existing casino UI feel closer to current iOS Liquid Glass: create a distinct floating frosted layer for sidebars, top/search/navigation bars, icon controls, popovers, and transient actions; keep forms, wallet balances, bet records, headings, and other reading content on clearer neutral standard-material surfaces. Use glass selectively, not as a blur on every card, and do not add an iOS-style dashboard or new routes.
+- [x] Keep the established white/black/neutral-gray palette and the existing non-game functionality; use adaptive blur, thin inner-edge highlights, refined continuous rounded corners, careful spacing, and restrained interaction feedback without introducing color accents, glowing dots/orbs, or game-page changes.
+- [x] Keep every visible string within its own card, input, button, dialog, and viewport, including long Burmese copy, usernames, email/UID, referral links, transaction details, and action labels. Allow long text to wrap, shrink flex/grid children safely, preserve readable line-height and padding, avoid clipped text and accidental horizontal overflow, and reflow at 390px mobile width.
+- [ ] Validate the player views and existing admin/404 surfaces at desktop and 390px widths; keep gameplay pages untouched and push the focused UI changes to `origin/main`.
+
+
+### Final iOS Liquid Glass QA evidence
+
+- At a 390px test-frame width, the lobby, Wallet, Referral, guest Profile, Auth modal, admin login and 404 page reported no document horizontal overflow. Visible text/control bounds remained inside their surfaces.
+- The 72-character referral URL stayed within its read-only input and Copy action; no text-range overflow was measured inside the Referral view. The QR dialog measured 343×441px at x=16..359 and y=230..670, fully inside the mobile viewport. The Auth modal measured 366px wide at x=12..378 and stayed centered within the viewport.
+- Desktop views were reviewed for the lobby, Referral and administrator login. Existing Apple Materials and Liquid Glass source links remain documented in `plan.md`.
+- Replaced the remaining Referral transfer hourglass glyph with a monochrome Lucide `RefreshCw` line icon; a pictograph scan of non-game components returned no matches.
+- `npm run lint` completed with 0 errors (17 warnings); `npm run build` completed successfully. The route manifest parsed and contained 7 routes; `git diff --check` passed.
+- The only changed code paths are `app/globals.css` and `components/views/ReferralView.tsx`; no game implementation files or gameplay logic changed.

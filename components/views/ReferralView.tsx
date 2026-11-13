@@ -19,6 +19,7 @@ import {
   X,
   ChevronRight,
   Crown,
+  RefreshCw,
   CheckCircle2,
   AlertCircle,
 } from 'lucide-react';
@@ -350,7 +351,7 @@ export function ReferralView({
             className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-black text-xs transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 shrink-0 disabled:opacity-50"
           >
             {transferring ? (
-              <span className="animate-spin text-base">⏳</span>
+              <RefreshCw className="w-4 h-4 animate-spin" aria-hidden="true" />
             ) : (
               <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
             )}
